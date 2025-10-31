@@ -5,9 +5,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -26,7 +24,6 @@ fun BookingChatIntegration(
 ) {
     val chatState by chatViewModel.chatState.collectAsStateWithLifecycle()
     val newMessageNotification by chatViewModel.newMessageNotification.collectAsStateWithLifecycle()
-    val context = LocalContext.current
 
     // Initialize chat when component mounts
     LaunchedEffect(booking.id) {
@@ -75,18 +72,31 @@ fun ChatFloatingActionButton(
     modifier: Modifier = Modifier,
     chatViewModel: ChatViewModel = hiltViewModel()
 ) {
-    LaunchedEffect(booking.id) {
-        chatViewModel.setCurrentUser(currentUser)
-        chatViewModel.setCurrentBooking(booking.id)
+    // Observe active chats for reactivity
+    val activeChats by chatViewModel.activeChats.collectAsStateWithLifecycle()
+    val hasActiveChat = remember(activeChats, booking.id) {
+        activeChats.any { it.bookingId == booking.id && it.isActive }
     }
 
-    ChatFloatingButton(
-        bookingId = booking.id,
-        chatService = chatViewModel.chatService,
-        currentUser = currentUser,
-        onClick = onOpenChat,
-        modifier = modifier
-    )
+    LaunchedEffect(booking.id, booking.status) {
+        chatViewModel.setCurrentUser(currentUser)
+        chatViewModel.setCurrentBooking(booking.id)
+        // Initialize chat once the booking is accepted or in progress and no active chat exists yet
+        if ((booking.status == BookingStatus.ACCEPTED || booking.status == BookingStatus.IN_PROGRESS) && !hasActiveChat) {
+            chatViewModel.initializeChat(booking, currentUser, null, null)
+        }
+    }
+
+    // Only show the FAB when there's an active chat for this booking
+    if (hasActiveChat) {
+        ChatFloatingButton(
+            bookingId = booking.id,
+            chatService = chatViewModel.chatService,
+            currentUser = currentUser,
+            onClick = onOpenChat,
+            modifier = modifier
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -96,10 +106,8 @@ fun FullChatScreen(
     currentUser: User,
     onBack: () -> Unit,
     onLocationShare: () -> Unit = {},
-    modifier: Modifier = Modifier,
     chatViewModel: ChatViewModel = hiltViewModel()
 ) {
-    val chatState by chatViewModel.chatState.collectAsStateWithLifecycle()
 
     // Initialize chat
     LaunchedEffect(bookingId) {

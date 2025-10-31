@@ -3,7 +3,11 @@ package com.example.toda.ui.components
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
@@ -18,20 +22,50 @@ import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polyline
 import com.example.toda.R
+import com.example.toda.service.GeocodingService
+import com.example.toda.service.RoutingService
+import javax.inject.Inject
 
 @Composable
 fun OSMMapView(
+    modifier: Modifier = Modifier,
     pickupLocation: GeoPoint?,
     dropoffLocation: GeoPoint?,
     onMapClick: (GeoPoint) -> Unit,
     onPickupLocationDragged: (GeoPoint) -> Unit = {},
     onDropoffLocationDragged: (GeoPoint) -> Unit = {},
-    modifier: Modifier = Modifier,
+    onInvalidLocationSelected: (String) -> Unit = {},
     restrictToBarangay177: Boolean = false,
     enableZoom: Boolean = true,
-    enableDrag: Boolean = true
+    enableDrag: Boolean = true,
+    validateBarangay177: Boolean = true,
+    routingService: RoutingService? = null
 ) {
     val context = LocalContext.current
+    val geocodingService = remember { GeocodingService() }
+    val injectedRoutingService = routingService ?: remember { RoutingService() }
+
+    // State to hold the current route points
+    var routePoints by remember { mutableStateOf<List<GeoPoint>>(emptyList()) }
+    var isLoadingRoute by remember { mutableStateOf(false) }
+
+    // Calculate route when both locations are available
+    LaunchedEffect(pickupLocation, dropoffLocation) {
+        if (pickupLocation != null && dropoffLocation != null) {
+            isLoadingRoute = true
+            try {
+                val points = injectedRoutingService.getRouteWithFallback(pickupLocation, dropoffLocation)
+                routePoints = points
+            } catch (e: Exception) {
+                // Fallback to straight line if routing fails
+                routePoints = listOf(pickupLocation, dropoffLocation)
+            } finally {
+                isLoadingRoute = false
+            }
+        } else {
+            routePoints = emptyList()
+        }
+    }
 
     // Initialize OSMDroid configuration
     DisposableEffect(context) {
@@ -44,7 +78,6 @@ fun OSMMapView(
         MapView(context).apply {
             setTileSource(TileSourceFactory.MAPNIK)
             setMultiTouchControls(enableZoom)
-            setBuiltInZoomControls(enableZoom)
 
             // Set initial view
             controller.setZoom(16.0)
@@ -81,10 +114,32 @@ fun OSMMapView(
         update = { mapView ->
             mapView.overlayManager.clear()
 
-            // Add map click listener
+            // Add map click listener with validation
             val mapEventsReceiver = object : MapEventsReceiver {
                 override fun singleTapConfirmedHelper(p: GeoPoint?): Boolean {
-                    p?.let { onMapClick(it) }
+                    p?.let { geoPoint ->
+                        println("=== MAP CLICK DEBUG ===")
+                        println("Clicked coordinates: ${geoPoint.latitude}, ${geoPoint.longitude}")
+                        println("Validation enabled: $validateBarangay177")
+
+                        if (validateBarangay177) {
+                            val isValid = geocodingService.isWithinBarangay177(geoPoint.latitude, geoPoint.longitude)
+                            println("Location is valid: $isValid")
+
+                            if (isValid) {
+                                println("✅ Valid location - calling onMapClick")
+                                onMapClick(geoPoint)
+                            } else {
+                                println("❌ Invalid location - calling onInvalidLocationSelected")
+                                onInvalidLocationSelected("Only locations within Barangay 177 are allowed")
+                                // DO NOT call onMapClick for invalid locations
+                            }
+                        } else {
+                            println("Validation disabled - calling onMapClick")
+                            onMapClick(geoPoint)
+                        }
+                        println("=======================")
+                    }
                     return true
                 }
 
@@ -118,7 +173,18 @@ fun OSMMapView(
 
                         override fun onMarkerDragEnd(marker: Marker?) {
                             marker?.position?.let { newPosition ->
-                                onPickupLocationDragged(newPosition)
+                                if (validateBarangay177) {
+                                    if (geocodingService.isWithinBarangay177(newPosition.latitude, newPosition.longitude)) {
+                                        onPickupLocationDragged(newPosition)
+                                    } else {
+                                        // Reset marker to original position and show error
+                                        marker.position = location
+                                        onInvalidLocationSelected("Pickup location must be within Barangay 177")
+                                        mapView.invalidate()
+                                    }
+                                } else {
+                                    onPickupLocationDragged(newPosition)
+                                }
                             }
                         }
 
@@ -150,7 +216,18 @@ fun OSMMapView(
 
                         override fun onMarkerDragEnd(marker: Marker?) {
                             marker?.position?.let { newPosition ->
-                                onDropoffLocationDragged(newPosition)
+                                if (validateBarangay177) {
+                                    if (geocodingService.isWithinBarangay177(newPosition.latitude, newPosition.longitude)) {
+                                        onDropoffLocationDragged(newPosition)
+                                    } else {
+                                        // Reset marker to original position and show error
+                                        marker.position = location
+                                        onInvalidLocationSelected("Destination must be within Barangay 177")
+                                        mapView.invalidate()
+                                    }
+                                } else {
+                                    onDropoffLocationDragged(newPosition)
+                                }
                             }
                         }
 
@@ -160,13 +237,20 @@ fun OSMMapView(
                 mapView.overlayManager.add(dropoffMarker)
             }
 
-            // Draw route if both locations exist
-            if (pickupLocation != null && dropoffLocation != null) {
+            // Draw route using calculated route points instead of straight line
+            if (routePoints.isNotEmpty()) {
                 val roadOverlay = Polyline(mapView).apply {
-                    outlinePaint.color = android.graphics.Color.BLUE
+                    outlinePaint.color = if (isLoadingRoute) {
+                        android.graphics.Color.GRAY // Show gray while loading
+                    } else {
+                        android.graphics.Color.BLUE // Show blue when route is ready
+                    }
                     outlinePaint.strokeWidth = 8.0f
-                    addPoint(pickupLocation)
-                    addPoint(dropoffLocation)
+
+                    // Add all route points to create the polyline
+                    routePoints.forEach { point ->
+                        addPoint(point)
+                    }
                 }
                 mapView.overlayManager.add(roadOverlay)
             }

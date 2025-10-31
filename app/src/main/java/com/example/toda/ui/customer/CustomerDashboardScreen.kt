@@ -1,9 +1,11 @@
 package com.example.toda.ui.customer
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -13,8 +15,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.toda.data.UserProfile
 import com.example.toda.viewmodel.CustomerDashboardViewModel
-import org.osmdroid.util.GeoPoint
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -23,14 +25,73 @@ fun CustomerDashboardScreen(
     onBookRide: () -> Unit,
     onViewProfile: () -> Unit,
     onLogout: () -> Unit,
+    onApplyDiscount: (String) -> Unit, // Navigate to discount form with category
     viewModel: CustomerDashboardViewModel = hiltViewModel()
 ) {
     val dashboardState by viewModel.dashboardState.collectAsStateWithLifecycle()
     val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
     val recentBookings by viewModel.recentBookings.collectAsStateWithLifecycle()
 
+    var showDiscountCategoryDialog by remember { mutableStateOf(false) }
+    var showPendingApplicationDialog by remember { mutableStateOf(false) }
+
     LaunchedEffect(userId) {
         viewModel.loadUserData(userId)
+    }
+
+    // Pending Application Dialog
+    if (showPendingApplicationDialog) {
+        val profile = userProfile
+        if (profile?.discountType != null) {
+            AlertDialog(
+                onDismissRequest = { showPendingApplicationDialog = false },
+                icon = {
+                    Icon(
+                        Icons.Default.Schedule,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                },
+                title = { Text("Pending Application") },
+                text = {
+                    Column {
+                        Text(
+                            text = "You have a pending application for:",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = profile.discountType.displayName,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Please wait for admin verification. You will be notified once your application is reviewed.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(onClick = { showPendingApplicationDialog = false }) {
+                        Text("OK")
+                    }
+                }
+            )
+        }
+    }
+
+    // Discount Category Selection Dialog
+    if (showDiscountCategoryDialog) {
+        DiscountCategoryDialog(
+            onDismiss = { showDiscountCategoryDialog = false },
+            onSelectCategory = { category ->
+                showDiscountCategoryDialog = false
+                onApplyDiscount(category)
+            }
+        )
     }
 
     Column(
@@ -222,6 +283,62 @@ fun CustomerDashboardScreen(
                             InfoItem("Phone Number", profile.phoneNumber)
                             InfoItem("Address", profile.address.ifEmpty { "Not provided" })
                             InfoItem("Emergency Contact", profile.emergencyContact.ifEmpty { "Not provided" })
+
+                            // Display discount information if available
+                            if (profile.discountType != null) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Card(
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = if (profile.discountVerified) {
+                                            MaterialTheme.colorScheme.primaryContainer
+                                        } else {
+                                            MaterialTheme.colorScheme.secondaryContainer
+                                        }
+                                    )
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = "Discount: ${profile.discountType.displayName}",
+                                                    fontWeight = FontWeight.Bold,
+                                                    style = MaterialTheme.typography.bodyMedium
+                                                )
+                                                Text(
+                                                    text = "${profile.discountType.discountPercent.toInt()}% off fares",
+                                                    style = MaterialTheme.typography.bodySmall
+                                                )
+                                                Text(
+                                                    text = "ID: ${profile.discountIdNumber}",
+                                                    style = MaterialTheme.typography.bodySmall
+                                                )
+                                            }
+                                            Icon(
+                                                if (profile.discountVerified) Icons.Default.CheckCircle else Icons.Default.Schedule,
+                                                contentDescription = null,
+                                                tint = if (profile.discountVerified) {
+                                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                                } else {
+                                                    MaterialTheme.colorScheme.onSecondaryContainer
+                                                }
+                                            )
+                                        }
+                                        Text(
+                                            text = if (profile.discountVerified) "Verified" else "Pending Verification",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = if (profile.discountVerified) {
+                                                MaterialTheme.colorScheme.onPrimaryContainer
+                                            } else {
+                                                MaterialTheme.colorScheme.onSecondaryContainer
+                                            }
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
 
@@ -251,6 +368,30 @@ fun CustomerDashboardScreen(
                         }
                     }
                 }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // Discount Button - Only show if discount is not verified
+        if (userProfile?.discountVerified != true) {
+            OutlinedButton(
+                onClick = {
+                    val profile = userProfile
+                    // Check if user has a pending application
+                    if (profile?.discountType != null && !profile.discountVerified) {
+                        // Show pending application dialog
+                        showPendingApplicationDialog = true
+                    } else {
+                        // Show category selection dialog
+                        showDiscountCategoryDialog = true
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.Discount, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Apply for Discount")
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -328,7 +469,7 @@ fun CustomerDashboardScreen(
             onClick = onLogout,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Icon(Icons.Default.ExitToApp, contentDescription = null)
+            Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
             Text("Sign Out")
         }
@@ -452,5 +593,119 @@ private fun InfoItem(
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface
         )
+    }
+}
+
+@Composable
+private fun DiscountCategoryDialog(
+    onDismiss: () -> Unit,
+    onSelectCategory: (String) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Discount, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Select Discount Category")
+            }
+        },
+        text = {
+            Column {
+                Text(
+                    text = "Choose the discount category that applies to you",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // PWD Discount Card
+                DiscountCategoryCard(
+                    title = "Person with Disability (PWD)",
+                    discount = "20% discount",
+                    icon = Icons.Default.Accessible,
+                    onClick = { onSelectCategory("PWD") }
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Senior Citizen Card
+                DiscountCategoryCard(
+                    title = "Senior Citizen",
+                    discount = "20% discount",
+                    icon = Icons.Default.Elderly,
+                    onClick = { onSelectCategory("SENIOR_CITIZEN") }
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Student Card
+                DiscountCategoryCard(
+                    title = "Student",
+                    discount = "10% discount",
+                    icon = Icons.Default.School,
+                    onClick = { onSelectCategory("STUDENT") }
+                )
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+private fun DiscountCategoryCard(
+    title: String,
+    discount: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(40.dp),
+                tint = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                Text(
+                    text = discount,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer
+            )
+        }
     }
 }

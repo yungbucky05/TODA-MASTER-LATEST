@@ -71,7 +71,12 @@ class ChatService {
 
         activeChats[chatId] = activeChat
         chatMessages[chatId] = mutableListOf()
-        _chatStates[chatId] = MutableStateFlow(ChatState())
+        _chatStates[chatId] = MutableStateFlow(
+            ChatState(
+                messages = chatMessages[chatId] ?: emptyList(),
+                isConnected = true
+            )
+        )
 
         // Send initial system message
         val systemMessage = ChatMessage(
@@ -122,9 +127,12 @@ class ChatService {
     // Get chat state for a booking
     fun getChatState(bookingId: String): StateFlow<ChatState> {
         return _chatStates.getOrPut(bookingId) {
-            MutableStateFlow(ChatState(
-                messages = chatMessages[bookingId] ?: emptyList()
-            ))
+            MutableStateFlow(
+                ChatState(
+                    messages = chatMessages[bookingId] ?: emptyList(),
+                    isConnected = activeChats[bookingId]?.isActive == true
+                )
+            )
         }.asStateFlow()
     }
 
@@ -177,6 +185,12 @@ class ChatService {
     fun endChat(bookingId: String) {
         activeChats[bookingId]?.let { chat ->
             activeChats[bookingId] = chat.copy(isActive = false)
+
+            // Set connection state to false before sending system message
+            _chatStates[bookingId]?.let { stateFlow ->
+                val currentState = stateFlow.value
+                stateFlow.value = currentState.copy(isConnected = false)
+            }
 
             // Send system message
             val systemMessage = ChatMessage(

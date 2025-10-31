@@ -28,7 +28,7 @@ fun DriverApplicationManagementScreen(
     onBack: () -> Unit
 ) {
     var currentView by remember { mutableStateOf("pending") } // "pending", "all", "details"
-    var selectedApplication by remember { mutableStateOf<DriverRegistration?>(null) }
+    var selectedApplication by remember { mutableStateOf<Driver?>(null) }
     var showRejectDialog by remember { mutableStateOf(false) }
     var rejectionReason by remember { mutableStateOf("") }
 
@@ -297,7 +297,7 @@ fun DriverApplicationManagementScreen(
 
 @Composable
 private fun DriverApplicationCard(
-    application: DriverRegistration,
+    application: Driver,
     registrationService: RegistrationService,
     onViewDetails: () -> Unit,
     onApprove: () -> Unit,
@@ -316,7 +316,7 @@ private fun DriverApplicationCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = application.applicantName,
+                    text = application.name,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -328,21 +328,14 @@ private fun DriverApplicationCard(
 
             ApplicationDetailRow("Phone:", application.phoneNumber)
             ApplicationDetailRow("License:", application.licenseNumber)
-            ApplicationDetailRow("TODA Number:", application.todaNumber)
-
-            val tricycle = registrationService.getTricycleById(application.tricycleId)
-            ApplicationDetailRow("Tricycle:", tricycle?.plateNumber ?: "Unknown")
+            ApplicationDetailRow("Tricycle Plate:", application.tricyclePlateNumber)
+            ApplicationDetailRow("TODA ID:", if (application.todaMembershipId.isNotEmpty()) application.todaMembershipId else "Not assigned")
 
             ApplicationDetailRow(
                 "Applied:",
                 SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
-                    .format(Date(application.applicationDate))
+                    .format(Date(application.registrationDate))
             )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Document status
-            DocumentStatusRow(application)
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -360,7 +353,7 @@ private fun DriverApplicationCard(
                     Text("Details")
                 }
 
-                if (application.status == DriverApplicationStatus.PENDING) {
+                if (application.status == DriverStatus.PENDING_APPROVAL) {
                     OutlinedButton(
                         onClick = onReject,
                         colors = ButtonDefaults.outlinedButtonColors(
@@ -405,49 +398,13 @@ private fun ApplicationDetailRow(label: String, value: String) {
 }
 
 @Composable
-private fun DocumentStatusRow(application: DriverRegistration) {
-    Column {
-        Text(
-            text = "Documents:",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            DocumentStatusChip("License", application.hasValidLicense)
-            DocumentStatusChip("Barangay", application.hasBarangayClearance)
-            DocumentStatusChip("Police", application.hasPoliceClearance)
-            DocumentStatusChip("Medical", application.hasMedicalCertificate)
-        }
-    }
-}
-
-@Composable
-private fun DocumentStatusChip(label: String, hasDocument: Boolean) {
-    Surface(
-        color = if (hasDocument) Color(0xFF4CAF50) else Color(0xFFFF9800),
-        shape = MaterialTheme.shapes.small,
-        modifier = Modifier.padding(2.dp)
-    ) {
-        Text(
-            text = label,
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-            style = MaterialTheme.typography.labelSmall,
-            color = Color.White
-        )
-    }
-}
-
-@Composable
-private fun StatusBadge(status: DriverApplicationStatus) {
+private fun StatusBadge(status: DriverStatus) {
     val (backgroundColor, textColor) = when (status) {
-        DriverApplicationStatus.PENDING -> Color(0xFFFF9800) to Color.White
-        DriverApplicationStatus.APPROVED -> Color(0xFF4CAF50) to Color.White
-        DriverApplicationStatus.REJECTED -> Color(0xFFF44336) to Color.White
-        DriverApplicationStatus.UNDER_REVIEW -> Color(0xFF2196F3) to Color.White
-        DriverApplicationStatus.REQUIRES_DOCUMENTS -> Color(0xFF9C27B0) to Color.White
+        DriverStatus.PENDING_APPROVAL -> Color(0xFFFF9800) to Color.White
+        DriverStatus.APPROVED -> Color(0xFF4CAF50) to Color.White
+        DriverStatus.REJECTED -> Color(0xFFF44336) to Color.White
+        DriverStatus.ACTIVE -> Color(0xFF2196F3) to Color.White
+        DriverStatus.SUSPENDED -> Color(0xFF9C27B0) to Color.White
     }
 
     Surface(
@@ -465,7 +422,7 @@ private fun StatusBadge(status: DriverApplicationStatus) {
 
 @Composable
 private fun DriverApplicationDetailsScreen(
-    application: DriverRegistration,
+    application: Driver,
     registrationService: RegistrationService,
     onBack: () -> Unit,
     onApprove: () -> Unit,
@@ -510,11 +467,9 @@ private fun DriverApplicationDetailsScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                DetailRow("Name:", application.applicantName)
+                DetailRow("Name:", application.name)
                 DetailRow("Phone Number:", application.phoneNumber)
                 DetailRow("Address:", application.address)
-                DetailRow("Emergency Contact:", application.emergencyContact)
-                DetailRow("Years of Experience:", "${application.yearsOfExperience} years")
             }
         }
 
@@ -536,17 +491,12 @@ private fun DriverApplicationDetailsScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 DetailRow("License Number:", application.licenseNumber)
-                DetailRow(
-                    "License Expiry:",
-                    SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
-                        .format(Date(application.licenseExpiry))
-                )
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // TODA & Tricycle Information
+        // Vehicle Information
         Card(
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -554,47 +504,15 @@ private fun DriverApplicationDetailsScreen(
                 modifier = Modifier.padding(16.dp)
             ) {
                 Text(
-                    text = "TODA & Tricycle Information",
+                    text = "Vehicle Information",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                DetailRow("TODA Number:", application.todaNumber)
-
-                val tricycle = registrationService.getTricycleById(application.tricycleId)
-                if (tricycle != null) {
-                    DetailRow("Tricycle Plate:", tricycle.plateNumber)
-                    DetailRow("TODA Number:", tricycle.todaNumber)
-                    DetailRow("Owner:", tricycle.ownerName)
-                    DetailRow("Registered Drivers:", "${tricycle.registeredDrivers.size}")
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Document Checklist
-        Card(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp)
-            ) {
-                Text(
-                    text = "Required Documents",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                DocumentCheckRow("Valid Driver's License", application.hasValidLicense)
-                DocumentCheckRow("Barangay Clearance", application.hasBarangayClearance)
-                DocumentCheckRow("Police Clearance", application.hasPoliceClearance)
-                DocumentCheckRow("Medical Certificate", application.hasMedicalCertificate)
-                DocumentCheckRow("Driver Training Certificate", application.hasDriverTrainingCertificate)
+                DetailRow("Tricycle Plate Number:", application.tricyclePlateNumber)
+                DetailRow("TODA Membership ID:", if (application.todaMembershipId.isNotEmpty()) application.todaMembershipId else "Not assigned")
             }
         }
 
@@ -621,28 +539,20 @@ private fun DriverApplicationDetailsScreen(
                     StatusBadge(status = application.status)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Applied on ${SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(application.applicationDate))}",
+                        text = "Applied on ${SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(application.registrationDate))}",
                         style = MaterialTheme.typography.bodyMedium
                     )
                 }
 
-                if (application.approvedBy != null) {
+                if (application.approvedBy.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
-                    DetailRow(
-                        "Processed by:",
-                        application.approvedBy!!
-                    )
-                    application.approvalDate?.let { date ->
+                    DetailRow("Processed by:", application.approvedBy)
+                    if (application.approvalDate > 0) {
                         DetailRow(
                             "Processed on:",
-                            SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(date))
+                            SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(application.approvalDate))
                         )
                     }
-                }
-
-                application.rejectionReason?.let { reason ->
-                    Spacer(modifier = Modifier.height(8.dp))
-                    DetailRow("Rejection Reason:", reason)
                 }
             }
         }
@@ -650,7 +560,7 @@ private fun DriverApplicationDetailsScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         // Action buttons
-        if (application.status == DriverApplicationStatus.PENDING) {
+        if (application.status == DriverStatus.PENDING_APPROVAL) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -699,28 +609,6 @@ private fun DetailRow(label: String, value: String) {
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium,
             modifier = Modifier.weight(2f)
-        )
-    }
-}
-
-@Composable
-private fun DocumentCheckRow(label: String, hasDocument: Boolean) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = if (hasDocument) Icons.Default.CheckCircle else Icons.Default.Cancel,
-            contentDescription = if (hasDocument) "Available" else "Missing",
-            tint = if (hasDocument) Color(0xFF4CAF50) else Color(0xFFFF9800),
-            modifier = Modifier.size(20.dp)
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium
         )
     }
 }

@@ -40,7 +40,7 @@ class LocationSuggestionService(private val context: Context) {
 
     // Barangay 177 center coordinates
     private val barangay177Center = GeoPoint(14.7487, 121.04951)
-    private val serviceRadius = 3.0 // 3km radius
+    private val serviceRadius = 1.5 // 1.5km radius
 
     // Cache for frequently searched locations
     private val locationCache = mutableMapOf<String, List<LocationSuggestion>>()

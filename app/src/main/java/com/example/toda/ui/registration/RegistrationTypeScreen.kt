@@ -1,5 +1,6 @@
 package com.example.toda.ui.registration
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -23,6 +24,7 @@ fun RegistrationTypeScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(Color.White) // 👈 set background white
             .padding(16.dp)
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)

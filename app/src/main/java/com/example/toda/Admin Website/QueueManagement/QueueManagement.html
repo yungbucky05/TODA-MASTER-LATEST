@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Queue Management - TODA Admin</title>
+  <link rel="stylesheet" href="QueueManagement.css">
+</head>
+<body>
+  <div class="page-container">
+    <!-- Top Bar -->
+    <header class="top-bar">
+      <button class="back-btn" onclick="window.location.href='../index.html'">
+        <span class="icon">←</span> Back to Dashboard
+      </button>
+      <div class="page-title">
+        <h1>Driver Queue Management</h1>
+        <p>Manage driver queue and waiting times</p>
+      </div>
+    </header>
+
+    <!-- Queue Stats Card -->
+    <div class="stats-grid">
+      <div class="stat-card orange">
+        <div class="stat-icon">📝</div>
+        <div class="stat-details">
+          <div class="stat-value" id="queueCount">0</div>
+          <div class="stat-label">Drivers in Queue</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Queue List -->
+    <div class="content-card">
+      <div class="card-header">
+        <h2>Queue</h2>
+      </div>
+      <div id="queueList" class="queue-list">
+        <div class="loading">Loading queue...</div>
+      </div>
+      
+      <!-- Pagination Controls -->
+      <div id="paginationControls" class="pagination-controls" style="display: none;">
+        <div class="pagination-info">
+          <span id="paginationInfo">Showing 0-0 of 0</span>
+        </div>
+        <div class="pagination-buttons">
+          <button id="firstPageBtn" class="pagination-btn" onclick="goToPage(1)">
+            <span>««</span>
+          </button>
+          <button id="prevPageBtn" class="pagination-btn" onclick="previousPage()">
+            <span>‹</span>
+          </button>
+          <div id="pageNumbers" class="page-numbers"></div>
+          <button id="nextPageBtn" class="pagination-btn" onclick="nextPage()">
+            <span>›</span>
+          </button>
+          <button id="lastPageBtn" class="pagination-btn" onclick="goToPage('last')">
+            <span>»»</span>
+          </button>
+        </div>
+        <div class="items-per-page">
+          <label for="itemsPerPage">Items per page:</label>
+          <select id="itemsPerPage" onchange="changeItemsPerPage()">
+            <option value="10">10</option>
+            <option value="25" selected>25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Remove Confirmation Modal -->
+  <div id="removeModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Remove from Queue</h2>
+        <button class="close-btn" onclick="closeRemoveModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to remove <strong id="removeDriverName"></strong> from the queue?</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeRemoveModal()">Cancel</button>
+        <button class="btn-danger" onclick="confirmRemove()">Remove</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Message Container for Notifications -->
+  <div id="messageContainer" class="message-container"></div>
+
+  <script type="module" src="QueueManagement.js"></script>
+</body>
+</html>
+

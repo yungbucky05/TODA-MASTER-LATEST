@@ -37,6 +37,7 @@ import androidx.compose.runtime.collectAsState
 import com.example.toda.ui.chat.SimpleChatScreen
 import com.example.toda.viewmodel.EnhancedBookingViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.toda.utils.FeeCalculator
 
 data class LocationValidation(
     val isValid: Boolean,
@@ -48,6 +49,11 @@ data class FareBreakdown(
     val driverToPickupDistance: Double,
     val baseFare: Double,
     val driverTravelFee: Double,
+    val subtotalFare: Double,
+    val convenienceFee: Double = 0.0, // Added convenience/system fee
+    val discountType: String? = null,
+    val discountPercent: Double = 0.0,
+    val discountAmount: Double = 0.0,
     val totalFare: Double
 )
 
@@ -64,12 +70,17 @@ fun CustomerInterface(
     onCancelBooking: (String) -> Unit = {},
     onBack: () -> Unit,
     onLogout: () -> Unit,
+    onOpenActiveBooking: (Booking) -> Unit, // NEW: navigate to Active Booking screen
     viewModel: EnhancedBookingViewModel = hiltViewModel() // Add the ViewModel
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val geocodingService = remember { GeocodingService() }
     val locationSuggestionService = remember { LocationSuggestionService(context) }
+
+
+    // Snackbar state for validation messages
+    val snackbarHostState = remember { SnackbarHostState() }
 
     // UI State
     var currentView by remember { mutableStateOf("booking") } // "booking", "history", "chat"
@@ -85,6 +96,10 @@ fun CustomerInterface(
     var locationValidation by remember { mutableStateOf(LocationValidation(true, "")) }
     var fareBreakdown by remember { mutableStateOf<FareBreakdown?>(null) }
     var showSuccessMessage by remember { mutableStateOf(false) }
+
+    // Add state for invalid location dialog
+    var showInvalidLocationDialog by remember { mutableStateOf(false) }
+    var invalidLocationMessage by remember { mutableStateOf("") }
 
     // New state for location input and suggestions
     var pickupInputText by remember { mutableStateOf("") }
@@ -207,10 +222,17 @@ fun CustomerInterface(
     }
 
     // Calculate fare when both locations are selected
-    LaunchedEffect(pickupGeoPoint, dropoffGeoPoint) {
+    LaunchedEffect(pickupGeoPoint, dropoffGeoPoint, user.profile) {
         if (pickupGeoPoint != null && dropoffGeoPoint != null) {
             val driverLocation = GeoPoint(14.746, 121.048) // Default driver location
-            fareBreakdown = calculateDetailedFare(pickupGeoPoint!!, dropoffGeoPoint!!, driverLocation)
+            // Pass user profile to calculate fare with discount
+            val calculatedFare = calculateDetailedFare(
+                pickupGeoPoint!!,
+                dropoffGeoPoint!!,
+                driverLocation,
+                user.profile
+            )
+            fareBreakdown = calculatedFare
         } else {
             fareBreakdown = null
         }
@@ -362,15 +384,15 @@ fun CustomerInterface(
                     locationValidation = locationValidation,
                     fareBreakdown = fareBreakdown,
                     showSuccessMessage = showSuccessMessage,
-                    // Autocomplete parameters
-                    pickupInputText = pickupInputText,
-                    destinationInputText = destinationInputText,
-                    pickupSuggestions = pickupSuggestions,
-                    destinationSuggestions = destinationSuggestions,
-                    showPickupSuggestions = showPickupSuggestions,
-                    showDestinationSuggestions = showDestinationSuggestions,
-                    locationSuggestionService = locationSuggestionService,
-                    coroutineScope = coroutineScope,
+                    snackbarHostState = snackbarHostState, // Add snackbar host state
+                    // Dialog state
+                    showInvalidLocationDialog = showInvalidLocationDialog,
+                    invalidLocationMessage = invalidLocationMessage,
+                    onInvalidLocationDialogDismiss = { showInvalidLocationDialog = false },
+                    onShowInvalidLocationDialog = { message ->
+                        invalidLocationMessage = message
+                        showInvalidLocationDialog = true
+                    },
                     onPickupLocationSelect = { isSelectingPickup = true },
                     onDropoffLocationSelect = { isSelectingDropoff = true },
                     onMapClick = { geoPoint ->
@@ -433,7 +455,15 @@ fun CustomerInterface(
                     },
                     onSubmitBooking = ::submitBooking,
                     onSuccessMessageDismiss = { showSuccessMessage = false },
-                    // Autocomplete callbacks
+                    // Autocomplete parameters - add the missing required parameters
+                    pickupInputText = pickupInputText,
+                    destinationInputText = destinationInputText,
+                    pickupSuggestions = pickupSuggestions,
+                    destinationSuggestions = destinationSuggestions,
+                    showPickupSuggestions = showPickupSuggestions,
+                    showDestinationSuggestions = showDestinationSuggestions,
+                    locationSuggestionService = locationSuggestionService,
+                    coroutineScope = coroutineScope,
                     onPickupTextChange = { text ->
                         pickupInputText = text
                         pickupLocation = text.takeIf { it.isNotEmpty() }
@@ -484,7 +514,8 @@ fun CustomerInterface(
             "history" -> {
                 BookingHistoryView(
                     bookingHistory = bookingHistory,
-                    currentBookings = bookings.filter { it.customerId == user.id }
+                    currentBookings = bookings.filter { it.customerId == user.id },
+                    onOpenActiveBooking = onOpenActiveBooking // pass through
                 )
             }
         }
@@ -526,6 +557,28 @@ fun CustomerInterface(
                 )
             }
         }
+
+        // Snackbar for validation messages
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.CenterHorizontally)
+        )
+
+        // Invalid location dialog
+        if (showInvalidLocationDialog) {
+            AlertDialog(
+                onDismissRequest = { showInvalidLocationDialog = false },
+                title = { Text("Invalid Location") },
+                text = { Text(invalidLocationMessage) },
+                confirmButton = {
+                    TextButton(
+                        onClick = { showInvalidLocationDialog = false }
+                    ) {
+                        Text("OK")
+                    }
+                }
+            )
+        }
     }
 }
 
@@ -546,6 +599,11 @@ private fun BookingView(
     locationValidation: LocationValidation,
     fareBreakdown: FareBreakdown?,
     showSuccessMessage: Boolean,
+    snackbarHostState: SnackbarHostState, // Add snackbar host state
+    showInvalidLocationDialog: Boolean, // Add dialog state
+    invalidLocationMessage: String, // Add invalid location message
+    onInvalidLocationDialogDismiss: () -> Unit, // Add dismiss callback
+    onShowInvalidLocationDialog: (String) -> Unit, // Add show dialog callback
     onPickupLocationSelect: () -> Unit,
     onDropoffLocationSelect: () -> Unit,
     onMapClick: (GeoPoint) -> Unit,
@@ -648,6 +706,15 @@ private fun BookingView(
                         onMapClick = onMapClick,
                         onPickupLocationDragged = onPickupLocationDragged,
                         onDropoffLocationDragged = onDropoffLocationDragged,
+                        onInvalidLocationSelected = { message ->
+                            // Show dialog instead of snackbar for better visibility
+                            println("=== INVALID LOCATION DIALOG DEBUG ===")
+                            println("Invalid location message received: $message")
+                            println("Calling onShowInvalidLocationDialog callback")
+                            println("=====================================")
+
+                            onShowInvalidLocationDialog(message)
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(250.dp)
@@ -660,11 +727,29 @@ private fun BookingView(
             }
 
             if (fareBreakdown != null) {
-                EnhancedFareEstimationCard(fareBreakdown, "Juan Dela Cruz")
+                EnhancedFareEstimationCard(fareBreakdown!!)
+            } else {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "No Fare Estimation Yet",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "Select both pickup and dropoff locations to see fare estimation",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
             }
 
             AreaRestrictionCard()
-            SpecialTripInfoCard()
 
             // Submit button with extra spacing
             Spacer(modifier = Modifier.height(8.dp))
@@ -693,7 +778,8 @@ private fun BookingView(
 @Composable
 private fun BookingHistoryView(
     bookingHistory: List<Booking>,
-    currentBookings: List<Booking>
+    currentBookings: List<Booking>,
+    onOpenActiveBooking: (Booking) -> Unit // NEW
 ) {
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -710,7 +796,7 @@ private fun BookingHistoryView(
             }
 
             items(currentBookings) { booking ->
-                CurrentBookingCard(booking)
+                CurrentBookingCard(booking, onOpenActiveBooking)
             }
 
             item {
@@ -1284,17 +1370,20 @@ private fun RestrictedOSMMapView(
     onMapClick: (GeoPoint) -> Unit,
     onPickupLocationDragged: (GeoPoint) -> Unit,
     onDropoffLocationDragged: (GeoPoint) -> Unit,
+    onInvalidLocationSelected: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    // For now, use the existing OSMMapView component
-    // In a real implementation, this would be a restricted version of the map
+    // Use the enhanced OSMMapView with validation and injected routing service
     OSMMapView(
+        modifier = modifier,
         pickupLocation = pickupLocation,
         dropoffLocation = dropoffLocation,
         onMapClick = onMapClick,
         onPickupLocationDragged = onPickupLocationDragged,
         onDropoffLocationDragged = onDropoffLocationDragged,
-        modifier = modifier
+        onInvalidLocationSelected = onInvalidLocationSelected,
+        validateBarangay177 = true, // Enable Barangay 177 validation
+        routingService = null // Will use the default injected instance
     )
 }
 
@@ -1326,7 +1415,7 @@ private fun LocationValidationWarning(message: String) {
 }
 
 @Composable
-private fun EnhancedFareEstimationCard(fareBreakdown: FareBreakdown, driverName: String) {
+private fun EnhancedFareEstimationCard(fareBreakdown: FareBreakdown) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -1346,16 +1435,9 @@ private fun EnhancedFareEstimationCard(fareBreakdown: FareBreakdown, driverName:
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text("Base Fare:")
-                Text("₱${String.format("%.2f", fareBreakdown.baseFare)}")
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("Distance (${String.format("%.2f", fareBreakdown.passengerDistance)} km):")
-                Text("₱${String.format("%.2f", fareBreakdown.baseFare)}")
+                // Adjusted label to include distance to remove redundancy
+                Text("Base Fare (${String.format(Locale.getDefault(), "%.2f", fareBreakdown.passengerDistance)} km):")
+                Text("₱${String.format(Locale.getDefault(), "%.2f", fareBreakdown.baseFare)}")
             }
 
             if (fareBreakdown.driverTravelFee > 0) {
@@ -1364,11 +1446,32 @@ private fun EnhancedFareEstimationCard(fareBreakdown: FareBreakdown, driverName:
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text("Driver Travel Fee:")
-                    Text("₱${String.format("%.2f", fareBreakdown.driverTravelFee)}")
+                    Text("₱${String.format(Locale.getDefault(), "%.2f", fareBreakdown.driverTravelFee)}")
                 }
             }
 
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            // New: Convenience/System Fee (dynamic based on verified discount)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Convenience Fee:")
+                Text("₱${String.format(Locale.getDefault(), "%.2f", fareBreakdown.convenienceFee)}")
+            }
+
+            // Discount information row
+            if (fareBreakdown.discountAmount > 0) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    val percent = String.format(Locale.getDefault(), "%.0f", fareBreakdown.discountPercent)
+                    Text("Discount (${percent}%):")
+                    Text("-₱${String.format(Locale.getDefault(), "%.2f", fareBreakdown.discountAmount)}", color = Color.Red)
+                }
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1379,19 +1482,11 @@ private fun EnhancedFareEstimationCard(fareBreakdown: FareBreakdown, driverName:
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "₱${String.format("%.2f", fareBreakdown.totalFare)}",
+                    text = "₱${String.format(Locale.getDefault(), "%.2f", fareBreakdown.totalFare)}",
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Assigned Driver: $driverName",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }
@@ -1436,48 +1531,9 @@ private fun AreaRestrictionCard() {
     }
 }
 
-@Composable
-private fun SpecialTripInfoCard() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    Icons.Default.Star,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.tertiary
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Special Trip Features",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "• Real-time location tracking\n" +
-                        "• Driver rating and feedback system\n" +
-                        "• Cashless payment options",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onTertiaryContainer
-            )
-        }
-    }
-}
 
 @Composable
-private fun CurrentBookingCard(booking: Booking) {
+private fun CurrentBookingCard(booking: Booking, onOpenActiveBooking: (Booking) -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -1497,14 +1553,20 @@ private fun CurrentBookingCard(booking: Booking) {
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
-                Badge(
-                    containerColor = when (booking.status.name) {
-                        "COMPLETED" -> Color.Green
-                        "CANCELLED" -> Color.Red
-                        else -> MaterialTheme.colorScheme.secondary
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Badge(
+                        containerColor = when (booking.status.name) {
+                            "COMPLETED" -> Color.Green
+                            "CANCELLED" -> Color.Red
+                            else -> MaterialTheme.colorScheme.secondary
+                        }
+                    ) {
+                        Text(booking.status.name)
                     }
-                ) {
-                    Text(booking.status.name)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    FilledTonalButton(onClick = { onOpenActiveBooking(booking) }) {
+                        Text("Open")
+                    }
                 }
             }
 
@@ -1528,7 +1590,17 @@ private fun CurrentBookingCard(booking: Booking) {
 }
 
 @Composable
-private fun BookingHistoryCard(booking: Booking) {
+private fun BookingHistoryCard(
+    booking: Booking,
+    viewModel: EnhancedBookingViewModel = hiltViewModel()
+) {
+    val coroutineScope = rememberCoroutineScope()
+    var selectedStars by remember { mutableStateOf(0) }
+    var feedbackText by remember { mutableStateOf("") }
+    var isSubmitting by remember { mutableStateOf(false) }
+    var ratingSubmitted by remember { mutableStateOf(false) }
+    var showRatingSection by remember { mutableStateOf(booking.status == BookingStatus.COMPLETED) }
+
     Card(
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -1572,11 +1644,142 @@ private fun BookingHistoryCard(booking: Booking) {
                 fontWeight = FontWeight.Bold
             )
 
+            if (booking.driverName.isNotEmpty()) {
+                Text(
+                    text = "Driver: ${booking.driverName}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
             Text(
                 text = "Date: ${SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault()).format(Date(booking.timestamp))}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+
+            // Rating Section - Only show for completed bookings
+            if (showRatingSection && !ratingSubmitted) {
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "Rate your experience",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // 5-Star Rating Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    for (star in 1..5) {
+                        IconButton(
+                            onClick = { selectedStars = star },
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (star <= selectedStars) {
+                                    Icons.Filled.Star
+                                } else {
+                                    Icons.Filled.StarBorder
+                                },
+                                contentDescription = "Star $star",
+                                tint = if (star <= selectedStars) {
+                                    Color(0xFFFFD700) // Gold color
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                                modifier = Modifier.size(40.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Feedback TextField
+                OutlinedTextField(
+                    value = feedbackText,
+                    onValueChange = { feedbackText = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("Feedback (Optional)") },
+                    placeholder = { Text("Share your experience...") },
+                    minLines = 3,
+                    maxLines = 5,
+                    enabled = !isSubmitting
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Submit Button
+                Button(
+                    onClick = {
+                        if (selectedStars > 0) {
+                            isSubmitting = true
+                            coroutineScope.launch {
+                                viewModel.submitRating(
+                                    bookingId = booking.id,
+                                    stars = selectedStars,
+                                    feedback = feedbackText
+                                ).fold(
+                                    onSuccess = {
+                                        ratingSubmitted = true
+                                        isSubmitting = false
+                                    },
+                                    onFailure = { error ->
+                                        isSubmitting = false
+                                        println("Failed to submit rating: ${error.message}")
+                                    }
+                                )
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = selectedStars > 0 && !isSubmitting
+                ) {
+                    if (isSubmitting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    Text(if (isSubmitting) "Submitting..." else "Submit Rating")
+                }
+            }
+
+            // Show thank you message after rating submission
+            if (ratingSubmitted) {
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider()
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.CheckCircle,
+                        contentDescription = "Rating Submitted",
+                        tint = Color.Green,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Thank you for your feedback!",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Green,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
         }
     }
 }
@@ -1622,29 +1825,30 @@ private fun isWithinBarangay177(geoPoint: GeoPoint): Boolean {
             geoPoint.longitude in minLng..maxLng
 }
 
-// Helper function to validate booking locations
+// Helper function to validate booking locations using GeocodingService's precise Barangay 177 validation
 private fun validateBookingLocations(pickupGeoPoint: GeoPoint?, dropoffGeoPoint: GeoPoint?): LocationValidation {
+    val geocodingService = GeocodingService()
+
     if (pickupGeoPoint == null || dropoffGeoPoint == null) {
         return LocationValidation(false, "Please select both pickup and dropoff locations")
     }
 
-    // More lenient validation - check if coordinates are reasonable for the area
-    if (pickupGeoPoint.latitude < 14.7 || pickupGeoPoint.latitude > 14.8 ||
-        pickupGeoPoint.longitude < 121.0 || pickupGeoPoint.longitude > 121.1) {
-        return LocationValidation(false, "Pickup location seems to be outside the service area")
+    // Use GeocodingService's precise Barangay 177 validation for pickup location
+    if (!geocodingService.isWithinBarangay177(pickupGeoPoint.latitude, pickupGeoPoint.longitude)) {
+        return LocationValidation(false, "Pickup location must be within Barangay 177")
     }
 
-    if (dropoffGeoPoint.latitude < 14.7 || dropoffGeoPoint.latitude > 14.8 ||
-        dropoffGeoPoint.longitude < 121.0 || dropoffGeoPoint.longitude > 121.1) {
-        return LocationValidation(false, "Dropoff location seems to be outside the service area")
+    // Use GeocodingService's precise Barangay 177 validation for dropoff location
+    if (!geocodingService.isWithinBarangay177(dropoffGeoPoint.latitude, dropoffGeoPoint.longitude)) {
+        return LocationValidation(false, "Destination must be within Barangay 177")
     }
 
     val distance = calculateDistance(pickupGeoPoint, dropoffGeoPoint)
-    if (distance < 0.01) { // Changed from 0.1 to 0.01 (about 10 meters)
+    if (distance < 0.01) { // About 10 meters minimum distance
         return LocationValidation(false, "Pickup and dropoff locations are too close")
     }
 
-    if (distance > 20.0) { // Increased from 10.0 to 20.0 km
+    if (distance > 20.0) { // Maximum 20 km distance
         return LocationValidation(false, "Trip distance exceeds maximum allowed distance")
     }
 
@@ -1661,8 +1865,18 @@ private fun formatTimestamp(timestamp: Long): String {
     return SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault()).format(Date(timestamp))
 }
 
-// Main function to calculate detailed fare breakdown
-private fun calculateDetailedFare(pickupLocation: GeoPoint, dropoffLocation: GeoPoint, driverLocation: GeoPoint): FareBreakdown {
+// Main function to calculate detailed fare breakdown with discount support
+private fun calculateDetailedFare(
+    pickupLocation: GeoPoint,
+    dropoffLocation: GeoPoint,
+    driverLocation: GeoPoint,
+    userProfile: UserProfile? // User profile containing discount information
+): FareBreakdown {
+    println("=== FARE CALCULATION WITH DISCOUNT ===")
+    println("User Profile: $userProfile")
+    println("Discount Type: ${userProfile?.discountType}")
+    println("Discount Verified: ${userProfile?.discountVerified}")
+
     // Calculate passenger trip distance
     val passengerDistance = calculateDistance(pickupLocation, dropoffLocation)
 
@@ -1679,14 +1893,57 @@ private fun calculateDetailedFare(pickupLocation: GeoPoint, dropoffLocation: Geo
         (driverToPickupDistance - 1.0) * 5.0 // 5 PHP per km beyond 1km
     }
 
-    // Calculate total fare
-    val totalFare = baseFare + driverTravelFee
+    // Calculate subtotal fare (base fare + driver travel fee)
+    val subtotalFare = baseFare + driverTravelFee
+
+    // New: Variable convenience/system fee based on verified discount
+    val convenienceFee = FeeCalculator.convenienceFee(userProfile)
+
+    // Apply discount if user has verified discount eligibility (on subtotal only)
+    var discountType: String? = null
+    var discountPercent = 0.0
+    var discountAmount = 0.0
+
+    if (userProfile != null &&
+        userProfile.discountType != null &&
+        userProfile.discountVerified) {
+
+        discountType = userProfile.discountType.displayName
+        discountPercent = userProfile.discountType.discountPercent
+        discountAmount = subtotalFare * (discountPercent / 100.0)
+
+        println("✅ DISCOUNT APPLIED:")
+        println("   Type: $discountType")
+        println("   Percentage: ${discountPercent}%")
+        println("   Amount: ₱${String.format(Locale.getDefault(), "%.2f", discountAmount)}")
+    } else {
+        println("❌ NO DISCOUNT APPLIED")
+        if (userProfile?.discountType != null && !userProfile.discountVerified) {
+            println("   Reason: Discount not yet verified")
+        }
+    }
+
+    // Calculate total fare (subtotal + convenience - discount)
+    val totalFare = subtotalFare + convenienceFee - discountAmount
+
+    println("Base Fare: ₱${String.format(Locale.getDefault(), "%.2f", baseFare)}")
+    println("Driver Travel Fee: ₱${String.format(Locale.getDefault(), "%.2f", driverTravelFee)}")
+    println("Subtotal: ₱${String.format(Locale.getDefault(), "%.2f", subtotalFare)}")
+    println("Convenience Fee: ₱${String.format(Locale.getDefault(), "%.2f", convenienceFee)}")
+    println("Discount: -₱${String.format(Locale.getDefault(), "%.2f", discountAmount)}")
+    println("Total: ₱${String.format(Locale.getDefault(), "%.2f", totalFare)}")
+    println("=======================================")
 
     return FareBreakdown(
         passengerDistance = passengerDistance,
         driverToPickupDistance = driverToPickupDistance,
         baseFare = baseFare,
         driverTravelFee = driverTravelFee,
+        subtotalFare = subtotalFare,
+        convenienceFee = convenienceFee,
+        discountType = discountType,
+        discountPercent = discountPercent,
+        discountAmount = discountAmount,
         totalFare = totalFare
     )
 }

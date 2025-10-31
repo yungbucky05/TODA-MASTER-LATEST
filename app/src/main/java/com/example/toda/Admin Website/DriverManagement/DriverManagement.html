@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Driver Management - TODA Admin</title>
+  <link rel="stylesheet" href="DriverManagement.css">
+</head>
+<body>
+  <div class="page-container">
+    <!-- Top Bar -->
+    <header class="top-bar">
+      <button class="back-btn" onclick="window.location.href='../index.html'">
+        <span class="icon">←</span> Back to Dashboard
+      </button>
+      <div class="page-title">
+        <h1>Driver Management</h1>
+        <p>Manage and verify driver information</p>
+      </div>
+    </header>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+      <div class="stat-card blue">
+        <div class="stat-icon">👥</div>
+        <div class="stat-details">
+          <div class="stat-value" id="totalDrivers">0</div>
+          <div class="stat-label">Total Drivers</div>
+        </div>
+      </div>
+      <div class="stat-card yellow">
+        <div class="stat-icon">📋</div>
+        <div class="stat-details">
+          <div class="stat-value" id="pendingVerification">0</div>
+          <div class="stat-label">Pending Verification</div>
+        </div>
+      </div>
+      <div class="stat-card orange">
+        <div class="stat-icon">💳</div>
+        <div class="stat-details">
+          <div class="stat-value" id="needRfid">0</div>
+          <div class="stat-label">Need RFID</div>
+        </div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-icon">✅</div>
+        <div class="stat-details">
+          <div class="stat-value" id="activeDrivers">0</div>
+          <div class="stat-label">Active Drivers</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search and Filter -->
+    <div class="controls-section">
+      <input type="text" id="searchInput" placeholder="🔍 Search by name, phone, or RFID..." class="search-input">
+      <select id="statusFilter" class="filter-select">
+        <option value="all">All Drivers</option>
+        <option value="pending">Pending Verification</option>
+        <option value="verified">Verified</option>
+        <option value="needRfid">Need RFID</option>
+        <option value="active">Active</option>
+      </select>
+    </div>
+
+    <!-- Drivers List -->
+    <div class="content-card">
+      <div class="card-header">
+        <h2>Registered Drivers</h2>
+      </div>
+      <div id="driversList" class="drivers-list">
+        <div class="loading">Loading drivers...</div>
+      </div>
+      
+      <!-- Pagination Controls -->
+      <div id="paginationControls" class="pagination-controls" style="display: none;">
+        <div class="pagination-info">
+          <span id="paginationInfo">Showing 0-0 of 0</span>
+        </div>
+        <div class="pagination-buttons">
+          <button id="firstPageBtn" class="pagination-btn" onclick="goToPage(1)">
+            <span>««</span>
+          </button>
+          <button id="prevPageBtn" class="pagination-btn" onclick="previousPage()">
+            <span>‹</span>
+          </button>
+          <div id="pageNumbers" class="page-numbers"></div>
+          <button id="nextPageBtn" class="pagination-btn" onclick="nextPage()">
+            <span>›</span>
+          </button>
+          <button id="lastPageBtn" class="pagination-btn" onclick="goToPage('last')">
+            <span>»»</span>
+          </button>
+        </div>
+        <div class="items-per-page">
+          <label for="itemsPerPage">Items per page:</label>
+          <select id="itemsPerPage" onchange="changeItemsPerPage()">
+            <option value="10">10</option>
+            <option value="25" selected>25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Driver Details & Verification Modal -->
+  <div id="driverModal" class="modal">
+    <div class="modal-content modal-large">
+      <div class="modal-header">
+        <h2 id="modalTitle">Driver Onboarding Process</h2>
+        <button class="close-btn" onclick="closeDriverModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBody">
+        <!-- Driver details will be injected here -->
+        
+        <!-- Progress Steps -->
+        <div class="progress-steps" id="progressSteps" style="display: none;">
+          <div class="step" id="step1">
+            <div class="step-number">1</div>
+            <div class="step-label">Verify Documents</div>
+          </div>
+          <div class="step" id="step2">
+            <div class="step-number">2</div>
+            <div class="step-label">Assign TODA</div>
+          </div>
+          <div class="step" id="step3">
+            <div class="step-number">3</div>
+            <div class="step-label">Assign RFID</div>
+          </div>
+        </div>
+
+        <!-- Step 1: Document Verification -->
+        <div id="verificationStep" class="step-content" style="display: none;">
+          <div id="verificationStepHeader">
+            <h3>📄 Step 1: Document Verification</h3>
+            <p style="margin-bottom: 20px;">Review the driver's documents and approve or reject their registration.</p>
+          </div>
+          <!-- Driver details will be injected here by JavaScript -->
+          <div id="verificationFormContent">
+            <div class="form-group">
+              <label style="display: block; font-weight: 600; margin-bottom: 12px;">Verification Status:</label>
+              
+              <!-- Approve Option -->
+              <div class="checkbox-option">
+                <input type="checkbox" id="statusApprove" name="verificationStatus" value="approve">
+                <label for="statusApprove" class="checkbox-label">
+                  <span class="checkbox-title">✅ Approve - Documents are valid</span>
+                  <span class="checkbox-description">All documents are clear and verified</span>
+                </label>
+              </div>
+
+              <div style="margin: 16px 0; padding: 12px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #667eea;">
+                <strong style="color: #667eea;">Select all issues that apply (if rejecting):</strong>
+              </div>
+
+              <!-- Reject Options with specific reasons -->
+              <div class="checkbox-option">
+                <input type="checkbox" id="statusReuploadPhoto" name="verificationStatus" value="reupload_photo">
+                <label for="statusReuploadPhoto" class="checkbox-label">
+                  <span class="checkbox-title">📸 Reupload License Photo</span>
+                  <span class="checkbox-description">Photo is blurry, unclear, or incomplete</span>
+                </label>
+              </div>
+
+              <div class="checkbox-option">
+                <input type="checkbox" id="statusInvalidLicense" name="verificationStatus" value="invalid_license">
+                <label for="statusInvalidLicense" class="checkbox-label">
+                  <span class="checkbox-title">❌ Invalid License</span>
+                  <span class="checkbox-description">License is expired or not valid</span>
+                </label>
+              </div>
+
+              <div class="checkbox-option">
+                <input type="checkbox" id="statusIncompleteInfo" name="verificationStatus" value="incomplete_info">
+                <label for="statusIncompleteInfo" class="checkbox-label">
+                  <span class="checkbox-title">📝 Incomplete Information</span>
+                  <span class="checkbox-description">Missing required personal information</span>
+                </label>
+              </div>
+
+              <div class="checkbox-option">
+                <input type="checkbox" id="statusDocumentMismatch" name="verificationStatus" value="document_mismatch">
+                <label for="statusDocumentMismatch" class="checkbox-label">
+                  <span class="checkbox-title">⚠️ Document Mismatch</span>
+                  <span class="checkbox-description">Information does not match license details</span>
+                </label>
+              </div>
+
+              <div class="checkbox-option">
+                <input type="checkbox" id="statusOther" name="verificationStatus" value="other">
+                <label for="statusOther" class="checkbox-label">
+                  <span class="checkbox-title">📋 Other Reason</span>
+                  <span class="checkbox-description">Specify custom reason below</span>
+                </label>
+              </div>
+
+              <!-- Custom Notes (only shown when "Other" is checked) -->
+              <div id="customNotesSection" style="display: none; margin-top: 16px;">
+                <label for="customNotes" style="display: block; font-weight: 600; margin-bottom: 8px;">Additional Notes:</label>
+                <textarea id="customNotes" placeholder="Enter additional notes or specific reasons..." rows="3" style="width: 100%; padding: 12px; border: 2px solid #dee2e6; border-radius: 8px; font-size: 14px; font-family: inherit; resize: vertical;"></textarea>
+              </div>
+
+              <small style="display: block; margin-top: 12px; color: #6c757d;">
+                <strong>Note:</strong> If you select "Approve", any rejection reasons will be ignored. Select multiple issues if the driver needs to fix several things.
+              </small>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2: TODA Number Assignment -->
+        <div id="todaStep" class="step-content" style="display: none;">
+          <h3>🚗 Step 2: TODA Number Assignment</h3>
+          <p style="margin-bottom: 20px;">Assign a unique TODA number to this driver.</p>
+          <div class="form-group">
+            <label for="todaNumberInput" style="display: block; font-weight: 600; margin-bottom: 8px;">TODA Number:</label>
+            <input type="text" id="todaNumberInput" placeholder="e.g., TODA-001, TODA-395" style="width: 100%; padding: 14px 16px; border: 2px solid #dee2e6; border-radius: 8px; font-size: 18px; font-weight: 600; text-align: center; letter-spacing: 1px;">
+            <small style="display: block; margin-top: 8px; color: #6c757d;">Enter the driver's TODA unit number (e.g., TODA-001).</small>
+          </div>
+        </div>
+
+        <!-- Step 3: RFID Assignment -->
+        <div id="rfidStep" class="step-content" style="display: none;">
+          <h3>💳 Step 3: RFID Card Assignment</h3>
+          <p style="margin-bottom: 20px;">Scan the RFID card to complete driver registration.</p>
+          <div class="rfid-scanner-container">
+            <div class="scanner-icon">💳</div>
+            <p class="scanner-instruction">Tap RFID card on the scanner</p>
+            <input type="text" id="rfidNumberInput" placeholder="Waiting for RFID scan..." class="rfid-input" autofocus>
+            <div id="rfidScanStatus" class="rfid-status"></div>
+            <small style="display: block; margin-top: 12px; color: #6c757d;">The RFID number will appear automatically when card is scanned</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer" id="modalFooter">
+        <button class="btn-secondary" onclick="closeDriverModal()">Close</button>
+        <button class="btn-reject" id="rejectBtn" onclick="handleReject()" style="display: none;">❌ Reject Application</button>
+        <button class="btn-verify" id="approveBtn" onclick="handleApprove()" style="display: none;">✅ Approve & Continue</button>
+        <button class="btn-primary" id="assignTodaBtn" onclick="handleTodaAssignment()" style="display: none;">Continue to RFID →</button>
+        <button class="btn-primary" id="assignRfidBtn" onclick="handleRfidAssignment()" style="display: none;">Complete Registration ✓</button>
+        <button class="btn-secondary" id="viewOnlyBtn" onclick="closeDriverModal()" style="display: none;">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RFID Reassignment Modal -->
+  <div id="reassignRfidModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>🔄 Reassign RFID Card</h2>
+        <button class="close-btn" onclick="closeReassignRfidModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="document-section">
+          <h3>👤 Driver Information</h3>
+          <div id="reassignDriverInfo" class="info-grid">
+            <!-- Driver info will be injected here -->
+          </div>
+        </div>
+
+        <div class="document-section">
+          <h3>💳 Current RFID</h3>
+          <p id="currentRfidDisplay" style="font-size: 18px; font-weight: 700; color: #667eea; text-align: center; padding: 16px; background: #f8f9fa; border-radius: 8px; letter-spacing: 2px;">
+            Loading...
+          </p>
+        </div>
+
+        <!-- RFID History Section -->
+        <div id="rfidHistorySection" class="document-section" style="display: none;">
+          <h3>📋 RFID History</h3>
+          <p style="font-size: 13px; color: #6c757d; margin-bottom: 12px;">
+            Previous RFID cards used by this driver. All old RFIDs are mapped for tracking contributions and bookings.
+          </p>
+          <div id="rfidHistoryList" class="rfid-history-list">
+            <!-- History will be injected here -->
+          </div>
+        </div>
+
+        <div class="rfid-scanner-container">
+          <div class="scanner-icon">💳</div>
+          <p class="scanner-instruction">Scan new RFID card to replace</p>
+          <input type="text" id="reassignRfidInput" placeholder="Waiting for RFID scan..." class="rfid-input" autofocus>
+          <div id="reassignRfidStatus" class="rfid-status"></div>
+          <small style="display: block; margin-top: 12px; color: #6c757d;">The new RFID number will appear automatically when card is scanned</small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeReassignRfidModal()">Cancel</button>
+        <button class="btn-primary" onclick="confirmReassignRfid()">✓ Confirm Reassignment</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Message Container for Notifications -->
+  <div id="messageContainer" class="message-container"></div>
+
+  <!-- Confirmation Modal -->
+  <div id="confirmModal" class="modal">
+    <div class="modal-content confirm-modal-content">
+      <div class="modal-header">
+        <h2 id="confirmTitle">⚠️ Confirm Action</h2>
+        <button class="close-btn" onclick="closeConfirmModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="confirmMessage" style="white-space: pre-wrap; font-size: 15px; line-height: 1.6; color: #495057;"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeConfirmModal()">Cancel</button>
+        <button class="btn-primary" id="confirmButton" onclick="handleConfirm()">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Prompt Modal -->
+  <div id="promptModal" class="modal">
+    <div class="modal-content confirm-modal-content">
+      <div class="modal-header">
+        <h2 id="promptTitle">Enter Information</h2>
+        <button class="close-btn" onclick="closePromptModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="promptMessage" style="font-size: 14px; line-height: 1.6; color: #495057; margin-bottom: 16px;"></p>
+        <input type="text" id="promptInput" class="form-input" style="width: 100%; padding: 12px; border: 1px solid #dee2e6; border-radius: 8px; font-size: 14px;">
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closePromptModal()">Cancel</button>
+        <button class="btn-primary" onclick="handlePromptSubmit()">Submit</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="DriverManagement.js"></script>
+</body>
+</html>

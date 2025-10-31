@@ -1,0 +1,38 @@
+{
+  "project_info": {
+    "project_number": "536068566619",
+    "firebase_url": "https://toda-contribution-system-default-rtdb.asia-southeast1.firebasedatabase.app",
+    "project_id": "toda-contribution-system",
+    "storage_bucket": "toda-contribution-system.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:536068566619:android:e1c2dea2314e169d58997e",
+        "android_client_info": {
+          "package_name": "com.example.toda.passenger"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        { "current_key": "AIzaSyAbEJ8tzm5RIeXvKhlxZl71a_tBX4WmN4E" }
+      ],
+      "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:536068566619:android:e1c2dea2314e169d58997e",
+        "android_client_info": {
+          "package_name": "com.example.toda.passenger.debug"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        { "current_key": "AIzaSyAbEJ8tzm5RIeXvKhlxZl71a_tBX4WmN4E" }
+      ],
+      "services": { "appinvite_service": { "other_platform_oauth_client": [] } }
+    }
+  ],
+  "configuration_version": "1"
+}
+

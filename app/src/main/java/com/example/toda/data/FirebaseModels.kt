@@ -16,7 +16,12 @@ data class FirebaseUser(
     // TODA membership fields
     val todaId: String? = null,
     val membershipNumber: String? = null,
-    val membershipStatus: String = "ACTIVE"
+    val membershipStatus: String = "ACTIVE",
+    // Admin-specific fields (optional, only used for admin users)
+    val address: String = "",
+    val emergencyContact: String = "",
+    val employeeId: String = "",
+    val position: String = ""
 )
 
 @IgnoreExtraProperties
@@ -34,6 +39,12 @@ data class FirebaseUserProfile(
     val trustScore: Double = 100.0,
     val isBlocked: Boolean = false,
     val lastBookingTime: Long = 0,
+    // Discount eligibility
+    val discountType: String? = null, // PWD, SENIOR_CITIZEN, STUDENT
+    val discountIdNumber: String = "",
+    val discountIdImageUrl: String = "", // URL to uploaded ID image in Firebase Storage
+    val discountVerified: Boolean = false,
+    val discountExpiryDate: Long? = null,
     // Driver specific
     val licenseNumber: String? = null,
     val licenseExpiry: Long? = null,
@@ -72,7 +83,9 @@ data class FirebaseBooking(
     // Additional fields that might be present in Firebase
     val driverName: String = "",
     val driverRFID: String = "",
-    val todaNumber: String = ""
+    val todaNumber: String = "",
+    // New field to classify trip creation source
+    val tripType: String = ""
 ) {
     // Helper function to get completionTime as Long
     fun getCompletionTimeLong(): Long {
@@ -249,10 +262,18 @@ data class FirebaseDriverQueueEntry(
 
 @IgnoreExtraProperties
 data class FirebaseContribution(
+    val id: String = "",
     val driverId: String = "",
     val driverName: String = "",
+    val driverRFID: String = "", // Add this to match Firebase field name
+    val rfidUID: String = "",
     val amount: Double = 5.0,
     val timestamp: Long = System.currentTimeMillis(),
+    val date: String = "",
+    val contributionType: String = "COIN_INSERTION", // COIN_INSERTION, MANUAL, ADMIN_ADJUSTMENT
+    val notes: String = "",
+    val deviceId: String = "", // Which coin insertion device recorded this
+    val verified: Boolean = true,
     val source: String = "hardware" // "hardware" | "mobile"
 )
 
@@ -291,4 +312,25 @@ data class UnifiedQueueEntry(
     val timestamp: Long = System.currentTimeMillis(),
     val source: String = "hardware", // "hardware" | "mobile"
     val isInPhysicalQueue: Boolean = true
+)
+
+@IgnoreExtraProperties
+data class FirebaseRating(
+    val id: String = "",
+    val bookingId: String = "",
+    val customerId: String = "",
+    val customerName: String = "",
+    val driverId: String = "",
+    val driverName: String = "",
+    val stars: Int = 0,
+    val feedback: String = "",
+    val timestamp: Long = System.currentTimeMillis(),
+    val ratedBy: String = "DRIVER" // "DRIVER" or "CUSTOMER"
+)
+
+data class LoginState(
+    val isLoading: Boolean = false,
+    val isSuccess: Boolean = false,
+    val error: String? = null,
+    val userId: String? = null
 )

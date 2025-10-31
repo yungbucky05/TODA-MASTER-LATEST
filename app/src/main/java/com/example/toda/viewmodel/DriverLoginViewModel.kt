@@ -28,6 +28,14 @@ class DriverLoginViewModel @Inject constructor(
             return
         }
 
+        // Validate phone number format
+        if (!isValidPhoneNumber(phoneNumber)) {
+            _loginState.value = _loginState.value.copy(
+                error = "Please enter a valid Philippine phone number (e.g., 09XXXXXXXXX)"
+            )
+            return
+        }
+
         viewModelScope.launch {
             try {
                 _loginState.value = _loginState.value.copy(
@@ -152,6 +160,12 @@ class DriverLoginViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    private fun isValidPhoneNumber(phoneNumber: String): Boolean {
+        // Philippine phone number validation - only allow 11 digits starting with "09"
+        val cleanNumber = phoneNumber.replace(Regex("[^0-9]"), "")
+        return cleanNumber.startsWith("09") && cleanNumber.length == 11
     }
 
     fun clearError() {

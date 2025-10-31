@@ -35,7 +35,7 @@ class CustomerRegistrationViewModel @Inject constructor(
         if (phoneNumber.isBlank()) {
             errors.phoneError = "Phone number is required"
         } else if (!isValidPhoneNumber(phoneNumber)) {
-            errors.phoneError = "Invalid Philippine phone number format"
+            errors.phoneError = "Phone number must be 11 digits starting with 09 (e.g., 09XXXXXXXXX)"
         }
 
         if (password.isBlank()) {
@@ -81,51 +81,6 @@ class CustomerRegistrationViewModel @Inject constructor(
         return !errors.hasErrors()
     }
 
-    fun validateStep3(
-        emergencyContactName: String,
-        emergencyContact: String
-    ): Boolean {
-        val errors = ValidationErrors()
-
-        if (emergencyContactName.isBlank()) {
-            errors.emergencyNameError = "Emergency contact name is required"
-        }
-
-        if (emergencyContact.isBlank()) {
-            errors.emergencyContactError = "Emergency contact number is required"
-        } else if (!isValidPhoneNumber(emergencyContact)) {
-            errors.emergencyContactError = "Invalid phone number format"
-        }
-
-        _validationErrors.value = errors
-        return !errors.hasErrors()
-    }
-
-    suspend fun checkPhoneAvailability(phoneNumber: String): Boolean {
-        return try {
-            _registrationState.value = _registrationState.value.copy(isCheckingPhone = true)
-
-            // Try to get user by phone number from the database
-            val existingUser = repository.loginUser(phoneNumber, "dummy").getOrNull()
-            val isAvailable = existingUser == null
-
-            if (!isAvailable) {
-                _validationErrors.value = _validationErrors.value.copy(
-                    phoneError = "Phone number already registered. Please use a different number or try logging in."
-                )
-            }
-
-            _registrationState.value = _registrationState.value.copy(isCheckingPhone = false)
-            isAvailable
-        } catch (e: Exception) {
-            _registrationState.value = _registrationState.value.copy(
-                isCheckingPhone = false
-            )
-            // If there's an error checking, assume phone is available
-            true
-        }
-    }
-
     fun registerCustomer(
         name: String,
         phoneNumber: String,
@@ -134,8 +89,6 @@ class CustomerRegistrationViewModel @Inject constructor(
         dateOfBirth: Long?,
         gender: String,
         occupation: String,
-        emergencyContactName: String,
-        emergencyContact: String,
         notificationPreferences: NotificationPreferences,
         agreesToTerms: Boolean
     ) {
@@ -169,7 +122,7 @@ class CustomerRegistrationViewModel @Inject constructor(
                             name = name,
                             userType = UserType.PASSENGER,
                             address = address,
-                            emergencyContact = emergencyContact,
+                            emergencyContact = "", // Remove emergency contact requirement
                             totalBookings = 0,
                             completedBookings = 0,
                             cancelledBookings = 0,
@@ -186,8 +139,8 @@ class CustomerRegistrationViewModel @Inject constructor(
                                     name = name,
                                     phoneNumber = phoneNumber,
                                     address = address,
-                                    emergencyContact = emergencyContact,
-                                    emergencyContactName = emergencyContactName,
+                                    emergencyContact = "", // Remove emergency contact requirement
+                                    emergencyContactName = "", // Remove emergency contact requirement
                                     dateOfBirth = dateOfBirth,
                                     gender = gender,
                                     occupation = occupation,
@@ -237,14 +190,9 @@ class CustomerRegistrationViewModel @Inject constructor(
     }
 
     private fun isValidPhoneNumber(phoneNumber: String): Boolean {
-        // Philippine phone number validation
-        val cleanNumber = phoneNumber.replace(Regex("[^0-9+]"), "")
-        return when {
-            cleanNumber.startsWith("+639") && cleanNumber.length == 13 -> true
-            cleanNumber.startsWith("09") && cleanNumber.length == 11 -> true
-            cleanNumber.startsWith("639") && cleanNumber.length == 12 -> true
-            else -> false
-        }
+        // Philippine phone number validation - only allow 11 digits starting with "09"
+        val cleanNumber = phoneNumber.replace(Regex("[^0-9]"), "")
+        return cleanNumber.startsWith("09") && cleanNumber.length == 11
     }
 
     private fun calculateAge(birthDate: Long): Int {

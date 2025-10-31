@@ -5,10 +5,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,6 +22,10 @@ import com.example.toda.data.User
 import com.example.toda.data.Booking
 import com.example.toda.viewmodel.EnhancedBookingViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
+import androidx.core.net.toUri
+import com.example.toda.data.UserType
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,6 +38,7 @@ fun SimpleChatScreen(
     val chatMessages by viewModel.getChatMessages(booking.id).collectAsStateWithLifecycle(initialValue = emptyList())
     var messageText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
+    val context = LocalContext.current
 
     // Auto-scroll to bottom when new messages arrive
     LaunchedEffect(chatMessages.size) {
@@ -87,7 +92,7 @@ fun SimpleChatScreen(
             .fillMaxSize()
             .background(Color(0xFFF5F5F5))
     ) {
-        // Chat Header
+        // Chat Header with optional Call button for drivers
         TopAppBar(
             title = {
                 Column {
@@ -112,10 +117,30 @@ fun SimpleChatScreen(
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                 }
             },
+            actions = {
+                // Show call button if driver and phone number is available
+                if (user.userType == UserType.DRIVER && booking.phoneNumber.isNotBlank()) {
+                    IconButton(
+                        onClick = {
+                            val sanitized = booking.phoneNumber.filter { it.isDigit() || it == '+' }
+                            val intent = Intent(Intent.ACTION_DIAL).apply {
+                                data = "tel:$sanitized".toUri()
+                            }
+                            context.startActivity(intent)
+                        }
+                    ) {
+                        Icon(
+                            Icons.Default.Phone,
+                            contentDescription = "Call customer"
+                        )
+                    }
+                }
+            },
             colors = TopAppBarDefaults.topAppBarColors(
                 containerColor = MaterialTheme.colorScheme.primary,
                 titleContentColor = Color.White,
-                navigationIconContentColor = Color.White
+                navigationIconContentColor = Color.White,
+                actionIconContentColor = Color.White
             )
         )
 
@@ -209,7 +234,7 @@ fun SimpleChatScreen(
                     contentPadding = PaddingValues(0.dp)
                 ) {
                     Icon(
-                        Icons.Default.Send,
+                        Icons.AutoMirrored.Filled.Send,
                         contentDescription = "Send",
                         modifier = Modifier.size(20.dp)
                     )

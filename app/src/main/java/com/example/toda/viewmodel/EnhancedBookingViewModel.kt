@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import org.osmdroid.util.GeoPoint
 import javax.inject.Inject
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 
 @HiltViewModel
 class EnhancedBookingViewModel @Inject constructor(
@@ -25,6 +27,12 @@ class EnhancedBookingViewModel @Inject constructor(
     private val _activeBookings = MutableStateFlow<List<Booking>>(emptyList())
     val activeBookings = _activeBookings.asStateFlow()
 
+    private val _queueList = MutableStateFlow<List<QueueEntry>>(emptyList())
+    val queueList = _queueList.asStateFlow()
+
+    // Polling jobs keyed by bookingId to avoid duplicates
+    private val pollingJobs: MutableMap<String, Job> = mutableMapOf()
+
     init {
         // Observe available drivers in real-time
         viewModelScope.launch {
@@ -37,6 +45,13 @@ class EnhancedBookingViewModel @Inject constructor(
         viewModelScope.launch {
             repository.getActiveBookings().collect { bookings ->
                 _activeBookings.value = bookings
+            }
+        }
+
+        // Observe driver queue in real-time
+        viewModelScope.launch {
+            repository.observeDriverQueue().collect { queueEntries ->
+                _queueList.value = queueEntries
             }
         }
     }
@@ -77,7 +92,7 @@ class EnhancedBookingViewModel @Inject constructor(
                 estimatedFare = estimatedFare,
                 status = BookingStatus.PENDING,
                 timestamp = System.currentTimeMillis(),
-                verificationCode = generateVerificationCode()
+                verificationCode = (100000..999999).random().toString()
             )
 
             println("Created booking object: $booking")
@@ -91,6 +106,9 @@ class EnhancedBookingViewModel @Inject constructor(
                         currentBookingId = bookingId,
                         message = "Booking created successfully! Waiting for driver acceptance."
                     )
+
+                    // Start 10-second polling to retry assignment until matched or timeout
+                    startBookingPolling(bookingId)
                 },
                 onFailure = { error ->
                     println("ERROR: ViewModel received error: ${error.message}")
@@ -105,6 +123,57 @@ class EnhancedBookingViewModel @Inject constructor(
         }
     }
 
+    private fun startBookingPolling(bookingId: String, intervalMs: Long = 10_000L, maxAttempts: Int = 12) {
+        if (pollingJobs.containsKey(bookingId)) {
+            println("Polling already active for $bookingId; skipping duplicate start")
+            return
+        }
+        val job = viewModelScope.launch {
+            println("Starting polling for booking $bookingId (every ${intervalMs}ms, up to $maxAttempts attempts)")
+            var attempts = 0
+            while (attempts < maxAttempts) {
+                attempts++
+                try {
+                    val current = repository.getBookingByIdOnce(bookingId)
+                    if (current == null) {
+                        println("Polling: booking $bookingId not found (attempt $attempts)")
+                    } else {
+                        println("Polling: booking $bookingId status=${current.status} assignedDriverId='${current.assignedDriverId}' (attempt $attempts)")
+                        // Stop polling if no longer pending
+                        if (current.status != BookingStatus.PENDING) {
+                            println("Booking $bookingId no longer pending; stopping polling")
+                            break
+                        }
+                        // If still pending, try to match to first driver in queue
+                        repository.tryMatchBookingToFirstDriver(bookingId).fold(
+                            onSuccess = { matched ->
+                                if (matched) {
+                                    println("Polling: matched booking $bookingId to a driver; will verify on next tick or via realtime stream")
+                                } else {
+                                    println("Polling: no match yet for $bookingId; will try again")
+                                }
+                            },
+                            onFailure = { e ->
+                                println("Polling: error trying to match booking $bookingId: ${e.message}")
+                            }
+                        )
+                    }
+                } catch (e: Exception) {
+                    println("Polling exception for $bookingId: ${e.message}")
+                }
+                delay(intervalMs)
+            }
+            println("Stopping polling for booking $bookingId after $attempts attempts")
+            pollingJobs.remove(bookingId)
+        }
+        pollingJobs[bookingId] = job
+    }
+
+    fun stopBookingPolling(bookingId: String) {
+        pollingJobs.remove(bookingId)?.cancel()
+        println("Manually stopped polling for booking $bookingId")
+    }
+
     fun acceptBooking(bookingId: String, driverId: String) {
         viewModelScope.launch {
             repository.acceptBooking(bookingId, driverId).fold(
@@ -112,8 +181,42 @@ class EnhancedBookingViewModel @Inject constructor(
                     _bookingState.value = _bookingState.value.copy(
                         message = "Booking accepted successfully!"
                     )
-                    // Create chat room after accepting booking
-                    createChatRoomForBooking(bookingId, driverId)
+                    // Create chat room after accepting booking (inline)
+                    viewModelScope.launch {
+                        try {
+                            val booking = repository.getBookingByIdOnce(bookingId)
+                            if (booking == null) {
+                                println("createChatRoom: Booking not found for id=$bookingId")
+                            } else {
+                                val driverName = try {
+                                    val driverMapResult = repository.getDriverById(driverId)
+                                    driverMapResult.getOrNull()?.let { map ->
+                                        (map["name"] as? String)
+                                            ?: (map["driverName"] as? String)
+                                            ?: "Driver"
+                                    } ?: "Driver"
+                                } catch (e: Exception) {
+                                    "Driver"
+                                }
+                                repository.createOrGetChatRoom(
+                                    bookingId = bookingId,
+                                    customerId = booking.customerId,
+                                    customerName = booking.customerName,
+                                    driverId = driverId,
+                                    driverName = driverName
+                                ).fold(
+                                    onSuccess = { roomId ->
+                                        println("Chat room ready for booking=$bookingId (roomId=$roomId)")
+                                    },
+                                    onFailure = { e ->
+                                        println("Failed to create/get chat room for booking=$bookingId: ${e.message}")
+                                    }
+                                )
+                            }
+                        } catch (e: Exception) {
+                            println("createChatRoom inline exception: ${e.message}")
+                        }
+                    }
                 },
                 onFailure = { error ->
                     _bookingState.value = _bookingState.value.copy(
@@ -131,6 +234,18 @@ class EnhancedBookingViewModel @Inject constructor(
                     _bookingState.value = _bookingState.value.copy(
                         message = "Booking status updated to $status successfully!"
                     )
+
+                    // Create rating entry when trip is completed
+                    if (status == "COMPLETED") {
+                        repository.createRatingEntry(bookingId).fold(
+                            onSuccess = {
+                                println("✓ Rating entry created for booking: $bookingId")
+                            },
+                            onFailure = { error ->
+                                println("✗ Failed to create rating entry: ${error.message}")
+                            }
+                        )
+                    }
                 },
                 onFailure = { error ->
                     _bookingState.value = _bookingState.value.copy(
@@ -231,8 +346,25 @@ class EnhancedBookingViewModel @Inject constructor(
         return repository.getDriverContributionStatus(driverId)
     }
 
+    suspend fun isDriverInQueue(driverRFID: String): Result<Boolean> {
+        return repository.isDriverInQueue(driverRFID)
+    }
+
+    fun observeDriverQueueStatus(driverRFID: String): Flow<Boolean> {
+        return repository.observeDriverQueueStatus(driverRFID)
+    }
+
+    suspend fun leaveQueue(driverRFID: String): Result<Boolean> {
+        return repository.leaveQueue(driverRFID)
+    }
+
     suspend fun getDriverTodayStats(driverId: String): Result<Triple<Int, Double, Double>> {
         return repository.getDriverTodayStats(driverId)
+    }
+
+    // Rating submission function
+    suspend fun submitRating(bookingId: String, stars: Int, feedback: String): Result<Unit> {
+        return repository.updateRating(bookingId, stars, feedback)
     }
 
     // Enhanced Chat methods
@@ -258,6 +390,11 @@ class EnhancedBookingViewModel @Inject constructor(
         return repository.getUserChatRooms(userId)
     }
 
+    // Add method to fetch user profile data including discount information
+    fun getUserProfile(userId: String): Flow<UserProfile?> {
+        return repository.getUserProfile(userId)
+    }
+
     suspend fun createOrGetChatRoom(
         bookingId: String,
         customerId: String,
@@ -276,46 +413,37 @@ class EnhancedBookingViewModel @Inject constructor(
         _bookingState.value = _bookingState.value.copy(error = null)
     }
 
-    private fun generateVerificationCode(): String {
-        return (1000..9999).random().toString()
+    // RFID Management methods
+    suspend fun reportMissingRfid(driverId: String, reason: String): Result<Unit> {
+        return repository.reportMissingRfid(driverId, reason)
     }
 
-    private fun createChatRoomForBooking(bookingId: String, driverId: String) {
-        viewModelScope.launch {
-            try {
-                // Get booking details to create chat room
-                val booking = _activeBookings.value.find { it.id == bookingId }
-                if (booking != null) {
-                    // Get driver details
-                    val driverResult = getDriverById(driverId)
-                    driverResult.fold(
-                        onSuccess = { driverData ->
-                            val driverName = driverData["name"] as? String ?: "Driver"
+    suspend fun getRfidChangeHistory(driverId: String): Result<List<RfidChangeHistory>> {
+        return repository.getRfidChangeHistory(driverId)
+    }
 
-                            repository.createOrGetChatRoom(
-                                bookingId = bookingId,
-                                customerId = booking.customerId,
-                                customerName = booking.customerName,
-                                driverId = driverId,
-                                driverName = driverName
-                            ).fold(
-                                onSuccess = { chatRoomId ->
-                                    println("Chat room created successfully: $chatRoomId")
-                                },
-                                onFailure = { error ->
-                                    println("Failed to create chat room: ${error.message}")
-                                }
-                            )
-                        },
-                        onFailure = { error ->
-                            println("Failed to get driver details: ${error.message}")
-                        }
-                    )
-                }
-            } catch (e: Exception) {
-                println("Error creating chat room: ${e.message}")
-            }
-        }
+    // Booking arrival and no-show methods
+    suspend fun markArrivedAtPickup(bookingId: String): Result<Unit> {
+        return repository.markArrivedAtPickup(bookingId)
+    }
+
+    suspend fun reportNoShow(bookingId: String): Result<Unit> {
+        return repository.reportNoShow(bookingId)
+    }
+
+    // =====================
+    // Contributions wrappers
+    // =====================
+    suspend fun getDriverContributions(driverId: String): Result<List<FirebaseContribution>> {
+        return runCatching { repository.getDriverContributions(driverId) }
+    }
+
+    suspend fun getDriverTodayContributions(driverId: String): Result<List<FirebaseContribution>> {
+        return runCatching { repository.getDriverTodayContributions(driverId) }
+    }
+
+    suspend fun getDriverContributionSummary(driverId: String): Result<ContributionSummary> {
+        return runCatching { repository.getDriverContributionSummary(driverId) }
     }
 }
 

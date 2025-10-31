@@ -4,8 +4,7 @@
 ## Updated Root Structure
 ```
 toda-booking-system/
-├── users/                          # User authentication (mobile app)
-├── userProfiles/                   # Detailed user profiles (mobile app)
+├── users/                          # User records (auth + profile fields)
 ├── drivers/                        # Hardware-scanned drivers (ESP32 compatible)
 ├── driverQueue/                    # Physical queue at terminal (ESP32)
 ├── availableDrivers/               # Real-time available drivers (mobile app)
@@ -20,6 +19,8 @@ toda-booking-system/
 ├── phoneNumberIndex/               # Quick lookups
 └── systemStatus/                   # Hardware status monitoring
 ```
+
+Note: The legacy userProfiles/ node has been removed. All profile-related fields now live under users/{userId}.
 
 ## Unified Driver Management
 
@@ -119,15 +120,7 @@ systemStatus/
         ".write": "$userId === auth.uid"
       }
     },
-    
-    // User profiles have similar restrictions
-    "userProfiles": {
-      "$userId": {
-        ".read": "$userId === auth.uid || root.child('users/' + auth.uid + '/userType').val() === 'OPERATOR'",
-        ".write": "$userId === auth.uid"
-      }
-    },
-    
+
     // Bookings are readable by customer, assigned driver, and operators
     "bookings": {
       "$bookingId": {
@@ -135,7 +128,7 @@ systemStatus/
         ".write": "data.child('customerId').val() === auth.uid || data.child('assignedDriverId').val() === auth.uid || root.child('users/' + auth.uid + '/userType').val() === 'OPERATOR'"
       }
     },
-    
+
     // Driver locations readable by operators and other drivers
     "driverLocations": {
       ".read": "root.child('users/' + auth.uid + '/userType').val() === 'DRIVER' || root.child('users/' + auth.uid + '/userType').val() === 'OPERATOR'",
@@ -143,17 +136,17 @@ systemStatus/
         ".write": "$driverId === auth.uid"
       }
     },
-    
+
     // Available drivers index readable by passengers and operators
     "availableDrivers": {
       ".read": "auth != null"
     },
-    
+
     // Active bookings readable by operators
     "activeBookings": {
       ".read": "root.child('users/' + auth.uid + '/userType').val() === 'OPERATOR'"
     },
-    
+
     // Emergency alerts writable by authenticated users
     "emergencyAlerts": {
       ".read": "root.child('users/' + auth.uid + '/userType').val() === 'OPERATOR' || root.child('users/' + auth.uid + '/userType').val() === 'TODA_ADMIN'",
@@ -188,9 +181,9 @@ systemStatus/
 
 ## Performance Considerations
 
-1. **Minimize Data Transfer**: Only fetch required fields
-2. **Use Shallow Queries**: Use `.shallow=true` for list operations
-3. **Implement Pagination**: For large datasets like booking history
-4. **Cache Frequently Used Data**: Store in local storage/SharedPreferences
-5. **Batch Operations**: Use `updateChildren()` for multiple updates
-6. **Offline Support**: Firebase automatically handles offline caching
+1. Minimize Data Transfer: Only fetch required fields
+2. Use Shallow Queries: Use `.shallow=true` for list operations
+3. Implement Pagination: For large datasets like booking history
+4. Cache Frequently Used Data: Store in local storage/SharedPreferences
+5. Batch Operations: Use `updateChildren()` for multiple updates
+6. Offline Support: Firebase automatically handles offline caching

@@ -117,64 +117,53 @@ class RegistrationService {
 
     // Driver Registration
     suspend fun registerDriver(
-        registration: DriverRegistration,
+        driver: Driver,
         password: String
     ): RegistrationResult {
         delay(1500) // Simulate network delay
 
         // Check if phone number already exists
-        if (users.any { it.phoneNumber == registration.phoneNumber }) {
+        if (users.any { it.phoneNumber == driver.phoneNumber }) {
             return RegistrationResult.Error("Phone number already registered")
         }
 
-        // Validate TODA membership
-        if (!isValidTODANumber(registration.todaNumber)) {
-            return RegistrationResult.Error("Invalid TODA membership number")
-        }
-
-        // Check if tricycle exists and is available
-        val tricycle = tricycles.find { it.id == registration.tricycleId }
-        if (tricycle == null) {
-            return RegistrationResult.Error("Selected tricycle not found")
+        // Validate license number
+        if (driver.licenseNumber.isEmpty()) {
+            return RegistrationResult.Error("License number is required")
         }
 
         try {
             // Create user account with pending approval
             val user = User(
                 id = UUID.randomUUID().toString(),
-                phoneNumber = registration.phoneNumber,
-                name = registration.applicantName,
+                phoneNumber = driver.phoneNumber,
+                name = driver.name,
                 password = password,
                 userType = UserType.DRIVER,
                 isVerified = false,
                 todaId = "toda_brgy177_001",
-                membershipNumber = registration.todaNumber,
+                membershipNumber = "", // Will be assigned by admin
                 membershipStatus = "PENDING_APPROVAL",
                 profile = UserProfile(
-                    phoneNumber = registration.phoneNumber,
-                    name = registration.applicantName,
+                    phoneNumber = driver.phoneNumber,
+                    name = driver.name,
                     userType = UserType.DRIVER,
-                    address = registration.address,
-                    emergencyContact = registration.emergencyContact,
-                    licenseNumber = registration.licenseNumber,
-                    licenseExpiry = registration.licenseExpiry,
-                    yearsOfExperience = registration.yearsOfExperience
+                    address = driver.address,
+                    emergencyContact = "",
+                    licenseNumber = driver.licenseNumber,
+                    licenseExpiry = 0,
+                    yearsOfExperience = 0
                 )
             )
 
             users.add(user)
-            registrations.add(registration)
 
-            // Create TODA membership record
-            val membership = TODAMembership(
-                id = UUID.randomUUID().toString(),
-                memberId = user.id,
-                todaOrganizationId = "toda_brgy177_001",
-                membershipNumber = registration.todaNumber,
-                membershipType = MembershipType.DRIVER,
-                status = MembershipStatus.ACTIVE
+            // Create a simplified driver record
+            val driverRecord = driver.copy(
+                id = user.id,
+                status = DriverStatus.PENDING_APPROVAL,
+                registrationDate = System.currentTimeMillis()
             )
-            todaMemberships.add(membership)
 
             return RegistrationResult.Pending(
                 user = user,
@@ -198,23 +187,12 @@ class RegistrationService {
 
     // Approve driver registration (for operators/admins)
     suspend fun approveDriverRegistration(
-        registrationId: String,
+        driverId: String,
         approvedBy: String
     ): Boolean {
-        val registration = registrations.find {
-            it is DriverRegistration && it.id == registrationId
-        } as? DriverRegistration ?: return false
-
         try {
-            // Update registration status
-            val updatedRegistration = registration.copy(
-                status = DriverApplicationStatus.APPROVED,
-                approvedBy = approvedBy,
-                approvalDate = System.currentTimeMillis()
-            )
-
-            // Update user status
-            val user = users.find { it.phoneNumber == registration.phoneNumber }
+            // Find user by driver ID and update status
+            val user = users.find { it.id == driverId }
             if (user != null) {
                 val updatedUser = user.copy(
                     isVerified = true,
@@ -222,26 +200,9 @@ class RegistrationService {
                 )
                 users.removeIf { it.id == user.id }
                 users.add(updatedUser)
-
-                // Add driver to tricycle
-                val tricycle = tricycles.find { it.id == registration.tricycleId }
-                if (tricycle != null) {
-                    val updatedTricycle = tricycle.copy(
-                        registeredDrivers = tricycle.registeredDrivers + user.id,
-                        primaryDriverId = if (tricycle.primaryDriverId.isEmpty()) user.id else tricycle.primaryDriverId
-                    )
-                    tricycles.removeIf { it.id == tricycle.id }
-                    tricycles.add(updatedTricycle)
-                }
+                return true
             }
-
-            // Update registration in list
-            registrations.removeIf {
-                it is DriverRegistration && it.id == registrationId
-            }
-            registrations.add(updatedRegistration)
-
-            return true
+            return false
         } catch (e: Exception) {
             return false
         }
@@ -249,42 +210,67 @@ class RegistrationService {
 
     // Reject driver registration
     suspend fun rejectDriverRegistration(
-        registrationId: String,
+        driverId: String,
         rejectionReason: String,
         rejectedBy: String
     ): Boolean {
-        val registration = registrations.find {
-            it is DriverRegistration && it.id == registrationId
-        } as? DriverRegistration ?: return false
-
         try {
-            val updatedRegistration = registration.copy(
-                status = DriverApplicationStatus.REJECTED,
-                rejectionReason = rejectionReason,
-                approvedBy = rejectedBy,
-                approvalDate = System.currentTimeMillis()
-            )
-
-            registrations.removeIf {
-                it is DriverRegistration && it.id == registrationId
+            // Find user by driver ID and update status
+            val user = users.find { it.id == driverId }
+            if (user != null) {
+                val updatedUser = user.copy(
+                    membershipStatus = "REJECTED"
+                )
+                users.removeIf { it.id == user.id }
+                users.add(updatedUser)
+                return true
             }
-            registrations.add(updatedRegistration)
-
-            return true
+            return false
         } catch (e: Exception) {
             return false
         }
     }
 
     // Get pending driver applications (for operators)
-    fun getPendingDriverApplications(): List<DriverRegistration> {
-        return registrations.filterIsInstance<DriverRegistration>()
-            .filter { it.status == DriverApplicationStatus.PENDING }
+    fun getPendingDriverApplications(): List<Driver> {
+        return users.filter {
+            it.userType == UserType.DRIVER &&
+            it.membershipStatus == "PENDING_APPROVAL"
+        }.map { user ->
+            Driver(
+                id = user.id,
+                name = user.name,
+                phoneNumber = user.phoneNumber,
+                address = user.profile?.address ?: "",
+                licenseNumber = user.profile?.licenseNumber ?: "",
+                tricyclePlateNumber = "",
+                password = user.password,
+                status = DriverStatus.PENDING_APPROVAL,
+                registrationDate = user.registrationDate
+            )
+        }
     }
 
     // Get all driver applications
-    fun getAllDriverApplications(): List<DriverRegistration> {
-        return registrations.filterIsInstance<DriverRegistration>()
+    fun getAllDriverApplications(): List<Driver> {
+        return users.filter { it.userType == UserType.DRIVER }.map { user ->
+            Driver(
+                id = user.id,
+                name = user.name,
+                phoneNumber = user.phoneNumber,
+                address = user.profile?.address ?: "",
+                licenseNumber = user.profile?.licenseNumber ?: "",
+                tricyclePlateNumber = "",
+                password = user.password,
+                status = when (user.membershipStatus) {
+                    "PENDING_APPROVAL" -> DriverStatus.PENDING_APPROVAL
+                    "ACTIVE" -> DriverStatus.ACTIVE
+                    "REJECTED" -> DriverStatus.REJECTED
+                    else -> DriverStatus.PENDING_APPROVAL
+                },
+                registrationDate = user.registrationDate
+            )
+        }
     }
 
     // Verify phone number

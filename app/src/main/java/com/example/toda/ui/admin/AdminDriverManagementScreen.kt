@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.toda.data.DriverInfo
+import com.example.toda.data.Driver
 import com.example.toda.viewmodel.AdminDriverManagementViewModel
 import java.text.SimpleDateFormat
 import java.util.*
@@ -33,7 +33,7 @@ fun AdminDriverManagementScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val allDrivers by viewModel.allDrivers.collectAsStateWithLifecycle()
 
-    var selectedDriver by remember { mutableStateOf<DriverInfo?>(null) }
+    var selectedDriver by remember { mutableStateOf<Driver?>(null) }
     var showDriverDetails by remember { mutableStateOf(false) }
     var showRfidAssignmentDialog by remember { mutableStateOf(false) }
     var rfidInput by remember { mutableStateOf("") }
@@ -64,30 +64,117 @@ fun AdminDriverManagementScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Stats Card
-        Card(
+        // Stats Cards - Now separated and visually appealing
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Row(
-                modifier = Modifier.padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
+            // Total Drivers Card
+            Card(
+                modifier = Modifier.weight(1f),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                )
             ) {
-                StatItem(
-                    title = "Total Drivers",
-                    count = allDrivers.size,
-                    color = MaterialTheme.colorScheme.primary
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        Icons.Default.People,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(32.dp)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = allDrivers.size.toString(),
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "Total Drivers",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
+            // Need RFID Card
+            Card(
+                modifier = Modifier.weight(1f),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
                 )
-                StatItem(
-                    title = "Need RFID",
-                    count = allDrivers.count { it.needsRfidAssignment },
-                    color = MaterialTheme.colorScheme.secondary
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        Icons.Default.CreditCard,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(32.dp)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = allDrivers.count { !it.hasRfidAssigned }.toString(),
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                    Text(
+                        text = "Need RFID",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
+            // Active Drivers Card
+            Card(
+                modifier = Modifier.weight(1f),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer
                 )
-                StatItem(
-                    title = "Active",
-                    count = allDrivers.count { it.isActive },
-                    color = MaterialTheme.colorScheme.tertiary
-                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.size(32.dp)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = allDrivers.count { it.isActive }.toString(),
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.tertiary
+                    )
+                    Text(
+                        text = "Active",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
         }
 
@@ -192,7 +279,7 @@ fun AdminDriverManagementScreen(
             title = { Text("Assign RFID Card") },
             text = {
                 Column {
-                    Text("Assign RFID card to ${selectedDriver!!.driverName}")
+                    Text("Assign RFID card to ${selectedDriver!!.name}")
                     Spacer(modifier = Modifier.height(16.dp))
                     OutlinedTextField(
                         value = rfidInput,
@@ -207,7 +294,7 @@ fun AdminDriverManagementScreen(
                 TextButton(
                     onClick = {
                         if (rfidInput.isNotBlank()) {
-                            viewModel.assignRfidToDriver(selectedDriver!!.driverId, rfidInput)
+                            viewModel.assignRfid(selectedDriver!!.id, rfidInput)
                             showRfidAssignmentDialog = false
                         }
                     },
@@ -240,7 +327,7 @@ fun AdminDriverManagementScreen(
 
 @Composable
 fun DriverCard(
-    driver: DriverInfo,
+    driver: Driver,
     onDriverClick: () -> Unit,
     onAssignRfid: () -> Unit
 ) {
@@ -260,12 +347,12 @@ fun DriverCard(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = driver.driverName,
+                        text = driver.name,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "TODA: ${driver.todaNumber}",
+                        text = "TODA: ${driver.todaMembershipId}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -317,7 +404,7 @@ fun DriverCard(
 
 @Composable
 fun DriverDetailsDialog(
-    driver: DriverInfo,
+    driver: Driver,
     onDismiss: () -> Unit,
     onAssignRfid: () -> Unit
 ) {
@@ -352,13 +439,12 @@ fun DriverDetailsDialog(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 // Driver Info
-                InfoRow("Name", driver.driverName)
+                InfoRow("Name", driver.name)
                 InfoRow("Phone Number", driver.phoneNumber)
-                InfoRow("TODA Number", driver.todaNumber)
+                InfoRow("TODA Membership ID", driver.todaMembershipId.ifEmpty { "Not assigned" })
                 InfoRow("Address", driver.address)
-                InfoRow("Emergency Contact", driver.emergencyContact)
                 InfoRow("License Number", driver.licenseNumber)
-                InfoRow("Years of Experience", driver.yearsOfExperience.toString())
+                InfoRow("Tricycle Plate Number", driver.tricyclePlateNumber)
 
                 if (driver.rfidUID.isNotEmpty()) {
                     InfoRow("RFID UID", driver.rfidUID)
@@ -379,7 +465,7 @@ fun DriverDetailsDialog(
 }
 
 @Composable
-fun InfoRow(label: String, value: String) {
+private fun InfoRow(label: String, value: String) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = label,

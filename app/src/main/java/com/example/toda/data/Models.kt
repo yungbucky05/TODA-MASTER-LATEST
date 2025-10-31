@@ -21,7 +21,12 @@ data class Booking(
     val driverName: String = "",
     val driverRFID: String = "",
     val todaNumber: String = "",
-    val assignedDriverId: String = ""
+    val assignedDriverId: String = "",
+    // Pickup arrival and no-show tracking
+    val arrivedAtPickup: Boolean = false,
+    val arrivedAtPickupTime: Long = 0L,
+    val isNoShow: Boolean = false,
+    val noShowReportedTime: Long = 0L
 )
 
 enum class BookingStatus {
@@ -30,7 +35,8 @@ enum class BookingStatus {
     IN_PROGRESS,
     REJECTED,
     COMPLETED,
-    CANCELLED
+    CANCELLED,
+    NO_SHOW // New status for no-show bookings
 }
 
 // Enhanced User types and roles
@@ -39,13 +45,6 @@ enum class UserType {
     DRIVER,
     OPERATOR,
     TODA_ADMIN
-}
-
-enum class DriverStatus {
-    ACTIVE,
-    INACTIVE,
-    SUSPENDED,
-    PENDING_APPROVAL
 }
 
 // TODA Organization structure
@@ -80,8 +79,8 @@ data class User(
 
 // Enhanced UserProfile
 data class UserProfile(
-    val phoneNumber: String,
-    val name: String,
+    val phoneNumber: String = "",
+    val name: String = "",
     val userType: UserType = UserType.PASSENGER,
     // Common fields
     val address: String = "",
@@ -94,6 +93,12 @@ data class UserProfile(
     val trustScore: Double = 100.0,
     val isBlocked: Boolean = false,
     val lastBookingTime: Long = 0,
+    // Discount eligibility
+    val discountType: DiscountType? = null,
+    val discountIdNumber: String = "",
+    val discountIdImageUrl: String = "", // URL to uploaded ID image in Firebase Storage
+    val discountVerified: Boolean = false,
+    val discountExpiryDate: Long? = null,
     // Driver specific
     val licenseNumber: String? = null,
     val licenseExpiry: Long? = null,
@@ -102,6 +107,13 @@ data class UserProfile(
     val totalTrips: Int = 0,
     val earnings: Double = 0.0
 )
+
+// Discount types for fare calculation
+enum class DiscountType(val displayName: String, val discountPercent: Double) {
+    PWD("Person with Disability", 20.0),
+    SENIOR_CITIZEN("Senior Citizen", 20.0),
+    STUDENT("Student", 10.0)
+}
 
 // Tricycle with multiple drivers support
 data class Tricycle(
@@ -122,37 +134,41 @@ data class Tricycle(
     val todaOrganizationId: String = ""
 )
 
-// Driver registration and management
-data class DriverRegistration(
+// Driver registration and management - Updated to match UI form
+data class Driver(
     val id: String = "",
-    val applicantName: String = "",
-    val phoneNumber: String = "",
-    val address: String = "",
-    val emergencyContact: String = "",
-    val licenseNumber: String = "",
-    val licenseExpiry: Long = 0,
-    val yearsOfExperience: Int = 0,
-    val tricycleId: String = "", // Tricycle they want to register for
-    val todaNumber: String = "",
-    val applicationDate: Long = System.currentTimeMillis(),
-    val status: DriverApplicationStatus = DriverApplicationStatus.PENDING,
-    val approvedBy: String? = null,
-    val approvalDate: Long? = null,
-    val rejectionReason: String? = null,
-    // Required documents
-    val hasValidLicense: Boolean = false,
-    val hasBarangayClearance: Boolean = false,
-    val hasPoliceClearance: Boolean = false,
-    val hasMedicalCertificate: Boolean = false,
-    val hasDriverTrainingCertificate: Boolean = false
+    val name: String = "", // Full Name from UI
+    val address: String = "", // Address from UI
+    val licenseNumber: String = "", // Driver's License Number from UI
+    val tricyclePlateNumber: String = "", // Tricycle Plate Number from UI
+    val phoneNumber: String = "", // Phone Number from UI (login credential)
+    val password: String = "", // Password from UI (login credential)
+    // Admin assigned fields - not in registration form
+    val rfidUID: String = "", // RFID assigned by admin
+    val todaMembershipId: String = "", // TODA Membership ID assigned by admin
+    val isActive: Boolean = false, // false until both RFID and TODA ID are assigned
+    val registrationDate: Long = System.currentTimeMillis(),
+    val status: DriverStatus = DriverStatus.PENDING_APPROVAL,
+    val approvedBy: String = "",
+    val approvalDate: Long = 0,
+    val hasRfidAssigned: Boolean = false, // true when admin assigns RFID
+    val hasTodaMembershipAssigned: Boolean = false, // true when admin assigns TODA Membership ID
+    // Document verification fields
+    val licensePhotoURL: String = "", // URL to uploaded driver's license photo
+    val verificationStatus: String = "pending", // pending, verified, rejected
+    val rejectionReason: String = "", // Reason if rejected by admin
+    val rejectionReasons: List<String> = emptyList(), // Multiple reasons if applicable
+    val rejectedAt: Long = 0, // Timestamp when rejected
+    val verifiedAt: Long = 0 // Timestamp when verified
 )
 
-enum class DriverApplicationStatus {
-    PENDING,
-    APPROVED,
-    REJECTED,
-    UNDER_REVIEW,
-    REQUIRES_DOCUMENTS
+// Simplified driver status for your flow
+enum class DriverStatus {
+    PENDING_APPROVAL,  // Just registered, waiting for admin review
+    APPROVED,          // Admin approved, waiting for RFID assignment
+    ACTIVE,            // RFID assigned, can log in
+    SUSPENDED,
+    REJECTED
 }
 
 // Enhanced passenger registration
@@ -170,23 +186,6 @@ data class PassengerRegistration(
     val isPhoneVerified: Boolean = false,
     val agreesToTerms: Boolean = false,
     val notificationPreferences: NotificationPreferences = NotificationPreferences()
-)
-
-// Driver information for admin management
-data class DriverInfo(
-    val driverId: String = "",
-    val driverName: String = "",
-    val rfidUID: String = "",
-    val todaNumber: String = "",
-    val isActive: Boolean = true,
-    val registrationDate: Long = System.currentTimeMillis(),
-    val phoneNumber: String = "",
-    val address: String = "",
-    val emergencyContact: String = "",
-    val licenseNumber: String = "",
-    val licenseExpiry: Long = 0,
-    val yearsOfExperience: Int = 0,
-    val needsRfidAssignment: Boolean = false
 )
 
 data class NotificationPreferences(
@@ -226,6 +225,14 @@ enum class MembershipStatus {
     TERMINATED
 }
 
+// Queue Entry for driver queue management
+data class QueueEntry(
+    val driverRFID: String = "",
+    val driverName: String = "",
+    val timestamp: Long = System.currentTimeMillis(),
+    val position: Int = 0
+)
+
 data class AuthState(
     val isLoggedIn: Boolean = false,
     val currentUser: User? = null,
@@ -251,6 +258,42 @@ data class CustomerLocation(
     val timestamp: Long = System.currentTimeMillis(),
     val speed: Float = 0f,
     val bearing: Float = 0f
+)
+
+// RFID Change History - tracks all RFID assignments, changes, and missing reports
+data class RfidChangeHistory(
+    val id: String = "",
+    val driverId: String = "",
+    val driverName: String = "",
+    val oldRfidUID: String = "", // Empty for first assignment
+    val newRfidUID: String = "", // Empty when reported missing/unlinked
+    val changeType: RfidChangeType = RfidChangeType.ASSIGNED,
+    val reason: String = "", // Reason for change (e.g., "Lost", "Damaged", "Replacement")
+    val changedBy: String = "", // Admin ID or "SYSTEM" for auto-unlink
+    val changedByName: String = "",
+    val timestamp: Long = System.currentTimeMillis(),
+    val notes: String = ""
+)
+
+enum class RfidChangeType {
+    ASSIGNED,       // First RFID assignment
+    REASSIGNED,     // RFID changed to a new one
+    REPORTED_MISSING, // Driver reported RFID as missing
+    UNLINKED,       // RFID unlinked from account
+    REPLACED        // RFID replaced due to damage/malfunction
+}
+
+data class Rating(
+    val id: String = "",
+    val bookingId: String = "",
+    val customerId: String = "",
+    val customerName: String = "",
+    val driverId: String = "",
+    val driverName: String = "",
+    val stars: Int = 0,
+    val feedback: String = "",
+    val timestamp: Long = System.currentTimeMillis(),
+    val ratedBy: String = "CUSTOMER" // "DRIVER" or "CUSTOMER"
 )
 
 data class NotificationState(
@@ -351,6 +394,18 @@ data class ChatParticipant(
     val isOnline: Boolean = false,
     val lastSeen: Long = System.currentTimeMillis(),
     val hasUnreadMessages: Boolean = false
+)
+
+// Contribution Summary for drivers
+data class ContributionSummary(
+    val totalContributions: Double = 0.0,
+    val todayContributions: Double = 0.0,
+    val thisWeekContributions: Double = 0.0,
+    val thisMonthContributions: Double = 0.0,
+    val contributionCount: Int = 0,
+    val lastContributionDate: Long? = null,
+    val averageDailyContribution: Double = 0.0,
+    val streak: Int = 0 // consecutive days with contributions
 )
 
 // Message Type Enum for Chat System

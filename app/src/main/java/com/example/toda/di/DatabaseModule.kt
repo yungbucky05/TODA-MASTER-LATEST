@@ -5,6 +5,9 @@ import com.example.toda.service.FirebaseRealtimeDatabaseService
 import com.example.toda.service.FirebaseAuthService
 import com.example.toda.service.FirebaseSyncService
 import com.example.toda.service.ChatService
+import com.example.toda.service.RoutingService
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.FirebaseDatabase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -14,6 +17,18 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
+
+    @Provides
+    @Singleton
+    fun provideFirebaseAuth(): FirebaseAuth {
+        return FirebaseAuth.getInstance()
+    }
+
+    @Provides
+    @Singleton
+    fun provideFirebaseDatabase(): FirebaseDatabase {
+        return FirebaseDatabase.getInstance()
+    }
 
     @Provides
     @Singleton
@@ -31,6 +46,12 @@ object DatabaseModule {
     @Singleton
     fun provideFirebaseSyncService(): FirebaseSyncService {
         return FirebaseSyncService()
+    }
+
+    @Provides
+    @Singleton
+    fun provideRoutingService(): RoutingService {
+        return RoutingService()
     }
 
     @Provides

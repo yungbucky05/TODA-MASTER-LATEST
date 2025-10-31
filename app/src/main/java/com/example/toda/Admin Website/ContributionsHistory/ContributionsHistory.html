@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contributions History - TODA Admin</title>
+  <link rel="stylesheet" href="ContributionsHistory.css">
+</head>
+<body>
+  <div class="page-container">
+    <!-- Top Bar -->
+    <header class="top-bar">
+      <button class="back-btn" onclick="window.location.href='../index.html'">
+        <span class="icon">←</span> Back to Dashboard
+      </button>
+      <div class="page-title">
+        <h1>Contributions History</h1>
+        <p>Track driver contributions and payments</p>
+      </div>
+    </header>
+
+    <!-- Summary Cards -->
+    <div class="stats-grid">
+      <div class="stat-card blue">
+        <div class="stat-icon">💰</div>
+        <div class="stat-details">
+          <div class="stat-value" id="todayTotal">₱0.00</div>
+          <div class="stat-label">Today's Total</div>
+        </div>
+      </div>
+      <div class="stat-card purple">
+        <div class="stat-icon">📊</div>
+        <div class="stat-details">
+          <div class="stat-value" id="weekTotal">₱0.00</div>
+          <div class="stat-label">This Week</div>
+        </div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-icon">📈</div>
+        <div class="stat-details">
+          <div class="stat-value" id="monthTotal">₱0.00</div>
+          <div class="stat-label">This Month</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Controls Section -->
+    <div class="controls-section">
+      <input type="text" id="searchInput" placeholder="🔍 Search by driver name or RFID..." class="search-input">
+      <input type="date" id="dateFilter" class="date-input">
+      <select id="driverFilter" class="driver-select">
+        <option value="">All Drivers</option>
+      </select>
+      <button class="btn-export" onclick="exportContributions()">📥 Export Report</button>
+      <button class="btn-clear" onclick="clearFilters()">Clear Filters</button>
+    </div>
+
+    <!-- Active Filters Display -->
+    <div id="activeFilters" class="active-filters"></div>
+
+    <!-- Driver Stats Card (shown when driver is selected) -->
+    <div id="driverStatsCard" class="driver-stats-card" style="display: none;"></div>
+
+    <!-- Contributions List -->
+    <div class="content-card">
+      <div class="card-header">
+        <h2>Contributions</h2>
+      </div>
+      <div id="contributionsList" class="contributions-list">
+        <div class="loading">Loading contributions...</div>
+      </div>
+      
+      <!-- Pagination Controls -->
+      <div id="paginationControls" class="pagination-controls" style="display: none;">
+        <div class="pagination-info">
+          <span id="paginationInfo">Showing 0-0 of 0</span>
+        </div>
+        <div class="pagination-buttons">
+          <button id="firstPageBtn" class="pagination-btn" onclick="goToPage(1)">
+            <span>««</span>
+          </button>
+          <button id="prevPageBtn" class="pagination-btn" onclick="previousPage()">
+            <span>‹</span>
+          </button>
+          <div id="pageNumbers" class="page-numbers"></div>
+          <button id="nextPageBtn" class="pagination-btn" onclick="nextPage()">
+            <span>›</span>
+          </button>
+          <button id="lastPageBtn" class="pagination-btn" onclick="goToPage('last')">
+            <span>»»</span>
+          </button>
+        </div>
+        <div class="items-per-page">
+          <label for="itemsPerPage">Items per page:</label>
+          <select id="itemsPerPage" onchange="changeItemsPerPage()">
+            <option value="10">10</option>
+            <option value="25" selected>25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contribution Details Modal -->
+  <div id="contributionModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Contribution Details</h2>
+        <button class="close-btn" onclick="closeContributionModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBody">
+        <!-- Contribution details will be injected here -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeContributionModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Message Container for Notifications -->
+  <div id="messageContainer" class="message-container"></div>
+
+  <script type="module" src="ContributionsHistory.js"></script>
+</body>
+</html>

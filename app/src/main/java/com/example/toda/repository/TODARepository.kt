@@ -5,9 +5,11 @@ import com.example.toda.service.FirebaseRealtimeDatabaseService
 import com.example.toda.service.FirebaseAuthService
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
 import org.osmdroid.util.GeoPoint
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.flow.combine
 
 @Singleton
 class TODARepository @Inject constructor(
@@ -54,6 +56,57 @@ class TODARepository @Inject constructor(
         }
     }
 
+    // Overloaded function for customer registration with extended user data
+    suspend fun registerUser(
+        phoneNumber: String,
+        password: String,
+        userData: Map<String, Any>
+    ): Result<FirebaseUser> {
+        return try {
+            // First create user in Firebase Auth
+            val authResult = authService.createUserWithPhoneNumber(phoneNumber, password)
+
+            authResult.fold(
+                onSuccess = { userId ->
+                    // Create a user object with the provided user data
+                    val user = FirebaseUser(
+                        id = userId,
+                        phoneNumber = phoneNumber,
+                        name = userData["name"] as? String ?: "",
+                        userType = userData["userType"] as? String ?: "PASSENGER",
+                        isVerified = userData["verified"] as? Boolean ?: true,
+                        registrationDate = userData["registrationDate"] as? Long ?: System.currentTimeMillis()
+                    )
+
+                    // Add the userId to userData
+                    val updatedUserData = userData + ("id" to userId)
+
+                    // Then create user profile in Realtime Database
+                    val success = firebaseService.createUserWithData(userId, updatedUserData)
+                    if (success) {
+                        Result.success(user)
+                    } else {
+                        Result.failure(Exception("Failed to create user profile"))
+                    }
+                },
+                onFailure = { error ->
+                    Result.failure(error)
+                }
+            )
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getUserByPhoneNumber(phoneNumber: String): FirebaseUser? {
+        return try {
+            firebaseService.getUserByPhoneNumber(phoneNumber)
+        } catch (e: Exception) {
+            println("Error getting user by phone number: ${e.message}")
+            null
+        }
+    }
+
     suspend fun loginUser(phoneNumber: String, password: String): Result<FirebaseUser> {
         return try {
             println("=== CUSTOMER LOGIN DEBUG ===")
@@ -71,6 +124,20 @@ class TODARepository @Inject constructor(
 
                     if (userProfile != null) {
                         println("User profile found - Type: ${userProfile.userType}, Verified: ${userProfile.isVerified}")
+
+                        // FETCH EXTENDED PROFILE DATA IMMEDIATELY
+                        println("Fetching extended profile data for user: $userId")
+                        try {
+                            val extendedProfile = firebaseService.getUserProfile(userId).first()
+                            if (extendedProfile != null) {
+                                println("Extended profile loaded - Discount Type: ${extendedProfile.discountType}, Total Bookings: ${extendedProfile.totalBookings}")
+                            } else {
+                                println("No extended profile found - will use basic profile only")
+                            }
+                        } catch (e: Exception) {
+                            println("Error fetching extended profile during login: ${e.message}")
+                        }
+
                         Result.success(userProfile)
                     } else {
                         println("User authenticated but no profile found. Creating profile...")
@@ -98,13 +165,17 @@ class TODARepository @Inject constructor(
                 onFailure = { error ->
                     println("Firebase Auth login failed: ${error.message}")
 
-                    // Fallback: Check if user exists in database (for existing users before this fix)
-                    val userProfile = firebaseService.getUserByPhoneNumber(phoneNumber)
-                    if (userProfile != null) {
-                        println("Found existing user profile, allowing login (legacy user)")
-                        Result.success(userProfile)
-                    } else {
-                        Result.failure(Exception("Invalid credentials. Please check your phone number and password."))
+                    // IMPORTANT: Do NOT allow login on auth failure.
+                    // Instead, provide a helpful error. If the account exists, hint to reset password.
+                    return@fold try {
+                        val existingProfile = firebaseService.getUserByPhoneNumber(phoneNumber)
+                        if (existingProfile != null) {
+                            Result.failure(Exception("Account exists but the password is incorrect. Please reset your password."))
+                        } else {
+                            Result.failure(Exception("Invalid credentials. Please check your phone number and password."))
+                        }
+                    } catch (e: Exception) {
+                        Result.failure(Exception("Authentication failed: ${error.message ?: "Unknown error"}"))
                     }
                 }
             )
@@ -129,6 +200,11 @@ class TODARepository @Inject constructor(
                 trustScore = profile.trustScore,
                 isBlocked = profile.isBlocked,
                 lastBookingTime = profile.lastBookingTime,
+                discountType = profile.discountType?.name,
+                discountIdNumber = profile.discountIdNumber,
+                discountIdImageUrl = profile.discountIdImageUrl,
+                discountVerified = profile.discountVerified,
+                discountExpiryDate = profile.discountExpiryDate,
                 licenseNumber = profile.licenseNumber,
                 licenseExpiry = profile.licenseExpiry,
                 yearsOfExperience = profile.yearsOfExperience,
@@ -149,12 +225,49 @@ class TODARepository @Inject constructor(
     }
 
     fun getUserProfile(userId: String): Flow<UserProfile?> {
-        return firebaseService.getUserProfile(userId).map { firebaseProfile ->
+        // Combine profile stored under 'userProfiles' with raw user data under 'users'
+        val profileFlow = firebaseService.getUserProfile(userId)
+        val userRawFlow = firebaseService.getUserRaw(userId)
+
+        return combine(profileFlow, userRawFlow) { firebaseProfile, userRaw ->
+            // Helper to parse discountType from raw map which could be String or Map (enum object)
+            fun parseDiscountType(raw: Any?): DiscountType? {
+                return when (raw) {
+                    is String -> try {
+                        DiscountType.valueOf(raw)
+                    } catch (_: IllegalArgumentException) { null }
+                    is Map<*, *> -> {
+                        // Try to map by displayName
+                        val displayName = raw["displayName"] as? String
+                        when (displayName) {
+                            "Person with Disability" -> DiscountType.PWD
+                            "Senior Citizen" -> DiscountType.SENIOR_CITIZEN
+                            "Student" -> DiscountType.STUDENT
+                            else -> null
+                        }
+                    }
+                    else -> null
+                }
+            }
+
+            // Fields possibly stored in 'users'
+            val rawDiscountType: DiscountType? = parseDiscountType(userRaw?.get("discountType"))
+            val rawDiscountVerified: Boolean? = (userRaw?.get("discountVerified") as? Boolean)
+            val rawDiscountExpiry: Long? = when (val v = userRaw?.get("discountExpiryDate")) {
+                is Number -> v.toLong()
+                is String -> v.toLongOrNull()
+                else -> null
+            }
+            val rawDiscountIdNumber: String? = userRaw?.get("discountIdNumber") as? String
+            val rawDiscountIdImageUrl: String? = userRaw?.get("discountIdImageUrl") as? String
+
+            // Build unified UserProfile, preferring firebaseProfile for general fields,
+            // and overlaying discount fields from 'users' when present
             firebaseProfile?.let { profile ->
                 UserProfile(
                     phoneNumber = profile.phoneNumber,
                     name = profile.name,
-                    userType = UserType.valueOf(profile.userType),
+                    userType = try { UserType.valueOf(profile.userType) } catch (_: Exception) { UserType.PASSENGER },
                     address = profile.address,
                     emergencyContact = profile.emergencyContact,
                     profilePicture = profile.profilePicture,
@@ -164,6 +277,14 @@ class TODARepository @Inject constructor(
                     trustScore = profile.trustScore,
                     isBlocked = profile.isBlocked,
                     lastBookingTime = profile.lastBookingTime,
+                    // Overlay discount fields from raw when available, else from profile
+                    discountType = rawDiscountType ?: profile.discountType?.let { dt ->
+                        try { DiscountType.valueOf(dt) } catch (_: Exception) { null }
+                    },
+                    discountIdNumber = rawDiscountIdNumber ?: profile.discountIdNumber,
+                    discountIdImageUrl = rawDiscountIdImageUrl ?: profile.discountIdImageUrl,
+                    discountVerified = rawDiscountVerified ?: profile.discountVerified,
+                    discountExpiryDate = rawDiscountExpiry ?: profile.discountExpiryDate,
                     licenseNumber = profile.licenseNumber,
                     licenseExpiry = profile.licenseExpiry,
                     yearsOfExperience = profile.yearsOfExperience,
@@ -171,6 +292,36 @@ class TODARepository @Inject constructor(
                     totalTrips = profile.totalTrips,
                     earnings = profile.earnings
                 )
+            } ?: run {
+                // If no firebaseProfile exists, construct minimal profile from raw user data
+                if (userRaw != null) {
+                    UserProfile(
+                        phoneNumber = userRaw["phoneNumber"] as? String ?: "",
+                        name = userRaw["name"] as? String ?: "",
+                        userType = try { UserType.valueOf((userRaw["userType"] as? String) ?: "PASSENGER") } catch (_: Exception) { UserType.PASSENGER },
+                        address = userRaw["address"] as? String ?: "",
+                        emergencyContact = userRaw["emergencyContact"] as? String ?: "",
+                        totalBookings = (userRaw["totalBookings"] as? Number)?.toInt() ?: 0,
+                        completedBookings = (userRaw["completedBookings"] as? Number)?.toInt() ?: 0,
+                        cancelledBookings = (userRaw["cancelledBookings"] as? Number)?.toInt() ?: 0,
+                        trustScore = (userRaw["trustScore"] as? Number)?.toDouble() ?: 100.0,
+                        isBlocked = userRaw["isBlocked"] as? Boolean ?: false,
+                        lastBookingTime = (userRaw["lastBookingTime"] as? Number)?.toLong() ?: 0L,
+                        discountType = rawDiscountType,
+                        discountIdNumber = rawDiscountIdNumber ?: "",
+                        discountIdImageUrl = rawDiscountIdImageUrl ?: "",
+                        discountVerified = rawDiscountVerified ?: false,
+                        discountExpiryDate = rawDiscountExpiry,
+                        licenseNumber = userRaw["licenseNumber"] as? String,
+                        licenseExpiry = (userRaw["licenseExpiry"] as? Number)?.toLong(),
+                        yearsOfExperience = (userRaw["yearsOfExperience"] as? Number)?.toInt() ?: 0,
+                        rating = (userRaw["rating"] as? Number)?.toDouble() ?: 5.0,
+                        totalTrips = (userRaw["totalTrips"] as? Number)?.toInt() ?: 0,
+                        earnings = (userRaw["earnings"] as? Number)?.toDouble() ?: 0.0
+                    )
+                } else {
+                    null
+                }
             }
         }
     }
@@ -205,7 +356,9 @@ class TODARepository @Inject constructor(
                 assignedTricycleId = booking.assignedTricycleId ?: "",
                 verificationCode = booking.verificationCode,
                 paymentMethod = "CASH", // Default payment method
-                duration = 0 // Will be calculated during trip
+                duration = 0, // Will be calculated during trip
+                // New key to indicate origin of booking
+                tripType = "App Booking"
             )
 
             println("Converted Firebase booking: $firebaseBooking")
@@ -216,6 +369,18 @@ class TODARepository @Inject constructor(
             println("Firebase service returned booking ID: $bookingId")
 
             if (bookingId != null) {
+                // Immediately try to match with the first driver in the queue
+                try {
+                    val matched = firebaseService.matchBookingToFirstDriver(bookingId)
+                    if (matched) {
+                        println("✓ Booking $bookingId matched to first driver in queue")
+                    } else {
+                        println("No available driver in queue to match for booking $bookingId; remains PENDING")
+                    }
+                } catch (e: Exception) {
+                    println("Error attempting to match booking to driver: ${e.message}")
+                }
+
                 println("SUCCESS: Repository createBooking completed with ID: $bookingId")
                 Result.success(bookingId)
             } else {
@@ -339,6 +504,110 @@ class TODARepository @Inject constructor(
         }
     }
 
+    suspend fun createRatingEntry(bookingId: String): Result<Unit> {
+        return try {
+            val success = firebaseService.createRatingEntry(bookingId)
+            if (success) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Failed to create rating entry"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun updateRating(bookingId: String, stars: Int, feedback: String): Result<Unit> {
+        return try {
+            val success = firebaseService.updateRating(bookingId, stars, feedback)
+            if (success) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Failed to update rating"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // Mark driver as arrived at pickup point
+    suspend fun markArrivedAtPickup(bookingId: String): Result<Unit> {
+        return try {
+            val success = firebaseService.markArrivedAtPickup(bookingId)
+            if (success) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Failed to mark arrived at pickup"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // Report customer no-show
+    suspend fun reportNoShow(bookingId: String): Result<Unit> {
+        return try {
+            val success = firebaseService.reportNoShow(bookingId)
+            if (success) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Failed to report no-show"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // Get booking by ID once (non-streaming)
+    suspend fun getBookingByIdOnce(bookingId: String): Booking? {
+        return try {
+            val firebaseBooking = firebaseService.getBookingById(bookingId) ?: return null
+            Booking(
+                id = firebaseBooking.id,
+                customerId = firebaseBooking.customerId,
+                customerName = firebaseBooking.customerName,
+                phoneNumber = firebaseBooking.phoneNumber,
+                isPhoneVerified = firebaseBooking.isPhoneVerified,
+                pickupLocation = firebaseBooking.pickupLocation,
+                destination = firebaseBooking.destination,
+                pickupGeoPoint = GeoPoint(
+                    firebaseBooking.pickupCoordinates["lat"] ?: 0.0,
+                    firebaseBooking.pickupCoordinates["lng"] ?: 0.0
+                ),
+                dropoffGeoPoint = GeoPoint(
+                    firebaseBooking.dropoffCoordinates["lat"] ?: 0.0,
+                    firebaseBooking.dropoffCoordinates["lng"] ?: 0.0
+                ),
+                estimatedFare = firebaseBooking.estimatedFare,
+                status = try {
+                    BookingStatus.valueOf(firebaseBooking.status)
+                } catch (e: IllegalArgumentException) {
+                    BookingStatus.PENDING
+                },
+                timestamp = firebaseBooking.timestamp,
+                assignedTricycleId = firebaseBooking.assignedTricycleId,
+                verificationCode = firebaseBooking.verificationCode,
+                driverName = firebaseBooking.driverName,
+                driverRFID = firebaseBooking.driverRFID,
+                todaNumber = firebaseBooking.todaNumber,
+                assignedDriverId = firebaseBooking.assignedDriverId
+            )
+        } catch (e: Exception) {
+            println("Error getting booking by ID: ${e.message}")
+            null
+        }
+    }
+
+    // Try to match booking to first available driver in queue
+    suspend fun tryMatchBookingToFirstDriver(bookingId: String): Result<Boolean> {
+        return try {
+            val matched = firebaseService.tryMatchBookingToFirstDriver(bookingId)
+            Result.success(matched)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     // Driver Location Management
     suspend fun updateDriverLocation(
         driverId: String,
@@ -387,49 +656,85 @@ class TODARepository @Inject constructor(
     }
 
     // Driver Registration Management
-    suspend fun submitDriverApplication(registration: DriverRegistration): Result<String> {
+    suspend fun submitDriverApplication(driver: Driver): Result<String> {
         return try {
-            // Add driver directly to the drivers table instead of creating a registration
-            val driverId = firebaseService.createDriverInDriversTable(
-                driverName = registration.applicantName,
-                todaNumber = registration.todaNumber.ifEmpty { "001" }, // Default TODA number if not provided
-                phoneNumber = registration.phoneNumber,
-                address = registration.address,
-                emergencyContact = registration.emergencyContact,
-                licenseNumber = registration.licenseNumber,
-                licenseExpiry = registration.licenseExpiry,
-                yearsOfExperience = registration.yearsOfExperience
+            println("=== SUBMITTING DRIVER APPLICATION ===")
+            println("Driver: ${driver.name}")
+            println("Phone: ${driver.phoneNumber}")
+            println("Creating Firebase Auth account...")
+
+            // Step 1: Create Firebase Auth account and user profile first
+            val authResult = registerUser(
+                phoneNumber = driver.phoneNumber,
+                name = driver.name,
+                userType = UserType.DRIVER,
+                password = driver.password
             )
 
-            if (driverId != null) {
-                Result.success(driverId) // Return the driver ID
-            } else {
-                Result.failure(Exception("Failed to add driver to system"))
-            }
+            authResult.fold(
+                onSuccess = { userId ->
+                    println("✓ Firebase Auth account created: $userId")
+
+                    // Step 2: Add additional driver-specific data to drivers table
+                    println("Creating driver record in database...")
+                    val driverId = firebaseService.createDriverInDriversTable(
+                        driverName = driver.name,
+                        todaNumber = "", // Empty - admin will assign TODA number later
+                        phoneNumber = driver.phoneNumber,
+                        address = driver.address,
+                        emergencyContact = "", // Not in registration form anymore
+                        licenseNumber = driver.licenseNumber,
+                        licenseExpiry = 0, // Not in registration form anymore
+                        yearsOfExperience = 0, // Not in registration form anymore
+                        tricyclePlateNumber = driver.tricyclePlateNumber // Add tricycle plate number
+                    )
+
+                    if (driverId != null) {
+                        println("✓ Driver record created: $driverId")
+
+                        // IMPORTANT: Sign out to allow auto-login to work properly
+                        authService.signOut()
+                        println("✓ Signed out from Firebase Auth to prepare for auto-login")
+
+                        Result.success(driverId) // Return the driver ID
+                    } else {
+                        println("✗ Failed to create driver record")
+                        Result.failure(Exception("Failed to add driver to system"))
+                    }
+                },
+                onFailure = { exception ->
+                    println("✗ Failed to create Firebase Auth account: ${exception.message}")
+                    Result.failure(Exception("Failed to create driver account: ${exception.message}"))
+                }
+            )
         } catch (e: Exception) {
+            println("✗ Exception during registration: ${e.message}")
             Result.failure(e)
         }
     }
 
     // New method to get all drivers for admin management
-    suspend fun getAllDrivers(): Result<List<DriverInfo>> {
+    suspend fun getAllDrivers(): Result<List<Driver>> {
         return try {
             val driversData = firebaseService.getAllDrivers()
             val drivers = driversData.map { driverData ->
-                DriverInfo(
-                    driverId = driverData["id"] as? String ?: "",
-                    driverName = driverData["driverName"] as? String ?: "",
-                    rfidUID = driverData["rfidUID"] as? String ?: "",
-                    todaNumber = driverData["todaNumber"] as? String ?: "",
-                    isActive = driverData["isActive"] as? Boolean ?: true,
-                    registrationDate = System.currentTimeMillis(), // Convert string date if needed
+                Driver(
+                    id = driverData["id"] as? String ?: "",
+                    name = driverData["driverName"] as? String ?: "",
                     phoneNumber = driverData["phoneNumber"] as? String ?: "",
                     address = driverData["address"] as? String ?: "",
-                    emergencyContact = driverData["emergencyContact"] as? String ?: "",
                     licenseNumber = driverData["licenseNumber"] as? String ?: "",
-                    licenseExpiry = driverData["licenseExpiry"] as? Long ?: 0L,
-                    yearsOfExperience = driverData["yearsOfExperience"] as? Int ?: 0,
-                    needsRfidAssignment = driverData["needsRfidAssignment"] as? Boolean ?: false
+                    tricyclePlateNumber = driverData["tricyclePlateNumber"] as? String ?: "",
+                    password = driverData["password"] as? String ?: "",
+                    rfidUID = driverData["rfidUID"] as? String ?: "",
+                    todaMembershipId = driverData["todaMembershipId"] as? String ?: "",
+                    isActive = driverData["isActive"] as? Boolean ?: false,
+                    registrationDate = driverData["registrationDate"] as? Long ?: System.currentTimeMillis(),
+                    status = DriverStatus.valueOf(driverData["status"] as? String ?: "PENDING_APPROVAL"),
+                    approvedBy = driverData["approvedBy"] as? String ?: "",
+                    approvalDate = driverData["approvalDate"] as? Long ?: 0,
+                    hasRfidAssigned = driverData["hasRfidAssigned"] as? Boolean ?: false,
+                    hasTodaMembershipAssigned = driverData["hasTodaMembershipAssigned"] as? Boolean ?: false
                 )
             }
             Result.success(drivers)
@@ -586,19 +891,29 @@ class TODARepository @Inject constructor(
         }
     }
 
-    suspend fun getDriverInfo(driverId: String): Result<DriverInfo?> {
+    suspend fun getDriverInfo(driverId: String): Result<Driver?> {
         return try {
             val driverData = firebaseService.getDriverById(driverId)
             if (driverData != null) {
-                val driverInfo = DriverInfo(
-                    driverId = driverId,
-                    driverName = driverData["driverName"] as? String ?: "",
+                val driver = Driver(
+                    id = driverId,
+                    name = driverData["driverName"] as? String ?: "",
+                    phoneNumber = driverData["phoneNumber"] as? String ?: "",
+                    address = driverData["address"] as? String ?: "",
+                    licenseNumber = driverData["licenseNumber"] as? String ?: "",
+                    tricyclePlateNumber = driverData["tricyclePlateNumber"] as? String ?: "",
+                    password = driverData["password"] as? String ?: "",
                     rfidUID = driverData["rfidUID"] as? String ?: "",
-                    todaNumber = driverData["todaNumber"] as? String ?: "",
-                    isActive = driverData["isActive"] as? Boolean ?: true,
-                    registrationDate = driverData["registrationDate"] as? Long ?: System.currentTimeMillis()
+                    todaMembershipId = driverData["todaMembershipId"] as? String ?: "",
+                    isActive = driverData["isActive"] as? Boolean ?: false,
+                    registrationDate = driverData["registrationDate"] as? Long ?: System.currentTimeMillis(),
+                    status = DriverStatus.valueOf(driverData["status"] as? String ?: "PENDING_APPROVAL"),
+                    approvedBy = driverData["approvedBy"] as? String ?: "",
+                    approvalDate = driverData["approvalDate"] as? Long ?: 0,
+                    hasRfidAssigned = driverData["hasRfidAssigned"] as? Boolean ?: false,
+                    hasTodaMembershipAssigned = driverData["hasTodaMembershipAssigned"] as? Boolean ?: false
                 )
-                Result.success(driverInfo)
+                Result.success(driver)
             } else {
                 Result.success(null)
             }
@@ -644,6 +959,32 @@ class TODARepository @Inject constructor(
         }
     }
 
+    suspend fun isDriverInQueue(driverRFID: String): Result<Boolean> {
+        return try {
+            val isInQueue = firebaseService.isDriverInQueue(driverRFID)
+            Result.success(isInQueue)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    fun observeDriverQueueStatus(driverRFID: String): Flow<Boolean> {
+        return firebaseService.observeDriverQueueStatus(driverRFID)
+    }
+
+    fun observeDriverQueue(): Flow<List<QueueEntry>> {
+        return firebaseService.observeDriverQueue()
+    }
+
+    suspend fun leaveQueue(driverRFID: String): Result<Boolean> {
+        return try {
+            val success = firebaseService.leaveQueue(driverRFID)
+            Result.success(success)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun getDriverTodayStats(driverId: String): Result<Triple<Int, Double, Double>> {
         return try {
             val stats = firebaseService.getDriverTodayStats(driverId)
@@ -666,8 +1007,169 @@ class TODARepository @Inject constructor(
         }
     }
 
+    // Driver Contributions Management
+    suspend fun getDriverContributions(driverId: String): List<FirebaseContribution> {
+        return try {
+            firebaseService.getDriverContributions(driverId)
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun getDriverTodayContributions(driverId: String): List<FirebaseContribution> {
+        return try {
+            firebaseService.getDriverTodayContributions(driverId)
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun getDriverContributionSummary(driverId: String): ContributionSummary {
+        return try {
+            val contributions = firebaseService.getDriverContributions(driverId)
+            calculateContributionSummary(contributions)
+        } catch (e: Exception) {
+            ContributionSummary()
+        }
+    }
+
+    private fun calculateContributionSummary(contributions: List<FirebaseContribution>): ContributionSummary {
+        if (contributions.isEmpty()) return ContributionSummary()
+
+        val now = System.currentTimeMillis()
+        val todayStart = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }.timeInMillis
+
+        val weekStart = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.DAY_OF_WEEK, java.util.Calendar.MONDAY)
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }.timeInMillis
+
+        val monthStart = java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.DAY_OF_MONTH, 1)
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }.timeInMillis
+
+        val totalContributions = contributions.sumOf { it.amount }
+        val todayContributions = contributions.filter { it.timestamp >= todayStart }.sumOf { it.amount }
+        val thisWeekContributions = contributions.filter { it.timestamp >= weekStart }.sumOf { it.amount }
+        val thisMonthContributions = contributions.filter { it.timestamp >= monthStart }.sumOf { it.amount }
+
+        val sortedContributions = contributions.sortedByDescending { it.timestamp }
+        val lastContributionDate = sortedContributions.firstOrNull()?.timestamp
+
+        // Calculate streak
+        val streak = calculateContributionStreak(contributions)
+
+        // Calculate average daily contribution (last 30 days)
+        val thirtyDaysAgo = now - (30 * 24 * 60 * 60 * 1000L)
+        val recentContributions = contributions.filter { it.timestamp >= thirtyDaysAgo }
+        val averageDailyContribution = if (recentContributions.isNotEmpty()) {
+            recentContributions.sumOf { it.amount } / 30.0
+        } else 0.0
+
+        return ContributionSummary(
+            totalContributions = totalContributions,
+            todayContributions = todayContributions,
+            thisWeekContributions = thisWeekContributions,
+            thisMonthContributions = thisMonthContributions,
+            contributionCount = contributions.size,
+            lastContributionDate = lastContributionDate,
+            averageDailyContribution = averageDailyContribution,
+            streak = streak
+        )
+    }
+
+    private fun calculateContributionStreak(contributions: List<FirebaseContribution>): Int {
+        if (contributions.isEmpty()) return 0
+
+        val sortedContributions = contributions.sortedByDescending { it.timestamp }
+        val contributionDates = sortedContributions.map { contribution ->
+            java.util.Calendar.getInstance().apply {
+                timeInMillis = contribution.timestamp
+                set(java.util.Calendar.HOUR_OF_DAY, 0)
+                set(java.util.Calendar.MINUTE, 0)
+                set(java.util.Calendar.SECOND, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }.timeInMillis
+        }.distinct().sorted()
+
+        if (contributionDates.isEmpty()) return 0
+
+        var streak = 1
+        val oneDayMillis = 24 * 60 * 60 * 1000L
+
+        for (i in contributionDates.size - 2 downTo 0) {
+            val currentDate = contributionDates[i]
+            val nextDate = contributionDates[i + 1]
+
+            if (nextDate - currentDate == oneDayMillis) {
+                streak++
+            } else {
+                break
+            }
+        }
+
+        return streak
+    }
+
     // Helper functions
     private fun generateUserId(): String = "user_${System.currentTimeMillis()}_${(1000..9999).random()}"
+
+    // RFID Management methods
+    suspend fun reportMissingRfid(driverId: String, reason: String): Result<Unit> {
+        return try {
+            val success = firebaseService.reportMissingRfid(driverId)
+            if (success) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Failed to report missing RFID"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getRfidChangeHistory(driverId: String): Result<List<RfidChangeHistory>> {
+        return try {
+            val historyFlow = firebaseService.getRfidChangeHistory(driverId)
+            val historyMaps = historyFlow.first()
+
+            val historyList = historyMaps.map { map ->
+                RfidChangeHistory(
+                    id = map["id"] as? String ?: "",
+                    driverId = map["driverId"] as? String ?: "",
+                    driverName = map["driverName"] as? String ?: "",
+                    oldRfidUID = map["oldRfidUID"] as? String ?: "",
+                    newRfidUID = map["newRfidUID"] as? String ?: "",
+                    changeType = try {
+                        RfidChangeType.valueOf(map["changeType"] as? String ?: "ASSIGNED")
+                    } catch (e: Exception) {
+                        RfidChangeType.ASSIGNED
+                    },
+                    reason = map["reason"] as? String ?: "",
+                    changedBy = map["changedBy"] as? String ?: "",
+                    changedByName = map["changedByName"] as? String ?: "",
+                    timestamp = (map["timestamp"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+                    notes = map["notes"] as? String ?: ""
+                )
+            }
+
+            Result.success(historyList)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
 
 // Additional data classes for repository

@@ -5,6 +5,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -29,7 +31,7 @@ fun PassengerRegistrationScreen(
     viewModel: CustomerRegistrationViewModel = hiltViewModel()
 ) {
     var currentStep by remember { mutableStateOf(1) }
-    val maxSteps = 4
+    val maxSteps = 3 // Changed from 4 to 3 steps
 
     // Collect ViewModel states
     val registrationState by viewModel.registrationState.collectAsStateWithLifecycle()
@@ -48,11 +50,7 @@ fun PassengerRegistrationScreen(
     var gender by remember { mutableStateOf("") }
     var occupation by remember { mutableStateOf("") }
 
-    // Emergency Contact
-    var emergencyContactName by remember { mutableStateOf("") }
-    var emergencyContact by remember { mutableStateOf("") }
-
-    // Preferences & Terms
+    // Preferences & Terms (no emergency contact variables)
     var smsNotifications by remember { mutableStateOf(true) }
     var bookingUpdates by remember { mutableStateOf(true) }
     var promotionalMessages by remember { mutableStateOf(false) }
@@ -75,10 +73,6 @@ fun PassengerRegistrationScreen(
         if (currentStep == 2) viewModel.clearValidationErrors()
     }
 
-    LaunchedEffect(emergencyContactName, emergencyContact) {
-        if (currentStep == 3) viewModel.clearValidationErrors()
-    }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -92,7 +86,7 @@ fun PassengerRegistrationScreen(
             IconButton(onClick = {
                 if (currentStep > 1) currentStep-- else onBack()
             }) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -203,14 +197,7 @@ fun PassengerRegistrationScreen(
                     onOccupationChange = { occupation = it },
                     validationErrors = validationErrors.toMap()
                 )
-                3 -> EmergencyContactStep(
-                    emergencyContactName = emergencyContactName,
-                    onEmergencyContactNameChange = { emergencyContactName = it },
-                    emergencyContact = emergencyContact,
-                    onEmergencyContactChange = { emergencyContact = it },
-                    validationErrors = validationErrors.toMap()
-                )
-                4 -> PreferencesAndTermsStep(
+                3 -> PreferencesAndTermsStep(
                     smsNotifications = smsNotifications,
                     onSmsNotificationsChange = { smsNotifications = it },
                     bookingUpdates = bookingUpdates,
@@ -237,7 +224,7 @@ fun PassengerRegistrationScreen(
                     onClick = { currentStep-- },
                     enabled = !registrationState.isRegistering
                 ) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = null)
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Previous")
                 }
@@ -252,10 +239,7 @@ fun PassengerRegistrationScreen(
                             1 -> {
                                 val isValid = viewModel.validateStep1(name, phoneNumber, password, confirmPassword)
                                 if (isValid) {
-                                    val phoneAvailable = viewModel.checkPhoneAvailability(phoneNumber)
-                                    if (phoneAvailable) {
-                                        currentStep++
-                                    }
+                                    currentStep++
                                 }
                             }
                             2 -> {
@@ -265,12 +249,6 @@ fun PassengerRegistrationScreen(
                                 }
                             }
                             3 -> {
-                                val isValid = viewModel.validateStep3(emergencyContactName, emergencyContact)
-                                if (isValid) {
-                                    currentStep++
-                                }
-                            }
-                            4 -> {
                                 viewModel.registerCustomer(
                                     name = name,
                                     phoneNumber = phoneNumber,
@@ -279,8 +257,6 @@ fun PassengerRegistrationScreen(
                                     dateOfBirth = dateOfBirth,
                                     gender = gender,
                                     occupation = occupation,
-                                    emergencyContactName = emergencyContactName,
-                                    emergencyContact = emergencyContact,
                                     notificationPreferences = NotificationPreferences(
                                         smsNotifications = smsNotifications,
                                         bookingUpdates = bookingUpdates,
@@ -293,7 +269,7 @@ fun PassengerRegistrationScreen(
                         }
                     }
                 },
-                enabled = !registrationState.isRegistering && !registrationState.isCheckingPhone
+                enabled = !registrationState.isRegistering
             ) {
                 if (registrationState.isRegistering) {
                     CircularProgressIndicator(
@@ -314,7 +290,7 @@ fun PassengerRegistrationScreen(
 
                 if (currentStep < maxSteps && !registrationState.isRegistering) {
                     Spacer(modifier = Modifier.width(8.dp))
-                    Icon(Icons.Default.ArrowForward, contentDescription = null)
+                    Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
                 }
             }
         }
@@ -368,12 +344,29 @@ private fun BasicInformationStep(
 
         OutlinedTextField(
             value = phoneNumber,
-            onValueChange = { if (it.length <= 11) onPhoneNumberChange(it) },
+            onValueChange = { newValue ->
+                // Only allow numeric characters
+                val numericOnly = newValue.filter { it.isDigit() }
+                // Limit to 11 digits and must start with 09
+                if (numericOnly.length <= 11) {
+                    onPhoneNumberChange(numericOnly)
+                }
+            },
             label = { Text("Phone Number") },
             modifier = Modifier.fillMaxWidth(),
             leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) },
             placeholder = { Text("09XXXXXXXXX") },
-            isError = validationErrors["phoneNumber"] != null
+            isError = validationErrors["phoneNumber"] != null,
+            supportingText = {
+                Text(
+                    text = "${phoneNumber.length}/11 digits",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (phoneNumber.length == 11)
+                        MaterialTheme.colorScheme.primary
+                    else
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         )
 
         validationErrors["phoneNumber"]?.let { errorMessage ->
@@ -451,7 +444,7 @@ private fun PersonalDetailsStep(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = "Personal Details",
+            text = "Personal Detailsed",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
@@ -498,20 +491,180 @@ private fun PersonalDetailsStep(
             )
         }
 
-        // Date Picker Dialog
+        // Simple Date Picker Dialog
         if (showDatePicker) {
-            val datePickerState = rememberDatePickerState(
-                initialSelectedDateMillis = dateOfBirth ?: System.currentTimeMillis()
-            )
+            var selectedYear by remember { mutableStateOf(2000) }
+            var selectedMonth by remember { mutableStateOf(1) }
+            var selectedDay by remember { mutableStateOf(1) }
 
-            DatePickerDialog(
+            // Initialize with existing date if available
+            LaunchedEffect(dateOfBirth) {
+                dateOfBirth?.let { timestamp ->
+                    val calendar = Calendar.getInstance().apply { timeInMillis = timestamp }
+                    selectedYear = calendar.get(Calendar.YEAR)
+                    selectedMonth = calendar.get(Calendar.MONTH) + 1
+                    selectedDay = calendar.get(Calendar.DAY_OF_MONTH)
+                }
+            }
+
+            AlertDialog(
                 onDismissRequest = { showDatePicker = false },
+                title = { Text("Select Date of Birth") },
+                text = {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "Please select your date of birth:",
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // Month Dropdown
+                            var monthExpanded by remember { mutableStateOf(false) }
+                            Box(modifier = Modifier.weight(1f)) {
+                                OutlinedButton(
+                                    onClick = { monthExpanded = true },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = when (selectedMonth) {
+                                            1 -> "Jan"
+                                            2 -> "Feb"
+                                            3 -> "Mar"
+                                            4 -> "Apr"
+                                            5 -> "May"
+                                            6 -> "Jun"
+                                            7 -> "Jul"
+                                            8 -> "Aug"
+                                            9 -> "Sep"
+                                            10 -> "Oct"
+                                            11 -> "Nov"
+                                            12 -> "Dec"
+                                            else -> "Month"
+                                        }
+                                    )
+                                }
+                                DropdownMenu(
+                                    expanded = monthExpanded,
+                                    onDismissRequest = { monthExpanded = false }
+                                ) {
+                                    listOf(
+                                        1 to "January", 2 to "February", 3 to "March", 4 to "April",
+                                        5 to "May", 6 to "June", 7 to "July", 8 to "August",
+                                        9 to "September", 10 to "October", 11 to "November", 12 to "December"
+                                    ).forEach { (monthNum, monthName) ->
+                                        DropdownMenuItem(
+                                            text = { Text(monthName) },
+                                            onClick = {
+                                                selectedMonth = monthNum
+                                                monthExpanded = false
+                                                // Adjust day if it exceeds the days in the new month
+                                                val daysInMonth = when (monthNum) {
+                                                    1, 3, 5, 7, 8, 10, 12 -> 31
+                                                    4, 6, 9, 11 -> 30
+                                                    2 -> if (selectedYear % 4 == 0) 29 else 28
+                                                    else -> 31
+                                                }
+                                                if (selectedDay > daysInMonth) {
+                                                    selectedDay = daysInMonth
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Day Dropdown
+                            var dayExpanded by remember { mutableStateOf(false) }
+                            Box(modifier = Modifier.weight(1f)) {
+                                OutlinedButton(
+                                    onClick = { dayExpanded = true },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(text = selectedDay.toString())
+                                }
+                                DropdownMenu(
+                                    expanded = dayExpanded,
+                                    onDismissRequest = { dayExpanded = false }
+                                ) {
+                                    val daysInMonth = when (selectedMonth) {
+                                        1, 3, 5, 7, 8, 10, 12 -> 31
+                                        4, 6, 9, 11 -> 30
+                                        2 -> if (selectedYear % 4 == 0) 29 else 28
+                                        else -> 31
+                                    }
+                                    (1..daysInMonth).forEach { day ->
+                                        DropdownMenuItem(
+                                            text = { Text(day.toString()) },
+                                            onClick = {
+                                                selectedDay = day
+                                                dayExpanded = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Year Dropdown
+                            var yearExpanded by remember { mutableStateOf(false) }
+                            Box(modifier = Modifier.weight(1f)) {
+                                OutlinedButton(
+                                    onClick = { yearExpanded = true },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(text = selectedYear.toString())
+                                }
+                                DropdownMenu(
+                                    expanded = yearExpanded,
+                                    onDismissRequest = { yearExpanded = false }
+                                ) {
+                                    (1950..2010).reversed().forEach { year ->
+                                        DropdownMenuItem(
+                                            text = { Text(year.toString()) },
+                                            onClick = {
+                                                selectedYear = year
+                                                yearExpanded = false
+                                                // Adjust February 29th for non-leap years
+                                                if (selectedMonth == 2 && selectedDay == 29 && year % 4 != 0) {
+                                                    selectedDay = 28
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Text(
+                            text = "Selected: ${
+                                when (selectedMonth) {
+                                    1 -> "January"; 2 -> "February"; 3 -> "March"; 4 -> "April"
+                                    5 -> "May"; 6 -> "June"; 7 -> "July"; 8 -> "August"
+                                    9 -> "September"; 10 -> "October"; 11 -> "November"; 12 -> "December"
+                                    else -> ""
+                                }
+                            } $selectedDay, $selectedYear",
+                            modifier = Modifier.padding(top = 16.dp),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                },
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            datePickerState.selectedDateMillis?.let { selectedDate ->
-                                onDateOfBirthChange(selectedDate)
+                            val calendar = Calendar.getInstance().apply {
+                                set(Calendar.YEAR, selectedYear)
+                                set(Calendar.MONTH, selectedMonth - 1) // Calendar uses 0-based months
+                                set(Calendar.DAY_OF_MONTH, selectedDay)
+                                set(Calendar.HOUR_OF_DAY, 0)
+                                set(Calendar.MINUTE, 0)
+                                set(Calendar.SECOND, 0)
+                                set(Calendar.MILLISECOND, 0)
                             }
+                            onDateOfBirthChange(calendar.timeInMillis)
                             showDatePicker = false
                         }
                     ) {
@@ -523,9 +676,7 @@ private fun PersonalDetailsStep(
                         Text("Cancel")
                     }
                 }
-            ) {
-                DatePicker(state = datePickerState)
-            }
+            )
         }
 
         // Gender selection
@@ -575,66 +726,6 @@ private fun PersonalDetailsStep(
             modifier = Modifier.fillMaxWidth(),
             leadingIcon = { Icon(Icons.Default.Work, contentDescription = null) }
         )
-    }
-}
-
-@Composable
-private fun EmergencyContactStep(
-    emergencyContactName: String,
-    onEmergencyContactNameChange: (String) -> Unit,
-    emergencyContact: String,
-    onEmergencyContactChange: (String) -> Unit,
-    validationErrors: Map<String, String>
-) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Text(
-            text = "Emergency Contact",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold
-        )
-
-        Text(
-            text = "Please provide an emergency contact person who can be reached in case of emergency during your trips.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        OutlinedTextField(
-            value = emergencyContactName,
-            onValueChange = onEmergencyContactNameChange,
-            label = { Text("Emergency Contact Name") },
-            modifier = Modifier.fillMaxWidth(),
-            leadingIcon = { Icon(Icons.Default.Person, contentDescription = null) },
-            isError = validationErrors["emergencyContactName"] != null
-        )
-
-        validationErrors["emergencyContactName"]?.let { errorMessage ->
-            Text(
-                text = errorMessage,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
-
-        OutlinedTextField(
-            value = emergencyContact,
-            onValueChange = { if (it.length <= 11) onEmergencyContactChange(it) },
-            label = { Text("Emergency Contact Number") },
-            modifier = Modifier.fillMaxWidth(),
-            leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null) },
-            placeholder = { Text("09XXXXXXXXX") },
-            isError = validationErrors["emergencyContact"] != null
-        )
-
-        validationErrors["emergencyContact"]?.let { errorMessage ->
-            Text(
-                text = errorMessage,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
     }
 }
 
@@ -777,5 +868,32 @@ private fun NotificationPreferenceItem(
             checked = checked,
             onCheckedChange = onCheckedChange
         )
+    }
+}
+
+fun getMonthName(month: Int): String {
+    return when (month) {
+        1 -> "January"
+        2 -> "February"
+        3 -> "March"
+        4 -> "April"
+        5 -> "May"
+        6 -> "June"
+        7 -> "July"
+        8 -> "August"
+        9 -> "September"
+        10 -> "October"
+        11 -> "November"
+        12 -> "December"
+        else -> ""
+    }
+}
+
+fun getDaysInMonth(month: Int, year: Int): Int {
+    return when (month) {
+        1, 3, 5, 7, 8, 10, 12 -> 31
+        4, 6, 9, 11 -> 30
+        2 -> if (year % 4 == 0) 29 else 28
+        else -> 0
     }
 }
