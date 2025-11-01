@@ -127,6 +127,10 @@ fun DriverRegistrationStatusScreen(
                         val driverName = snapshot.child("driverName").value as? String
                             ?: snapshot.child("name").value as? String ?: ""
 
+                        // Read RFID number - prioritize rfidNumber over rfidUID
+                        val rfidNumber = snapshot.child("rfidNumber").value as? String
+                            ?: snapshot.child("rfidUID").value as? String ?: ""
+
                         driver = Driver(
                             id = driverId,
                             name = driverName,
@@ -137,7 +141,7 @@ fun DriverRegistrationStatusScreen(
                             licensePhotoURL = snapshot.child("licensePhotoURL").value as? String ?: "",
                             verificationStatus = snapshot.child("verificationStatus").value as? String ?: "pending",
                             rejectionReason = snapshot.child("rejectionReason").value as? String ?: "",
-                            rfidUID = snapshot.child("rfidUID").value as? String ?: "",
+                            rfidUID = rfidNumber, // Store rfidNumber in rfidUID field for display
                             todaMembershipId = todaNumber
                         )
                         isLoading = false
