@@ -40,6 +40,7 @@ import com.google.firebase.auth.PhoneAuthOptions
 import com.google.firebase.auth.PhoneAuthProvider
 import java.util.concurrent.TimeUnit
 import android.util.Patterns
+import android.content.Context
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -103,6 +104,17 @@ fun CustomerLoginScreen(
         }
         // If already starts with country code like +63, accept
         return if (clean.startsWith("63") && clean.length == 12) "+$clean" else null
+    }
+
+    // Terms dialog state and loader
+    var showTermsDialog by remember { mutableStateOf(false) }
+    var termsText by remember { mutableStateOf<String?>(null) }
+    // New: whether dialog was opened to require acceptance (from checkbox)
+    var termsRequireAcceptance by remember { mutableStateOf(false) }
+    fun loadTerms(c: Context): String = try {
+        c.resources.openRawResource(R.raw.terms_and_conditions).bufferedReader().use { it.readText() }
+    } catch (e: Exception) {
+        "Terms and Conditions are currently unavailable."
     }
 
     // Start phone number verification (sends OTP)
@@ -337,6 +349,15 @@ fun CustomerLoginScreen(
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                 }
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            IconButton(onClick = {
+                if (termsText == null) termsText = loadTerms(context)
+                // Open as general view (no acceptance gating)
+                termsRequireAcceptance = false
+                showTermsDialog = true
+            }) {
+                Icon(Icons.Default.Info, contentDescription = "About / Terms and Conditions")
             }
         }
         // App Logo/Title
@@ -967,13 +988,31 @@ fun CustomerLoginScreen(
                                     ) {
                                         Checkbox(
                                             checked = agreesToTerms,
-                                            onCheckedChange = { agreesToTerms = it }
+                                            onCheckedChange = { shouldCheck ->
+                                                if (shouldCheck) {
+                                                    // Open dialog requiring acceptance; only check after scroll-to-bottom and close
+                                                    if (termsText == null) termsText = loadTerms(context)
+                                                    termsRequireAcceptance = true
+                                                    showTermsDialog = true
+                                                } else {
+                                                    agreesToTerms = false
+                                                }
+                                            }
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(
                                             text = "I agree to the Terms and Conditions and Privacy Policy",
                                             style = MaterialTheme.typography.bodyMedium
                                         )
+                                        Spacer(modifier = Modifier.weight(1f))
+                                        TextButton(onClick = {
+                                            if (termsText == null) termsText = loadTerms(context)
+                                            // General viewing (no gating)
+                                            termsRequireAcceptance = false
+                                            showTermsDialog = true
+                                        }) {
+                                            Text("View")
+                                        }
                                     }
                                 }
                             }
@@ -1214,6 +1253,64 @@ fun CustomerLoginScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+        }
+
+        // Terms & Conditions Dialog (with scroll-to-bottom gating when required)
+        if (showTermsDialog) {
+            val scrollState = rememberScrollState()
+            val hasReachedBottom by remember {
+                derivedStateOf {
+                    // Allow immediate close if content fits, else require near-bottom
+                    scrollState.maxValue == 0 || scrollState.value >= (scrollState.maxValue - 8)
+                }
+            }
+            val canClose = !termsRequireAcceptance || hasReachedBottom
+
+            AlertDialog(
+                onDismissRequest = {
+                    // Dismiss without changing checkbox if not explicitly closed
+                    showTermsDialog = false
+                    // Reset gating flag for safety
+                    termsRequireAcceptance = false
+                },
+                title = { Text("Terms and Conditions") },
+                text = {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 420.dp)
+                            .verticalScroll(scrollState)
+                    ) {
+                        Text(text = termsText ?: "")
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            // Close, and if acceptance required and bottom reached, set agreed
+                            if (termsRequireAcceptance && hasReachedBottom) {
+                                agreesToTerms = true
+                            }
+                            showTermsDialog = false
+                            termsRequireAcceptance = false
+                        },
+                        enabled = canClose
+                    ) {
+                        Text("Close")
+                    }
+                },
+                dismissButton = {
+                    if (termsRequireAcceptance) {
+                        TextButton(onClick = {
+                            // Cancel without accepting
+                            showTermsDialog = false
+                            termsRequireAcceptance = false
+                        }) {
+                            Text("Cancel")
+                        }
+                    }
+                }
+            )
         }
     }
 }
