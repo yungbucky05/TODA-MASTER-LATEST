@@ -1,7 +1,6 @@
 package com.example.toda
 
 import android.Manifest
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -20,7 +19,6 @@ import com.example.toda.data.User
 import com.example.toda.data.UserType
 import com.example.toda.data.UserProfile
 import com.example.toda.data.FirebaseUser
-import com.example.toda.data.NotificationState
 import com.example.toda.data.BookingStatus
 import com.example.toda.data.Booking
 import com.example.toda.ui.auth.AuthenticationScreen
@@ -43,10 +41,12 @@ import com.example.toda.ui.theme.TODATheme
 import com.example.toda.utils.NotificationManager
 import com.example.toda.viewmodel.EnhancedBookingViewModel
 import com.example.toda.viewmodel.BookingViewModel
+import com.example.toda.viewmodel.DriverLoginViewModel
 import com.example.toda.service.FirebaseSyncService
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.flow.first
@@ -124,7 +124,7 @@ class MainActivity : ComponentActivity() {
 fun BookingApp(
     modifier: Modifier = Modifier,
     notificationManager: NotificationManager,
-    initialScreen: String? = null // new optional parameter
+    initialScreen: String? = null
 ) {
     val context = LocalContext.current
     val enhancedBookingViewModel: EnhancedBookingViewModel = hiltViewModel()
@@ -133,34 +133,17 @@ fun BookingApp(
     // Add CustomerLoginViewModel for proper logout functionality
     val customerLoginViewModel: com.example.toda.viewmodel.CustomerLoginViewModel = hiltViewModel()
     // Add Driver and Admin login view models for proper logout
-    val driverLoginViewModel: com.example.toda.viewmodel.DriverLoginViewModel = hiltViewModel()
+    val driverLoginViewModel: DriverLoginViewModel = hiltViewModel()
     val adminLoginViewModel: com.example.toda.viewmodel.AdminLoginViewModel = hiltViewModel()
 
     // Collect real-time data from EnhancedBookingViewModel
     val activeBookings by enhancedBookingViewModel.activeBookings.collectAsState()
     val bookingState by enhancedBookingViewModel.bookingState.collectAsState()
 
-    var selectedUserType by remember { mutableStateOf<String?>(null) }
     var currentUser by remember { mutableStateOf<User?>(null) }
     var currentUserId by remember { mutableStateOf<String?>(null) }
     // Initialize currentScreen from initialScreen if provided, else default to user_selection
     var currentScreen by remember { mutableStateOf(initialScreen ?: "user_selection") }
-    var notificationState by remember {
-        mutableStateOf(
-            NotificationState(
-                hasPermission = notificationManager.hasNotificationPermission()
-            )
-        )
-    }
-
-    // If initialScreen was provided, set selectedUserType accordingly to keep internal state coherent
-    LaunchedEffect(initialScreen) {
-        when (initialScreen) {
-            "customer_login" -> selectedUserType = "customer"
-            "driver_login" -> selectedUserType = "driver_login"
-            "admin_login" -> selectedUserType = "admin"
-        }
-    }
 
     // Track the active booking navigation target and pending snapshot
     var currentActiveBookingId: String? by remember { mutableStateOf<String?>(null) }
@@ -226,8 +209,6 @@ fun BookingApp(
         // Clear local state
         currentUser = null
         currentUserId = null
-        // Keep user type focused on customer so we land on customer login
-        selectedUserType = "customer"
         // Redirect to customer login instead of the chooser
         currentScreen = "customer_login"
         locationBookingViewModel.stopCustomerLocationTracking()
@@ -238,7 +219,6 @@ fun BookingApp(
         driverLoginViewModel.logout()
         currentUser = null
         currentUserId = null
-        selectedUserType = "driver_login"
         currentScreen = "driver_login"
         // Stop any customer location tracking just in case
         locationBookingViewModel.stopCustomerLocationTracking()
@@ -249,7 +229,6 @@ fun BookingApp(
         adminLoginViewModel.logout()
         currentUser = null
         currentUserId = null
-        selectedUserType = "admin"
         currentScreen = "admin_login"
         locationBookingViewModel.stopCustomerLocationTracking()
     }
@@ -258,7 +237,6 @@ fun BookingApp(
         "user_selection" -> {
             UserTypeSelection(
                 onUserTypeSelected = { userType ->
-                    selectedUserType = userType
                     when (userType) {
                         "customer" -> currentScreen = "customer_login"
                         "driver_login" -> currentScreen = "driver_login"
@@ -287,7 +265,6 @@ fun BookingApp(
                     // This callback is kept for backward compatibility but not used
                 },
                 onBack = {
-                    selectedUserType = null
                     currentScreen = "user_selection"
                 },
                 showBack = (initialScreen == null)
@@ -296,6 +273,9 @@ fun BookingApp(
 
         "driver_login" -> {
             val coroutineScope = rememberCoroutineScope()
+            val loginViewModel: DriverLoginViewModel = hiltViewModel()
+            val loginState by loginViewModel.loginState.collectAsStateWithLifecycle()
+
             DriverLoginScreen(
                 onLoginSuccess = { userId, firebaseUser ->
                     currentUserId = userId
@@ -303,8 +283,17 @@ fun BookingApp(
                         // Fetch user profile first before navigation
                         val userWithProfile = convertFirebaseUserToUser(firebaseUser)
                         currentUser = userWithProfile
-                        // Navigate to registration status screen first
-                        currentScreen = "driver_registration_status"
+
+                        // Check if driver application is pending approval
+                        if (loginState.isPendingApproval) {
+                            println("=== DRIVER LOGIN: PENDING APPROVAL ===")
+                            println("Redirecting to registration status screen")
+                            currentScreen = "driver_registration_status"
+                        } else {
+                            println("=== DRIVER LOGIN: APPROVED ===")
+                            println("Redirecting to driver interface")
+                            currentScreen = "driver_interface"
+                        }
                     }
                 },
                 onRegistrationComplete = {
@@ -313,10 +302,10 @@ fun BookingApp(
                     currentScreen = "driver_login"
                 },
                 onBack = {
-                    selectedUserType = null
                     currentScreen = "user_selection"
                 },
-                showBack = (initialScreen == null)
+                showBack = (initialScreen == null),
+                loginViewModel = loginViewModel
             )
         }
 
@@ -334,7 +323,6 @@ fun BookingApp(
                     }
                 },
                 onBack = {
-                    selectedUserType = null
                     currentScreen = "user_selection"
                 },
                 showBack = (initialScreen == null)
@@ -496,7 +484,6 @@ fun BookingApp(
         "admin_dashboard" -> {
             AdminDashboardScreen(
                 onBack = {
-                    selectedUserType = null
                     currentScreen = "user_selection"
                 },
                 onDriverManagement = {

@@ -65,7 +65,8 @@ class DriverLoginViewModel @Inject constructor(
                                                 _loginState.value = _loginState.value.copy(
                                                     isLoading = false,
                                                     isSuccess = true,
-                                                    userId = user.id
+                                                    userId = user.id,
+                                                    isPendingApproval = false
                                                 )
                                             } else {
                                                 println("Login rejected - Not a driver account")
@@ -86,11 +87,29 @@ class DriverLoginViewModel @Inject constructor(
                                 }
                             }
                             "PENDING" -> {
-                                println("Login rejected - Application still pending")
-                                _loginState.value = _loginState.value.copy(
-                                    isLoading = false,
-                                    error = "Your driver application is still pending approval by the TODA admin. Please wait for approval or contact the admin office."
-                                )
+                                println("Login allowed - Application pending, showing status screen")
+                                // Allow login but redirect to status screen
+                                viewModelScope.launch {
+                                    repository.loginUser(phoneNumber, password).fold(
+                                        onSuccess = { user ->
+                                            println("Login successful for pending driver - User: ${user.name}")
+                                            _currentUser.value = user
+                                            _loginState.value = _loginState.value.copy(
+                                                isLoading = false,
+                                                isSuccess = true,
+                                                userId = user.id,
+                                                isPendingApproval = true // Set flag to show status screen
+                                            )
+                                        },
+                                        onFailure = { error ->
+                                            println("Login failed for pending driver: ${error.message}")
+                                            _loginState.value = _loginState.value.copy(
+                                                isLoading = false,
+                                                error = error.message ?: "Login failed. Please check your credentials."
+                                            )
+                                        }
+                                    )
+                                }
                             }
                             "REJECTED" -> {
                                 println("Login rejected - Application was rejected")
@@ -100,11 +119,29 @@ class DriverLoginViewModel @Inject constructor(
                                 )
                             }
                             "UNDER_REVIEW" -> {
-                                println("Login rejected - Application under review")
-                                _loginState.value = _loginState.value.copy(
-                                    isLoading = false,
-                                    error = "Your driver application is currently under review. Please wait for the review process to complete."
-                                )
+                                println("Login allowed - Application under review, showing status screen")
+                                // Allow login but redirect to status screen
+                                viewModelScope.launch {
+                                    repository.loginUser(phoneNumber, password).fold(
+                                        onSuccess = { user ->
+                                            println("Login successful for under-review driver - User: ${user.name}")
+                                            _currentUser.value = user
+                                            _loginState.value = _loginState.value.copy(
+                                                isLoading = false,
+                                                isSuccess = true,
+                                                userId = user.id,
+                                                isPendingApproval = true // Set flag to show status screen
+                                            )
+                                        },
+                                        onFailure = { error ->
+                                            println("Login failed for under-review driver: ${error.message}")
+                                            _loginState.value = _loginState.value.copy(
+                                                isLoading = false,
+                                                error = error.message ?: "Login failed. Please check your credentials."
+                                            )
+                                        }
+                                    )
+                                }
                             }
                             else -> {
                                 println("Login rejected - Unknown application status: $applicationStatus")
@@ -181,6 +218,7 @@ class DriverLoginViewModel @Inject constructor(
 data class DriverLoginState(
     val isLoading: Boolean = false,
     val isSuccess: Boolean = false,
+    val userId: String? = null,
     val error: String? = null,
-    val userId: String? = null
+    val isPendingApproval: Boolean = false // NEW: Flag to indicate pending status
 )

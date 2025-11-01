@@ -38,6 +38,7 @@ import com.example.toda.ui.chat.SimpleChatScreen
 import com.example.toda.viewmodel.EnhancedBookingViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.toda.utils.FeeCalculator
+import com.example.toda.ui.booking.ActiveBookingScreen
 
 data class LocationValidation(
     val isValid: Boolean,
@@ -83,7 +84,8 @@ fun CustomerInterface(
     val snackbarHostState = remember { SnackbarHostState() }
 
     // UI State
-    var currentView by remember { mutableStateOf("booking") } // "booking", "history", "chat"
+    var currentView by remember { mutableStateOf("booking") // "booking", "history", "chat"
+    }
     var showChat by remember { mutableStateOf(false) }
     var activeChatBooking by remember { mutableStateOf<Booking?>(null) }
     var pickupLocation by remember { mutableStateOf<String?>(null) }
@@ -508,7 +510,9 @@ fun CustomerInterface(
                     onChatClick = {
                         showChat = true
                         currentView = "chat"
-                    }
+                    },
+                    // Add missing parameters for ActiveBookingScreen
+                    onCancelBooking = onCancelBooking // Add cancel booking callback
                 )
             }
             "history" -> {
@@ -599,11 +603,11 @@ private fun BookingView(
     locationValidation: LocationValidation,
     fareBreakdown: FareBreakdown?,
     showSuccessMessage: Boolean,
-    snackbarHostState: SnackbarHostState, // Add snackbar host state
-    showInvalidLocationDialog: Boolean, // Add dialog state
-    invalidLocationMessage: String, // Add invalid location message
-    onInvalidLocationDialogDismiss: () -> Unit, // Add dismiss callback
-    onShowInvalidLocationDialog: (String) -> Unit, // Add show dialog callback
+    snackbarHostState: SnackbarHostState,
+    showInvalidLocationDialog: Boolean,
+    invalidLocationMessage: String,
+    onInvalidLocationDialogDismiss: () -> Unit,
+    onShowInvalidLocationDialog: (String) -> Unit,
     onPickupLocationSelect: () -> Unit,
     onDropoffLocationSelect: () -> Unit,
     onMapClick: (GeoPoint) -> Unit,
@@ -611,7 +615,6 @@ private fun BookingView(
     onDropoffLocationDragged: (GeoPoint) -> Unit,
     onSubmitBooking: () -> Unit,
     onSuccessMessageDismiss: () -> Unit,
-    // Autocomplete parameters
     pickupInputText: String,
     destinationInputText: String,
     pickupSuggestions: List<LocationSuggestion>,
@@ -624,27 +627,38 @@ private fun BookingView(
     onDestinationTextChange: (String) -> Unit,
     onPickupSuggestionSelected: (LocationSuggestion) -> Unit,
     onDestinationSuggestionSelected: (LocationSuggestion) -> Unit,
-    // Chat parameters
-    onChatClick: () -> Unit = {} // Add chat callback parameter
+    onChatClick: () -> Unit = {},
+    onCancelBooking: (String) -> Unit = {}
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(bottom = 24.dp), // Add extra bottom padding
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        ImprovedUserInfoCard(user)
+    // Use Box to conditionally apply scrolling only when NOT showing ActiveBookingScreen
+    if (assignedBooking != null) {
+        // ActiveBookingScreen has its own LazyColumn, so don't add scroll modifier here
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            ImprovedUserInfoCard(user)
 
-        if (assignedBooking != null) {
-            ActiveBookingCard(
+            // Use the full ActiveBookingScreen instead of the card
+            ActiveBookingScreen(
                 booking = assignedBooking,
-                customerLocation = customerLocation,
-                isTracking = isCurrentlyTracking,
-                driverTracking = driverTracking,
-                onChatClick = onChatClick // Use the passed callback
+                currentUser = user,
+                onBack = { /* No-op, stay on booking view */ },
+                onNavigateToFullChat = onChatClick,
+                onCancelBooking = onCancelBooking
             )
-        } else {
+        }
+    } else {
+        // Regular booking form with vertical scroll
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            ImprovedUserInfoCard(user)
+
             if (showSuccessMessage) {
                 ImprovedSuccessMessage(onSuccessMessageDismiss)
             }
@@ -758,14 +772,14 @@ private fun BookingView(
                 onClick = onSubmitBooking,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp), // Add vertical padding to the button
+                    .padding(vertical = 8.dp),
                 enabled = pickupGeoPoint != null &&
                         dropoffGeoPoint != null &&
                         locationValidation.isValid
             ) {
                 Text(
                     text = "Submit Booking Request",
-                    modifier = Modifier.padding(vertical = 4.dp) // Add padding inside button
+                    modifier = Modifier.padding(vertical = 4.dp)
                 )
             }
 
@@ -915,6 +929,45 @@ private fun ActiveBookingCard(
     driverTracking: DriverTracking?,
     onChatClick: () -> Unit = {} // Add chat callback parameter
 ) {
+    // State for live countdown timer
+    val currentTime = remember { mutableStateOf(System.currentTimeMillis()) }
+
+    // Calculate remaining time until auto no-show - ONLY for ACCEPTED status
+    val remainingSeconds = remember(booking.arrivedAtPickup, booking.arrivedAtPickupTime, booking.status, currentTime.value) {
+        if (booking.status == BookingStatus.ACCEPTED && booking.arrivedAtPickup && booking.arrivedAtPickupTime > 0L) {
+            val elapsed = currentTime.value - booking.arrivedAtPickupTime
+            val remaining = (5 * 60 * 1000 - elapsed) / 1000 // 5 minutes in seconds
+            maxOf(0, remaining)
+        } else {
+            0L
+        }
+    }
+
+    // Debug logging for arrival status
+    LaunchedEffect(booking.arrivedAtPickup, booking.arrivedAtPickupTime) {
+        println("=== CUSTOMER: ARRIVAL STATUS UPDATE ===")
+        println("Booking ID: ${booking.id}")
+        println("Driver arrived: ${booking.arrivedAtPickup}")
+        println("Arrival time: ${booking.arrivedAtPickupTime}")
+        println("Current time: ${System.currentTimeMillis()}")
+        if (booking.arrivedAtPickup && booking.arrivedAtPickupTime > 0L) {
+            val elapsed = System.currentTimeMillis() - booking.arrivedAtPickupTime
+            val remaining = (5 * 60 * 1000 - elapsed) / 1000
+            println("Elapsed: ${elapsed}ms, Remaining: ${remaining}s")
+        }
+        println("======================================")
+    }
+
+    // Update timer every second when driver has arrived
+    LaunchedEffect(booking.arrivedAtPickup, booking.status) {
+        if (booking.arrivedAtPickup && booking.status == BookingStatus.ACCEPTED) {
+            while (true) {
+                kotlinx.coroutines.delay(1000) // Update every second
+                currentTime.value = System.currentTimeMillis()
+            }
+        }
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -940,6 +993,62 @@ private fun ActiveBookingCard(
             }
 
             Spacer(modifier = Modifier.height(12.dp))
+
+            // Driver Arrival Notification Card (shown when driver has arrived)
+            if (booking.arrivedAtPickup && booking.arrivedAtPickupTime > 0L && booking.status == BookingStatus.ACCEPTED) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (remainingSeconds > 60) Color(0xFFE3F2FD) else Color(0xFFFFEBEE)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Notifications,
+                            contentDescription = "Driver Arrived",
+                            tint = if (remainingSeconds > 60) Color(0xFF1976D2) else Color(0xFFD32F2F),
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Driver has arrived!",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = if (remainingSeconds > 60) Color(0xFF1976D2) else Color(0xFFD32F2F)
+                            )
+                            if (remainingSeconds > 0) {
+                                val minutes = remainingSeconds / 60
+                                val seconds = remainingSeconds % 60
+                                Text(
+                                    text = "Please come out in ${minutes}m ${seconds}s",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = if (remainingSeconds > 60) Color(0xFF424242) else Color(0xFFD32F2F)
+                                )
+                                Text(
+                                    text = "Booking will auto-cancel if you don't show up",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            } else {
+                                Text(
+                                    text = "Time's up! Booking may be cancelled.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Color(0xFFD32F2F),
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
             // Driver Status Section
             Card(

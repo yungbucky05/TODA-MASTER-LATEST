@@ -451,7 +451,12 @@ class TODARepository @Inject constructor(
                         driverName = firebaseBooking.driverName,
                         driverRFID = firebaseBooking.driverRFID,
                         todaNumber = firebaseBooking.todaNumber,
-                        assignedDriverId = firebaseBooking.assignedDriverId
+                        assignedDriverId = firebaseBooking.assignedDriverId,
+                        // Add arrival and no-show tracking fields
+                        arrivedAtPickup = firebaseBooking.arrivedAtPickup,
+                        arrivedAtPickupTime = firebaseBooking.arrivedAtPickupTime,
+                        isNoShow = firebaseBooking.isNoShow,
+                        noShowReportedTime = firebaseBooking.noShowReportedTime
                     )
 
                     println("Successfully converted booking: ${booking.id} with status: ${booking.status}")
@@ -581,7 +586,7 @@ class TODARepository @Inject constructor(
                 estimatedFare = firebaseBooking.estimatedFare,
                 status = try {
                     BookingStatus.valueOf(firebaseBooking.status)
-                } catch (e: IllegalArgumentException) {
+                } catch (_: IllegalArgumentException) {
                     BookingStatus.PENDING
                 },
                 timestamp = firebaseBooking.timestamp,
@@ -590,7 +595,12 @@ class TODARepository @Inject constructor(
                 driverName = firebaseBooking.driverName,
                 driverRFID = firebaseBooking.driverRFID,
                 todaNumber = firebaseBooking.todaNumber,
-                assignedDriverId = firebaseBooking.assignedDriverId
+                assignedDriverId = firebaseBooking.assignedDriverId,
+                // Add arrival and no-show tracking fields
+                arrivedAtPickup = firebaseBooking.arrivedAtPickup,
+                arrivedAtPickupTime = firebaseBooking.arrivedAtPickupTime,
+                isNoShow = firebaseBooking.isNoShow,
+                noShowReportedTime = firebaseBooking.noShowReportedTime
             )
         } catch (e: Exception) {
             println("Error getting booking by ID: ${e.message}")
@@ -678,6 +688,7 @@ class TODARepository @Inject constructor(
                     // Step 2: Add additional driver-specific data to drivers table
                     println("Creating driver record in database...")
                     val driverId = firebaseService.createDriverInDriversTable(
+                        userId = userId, // Pass the Auth User ID
                         driverName = driver.name,
                         todaNumber = "", // Empty - admin will assign TODA number later
                         phoneNumber = driver.phoneNumber,
@@ -696,7 +707,7 @@ class TODARepository @Inject constructor(
                         authService.signOut()
                         println("✓ Signed out from Firebase Auth to prepare for auto-login")
 
-                        Result.success(driverId) // Return the driver ID
+                        Result.success(userId) // Return the Auth User ID instead of driver ID
                     } else {
                         println("✗ Failed to create driver record")
                         Result.failure(Exception("Failed to add driver to system"))

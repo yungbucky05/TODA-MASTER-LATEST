@@ -1,5 +1,6 @@
 package com.example.toda.ui.booking
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
@@ -9,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.toda.data.*
@@ -53,6 +55,30 @@ fun ActiveBookingScreen(
     // One-time dialog when a driver is found (passenger side only)
     var showDriverFoundDialog by remember(booking.id) { mutableStateOf(false) }
     var driverFoundDialogShown by remember(booking.id) { mutableStateOf(false) }
+
+    // State for live countdown timer
+    val currentTime = remember { mutableStateOf(System.currentTimeMillis()) }
+
+    // Calculate remaining time until auto no-show - ONLY for ACCEPTED status
+    val remainingSeconds = remember(booking.arrivedAtPickup, booking.arrivedAtPickupTime, booking.status, currentTime.value) {
+        if (booking.status == BookingStatus.ACCEPTED && booking.arrivedAtPickup && booking.arrivedAtPickupTime > 0L) {
+            val elapsed = currentTime.value - booking.arrivedAtPickupTime
+            val remaining = (5 * 60 * 1000 - elapsed) / 1000 // 5 minutes in seconds
+            maxOf(0, remaining)
+        } else {
+            0L
+        }
+    }
+
+    // Update timer every second when driver has arrived and status is ACCEPTED
+    LaunchedEffect(booking.arrivedAtPickup, booking.status) {
+        if (booking.arrivedAtPickup && booking.status == BookingStatus.ACCEPTED) {
+            while (true) {
+                kotlinx.coroutines.delay(1000) // Update every second
+                currentTime.value = System.currentTimeMillis()
+            }
+        }
+    }
 
     // Prefer provided driver object
     LaunchedEffect(driver) {
@@ -279,6 +305,63 @@ fun ActiveBookingScreen(
                                     Icon(Icons.Default.Close, contentDescription = null)
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text("Cancel request")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Arrival notification card - ONLY show when driver has arrived AND status is ACCEPTED
+            if (booking.status == BookingStatus.ACCEPTED && booking.arrivedAtPickup && booking.arrivedAtPickupTime > 0L) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (remainingSeconds > 60) Color(0xFFE3F2FD) else Color(0xFFFFEBEE)
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Notifications,
+                                contentDescription = "Driver Arrived",
+                                tint = if (remainingSeconds > 60) Color(0xFF1976D2) else Color(0xFFD32F2F),
+                                modifier = Modifier.size(32.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Driver has arrived!",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (remainingSeconds > 60) Color(0xFF1976D2) else Color(0xFFD32F2F)
+                                )
+                                if (remainingSeconds > 0) {
+                                    val minutes = remainingSeconds / 60
+                                    val seconds = remainingSeconds % 60
+                                    Text(
+                                        text = "Please come out in ${minutes}m ${seconds}s",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = if (remainingSeconds > 60) Color(0xFF424242) else Color(0xFFD32F2F)
+                                    )
+                                    Text(
+                                        text = "Booking will auto-cancel if you don't show up",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                } else {
+                                    Text(
+                                        text = "Time's up! Booking may be cancelled.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = Color(0xFFD32F2F),
+                                        fontWeight = FontWeight.Bold
+                                    )
                                 }
                             }
                         }

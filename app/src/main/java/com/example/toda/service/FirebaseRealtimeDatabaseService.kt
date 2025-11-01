@@ -309,7 +309,11 @@ class FirebaseRealtimeDatabaseService {
                     is String -> value.toLongOrNull() ?: System.currentTimeMillis()
                     else -> System.currentTimeMillis()
                 },
-                assignedDriverId = data["assignedDriverId"] as? String ?: "",
+                assignedDriverId = when (val value = data["assignedDriverId"]) {
+                    is Number -> value.toString()
+                    is String -> value
+                    else -> ""
+                },
                 assignedTricycleId = data["assignedTricycleId"] as? String ?: "",
                 verificationCode = data["verificationCode"] as? String ?: "",
                 completionTime = when (val value = data["completionTime"]) {
@@ -335,9 +339,26 @@ class FirebaseRealtimeDatabaseService {
                     else -> 0
                 },
                 driverName = data["driverName"] as? String ?: "",
-                driverRFID = data["driverRFID"] as? String ?: "",
+                driverRFID = when (val value = data["driverRFID"]) {
+                    is Number -> value.toString()
+                    is String -> value
+                    else -> ""
+                },
                 todaNumber = data["todaNumber"] as? String ?: "",
-                tripType = data["tripType"] as? String ?: ""
+                tripType = data["tripType"] as? String ?: "",
+                // Add arrival and no-show tracking fields
+                arrivedAtPickup = data["arrivedAtPickup"] as? Boolean ?: false,
+                arrivedAtPickupTime = when (val value = data["arrivedAtPickupTime"]) {
+                    is Number -> value.toLong()
+                    is String -> value.toLongOrNull() ?: 0L
+                    else -> 0L
+                },
+                isNoShow = data["noShow"] as? Boolean ?: false,
+                noShowReportedTime = when (val value = data["noShowReportedTime"]) {
+                    is Number -> value.toLong()
+                    is String -> value.toLongOrNull() ?: 0L
+                    else -> 0L
+                }
             )
         } catch (e: Exception) {
             android.util.Log.e("FirebaseService", "Error in manual conversion", e)
@@ -541,6 +562,7 @@ class FirebaseRealtimeDatabaseService {
 
     // Create driver in drivers table
     suspend fun createDriverInDriversTable(
+        userId: String, // ADD: Use Auth User ID as driver ID
         driverName: String,
         todaNumber: String,
         phoneNumber: String,
@@ -552,8 +574,9 @@ class FirebaseRealtimeDatabaseService {
         tricyclePlateNumber: String
     ): String? {
         return try {
-            val driverRef = hardwareDriversRef.push()
-            val driverId = driverRef.key ?: return null
+            // Use the provided userId instead of generating a new push key
+            val driverId = userId
+            val driverRef = hardwareDriversRef.child(driverId)
 
             val driver = mapOf(
                 "driverId" to driverId,
@@ -1436,89 +1459,120 @@ class FirebaseRealtimeDatabaseService {
                 return false
             }
 
-            // Determine the earliest (oldest) queue entry by key timestamp
-            var firstKey: String? = null
-            var minTs: Long = Long.MAX_VALUE
-            for (child in queueSnapshot.children) {
-                val key = child.key ?: continue
-                val ts = key.toLongOrNull()
-                if (ts != null && ts < minTs) {
-                    minTs = ts
-                    firstKey = key
+            // Find all queue entries sorted by timestamp (oldest first)
+            val sortedEntries = queueSnapshot.children
+                .mapNotNull { child ->
+                    val key = child.key ?: return@mapNotNull null
+                    val ts = key.toLongOrNull() ?: return@mapNotNull null
+                    ts to child
                 }
-            }
+                .sortedBy { it.first }
 
-            if (firstKey == null) {
-                println("Queue has no timestamp keys; cannot match")
+            if (sortedEntries.isEmpty()) {
+                println("Queue has no valid timestamp keys; cannot match")
                 return false
             }
 
-            // Atomically claim the queue entry to avoid race conditions
-            val claimRef = queueRef.child(firstKey).child("claimed")
-            var claimed = false
-            claimRef.runTransaction(object : Transaction.Handler {
-                override fun doTransaction(mutableData: MutableData): Transaction.Result {
-                    val v = mutableData.getValue(Boolean::class.java) ?: false
-                    return if (!v) {
-                        mutableData.value = true
-                        Transaction.success(mutableData)
-                    } else {
-                        Transaction.abort()
+            // Try each queue entry until we find one that's available
+            for ((timestamp, queueEntry) in sortedEntries) {
+                val queueKey = queueEntry.key ?: continue
+
+                // Check if already claimed
+                val alreadyClaimed = queueEntry.child("claimed").getValue(Boolean::class.java) ?: false
+                val queueStatus = queueEntry.child("status").getValue(String::class.java) ?: "waiting"
+
+                println("Checking queue entry $queueKey: claimed=$alreadyClaimed, status=$queueStatus")
+
+                // Skip if claimed and status is not "waiting" (means actively working on a booking)
+                if (alreadyClaimed && queueStatus != "waiting") {
+                    println("Queue entry $queueKey is claimed and busy; skipping")
+                    continue
+                }
+
+                // If claimed but status is "waiting", reset the claim (stale claim from previous booking)
+                if (alreadyClaimed && queueStatus == "waiting") {
+                    println("Queue entry $queueKey has stale claim; resetting")
+                    queueRef.child(queueKey).child("claimed").setValue(false).await()
+                }
+
+                // Try to atomically claim this entry
+                val claimRef = queueRef.child(queueKey).child("claimed")
+                var claimed = false
+                var transactionComplete = false
+
+                claimRef.runTransaction(object : Transaction.Handler {
+                    override fun doTransaction(mutableData: MutableData): Transaction.Result {
+                        val v = mutableData.getValue(Boolean::class.java) ?: false
+                        return if (!v) {
+                            mutableData.value = true
+                            Transaction.success(mutableData)
+                        } else {
+                            Transaction.abort()
+                        }
                     }
+                    override fun onComplete(error: DatabaseError?, committed: Boolean, currentData: DataSnapshot?) {
+                        claimed = committed && (currentData?.getValue(Boolean::class.java) == true)
+                        transactionComplete = true
+                    }
+                })
+
+                // Wait for transaction to complete
+                var waitCount = 0
+                while (!transactionComplete && waitCount < 20) {
+                    kotlinx.coroutines.delay(10)
+                    waitCount++
                 }
-                override fun onComplete(error: DatabaseError?, committed: Boolean, currentData: DataSnapshot?) {
-                    claimed = committed && (currentData?.getValue(Boolean::class.java) == true)
+
+                if (!claimed) {
+                    println("Failed to claim queue entry $queueKey; trying next")
+                    continue
                 }
-            })
-            // Wait a tiny moment for transaction callback to set claimed
-            kotlinx.coroutines.delay(50)
 
-            if (!claimed) {
-                println("Queue entry $firstKey already claimed by another process; aborting match")
-                return false
+                // Successfully claimed! Re-check booking still PENDING
+                val statusAfterClaim = bookingsRef.child(bookingId).child("status").get().await().getValue(String::class.java)
+                if (statusAfterClaim != null && statusAfterClaim != "PENDING") {
+                    println("Booking $bookingId changed to $statusAfterClaim after claim; releasing entry")
+                    claimRef.setValue(false).await()
+                    return false
+                }
+
+                // Get driver details from this entry
+                val driverName = queueEntry.child("driverName").getValue(String::class.java) ?: ""
+                val todaNumber = queueEntry.child("todaNumber").getValue(String::class.java) ?: ""
+                val driverRFID = queueEntry.child("driverRFID").getValue(String::class.java) ?: ""
+
+                if (driverRFID.isBlank()) {
+                    println("Queue entry $queueKey missing driverRFID; releasing claim and trying next")
+                    claimRef.setValue(false).await()
+                    continue
+                }
+
+                // Prepare updates for booking and index
+                val updates = mutableMapOf<String, Any>(
+                    "bookings/$bookingId/assignedDriverId" to driverRFID,
+                    "bookings/$bookingId/driverRFID" to driverRFID,
+                    "bookings/$bookingId/driverName" to driverName,
+                    "bookings/$bookingId/assignedTricycleId" to todaNumber,
+                    "bookings/$bookingId/todaNumber" to todaNumber,
+                    "bookings/$bookingId/status" to "ACCEPTED",
+                    "bookingIndex/$bookingId/status" to "ACCEPTED",
+                    "bookingIndex/$bookingId/driverRFID" to driverRFID
+                )
+
+                // Apply updates atomically and remove the queue entry
+                database.updateChildren(updates).await()
+                // Remove the queue entry now that it's assigned
+                queueRef.child(queueKey).removeValue().await()
+
+                println("✅ Matched booking $bookingId with driverRFID=$driverRFID, driverName=$driverName, todaNumber=$todaNumber")
+                return true
             }
 
-            // Re-check booking still PENDING after claim
-            val statusAfterClaim = bookingsRef.child(bookingId).child("status").get().await().getValue(String::class.java)
-            if (statusAfterClaim != null && statusAfterClaim != "PENDING") {
-                println("Booking $bookingId changed to $statusAfterClaim after claim; releasing entry")
-                // Release claim flag so others can use it
-                claimRef.setValue(false)
-                return false
-            }
-
-            val firstEntry = queueSnapshot.child(firstKey)
-            val driverName = firstEntry.child("driverName").getValue(String::class.java) ?: ""
-            val todaNumber = firstEntry.child("todaNumber").getValue(String::class.java) ?: ""
-            val driverRFID = firstEntry.child("driverRFID").getValue(String::class.java) ?: ""
-
-            if (driverRFID.isBlank()) {
-                println("First queue entry missing driverRFID; releasing claim and skipping match")
-                claimRef.setValue(false)
-                return false
-            }
-
-            // Prepare updates for booking and index
-            val updates = mutableMapOf<String, Any>(
-                "bookings/$bookingId/assignedDriverId" to driverRFID,
-                "bookings/$bookingId/driverRFID" to driverRFID,
-                "bookings/$bookingId/driverName" to driverName,
-                "bookings/$bookingId/assignedTricycleId" to todaNumber,
-                "bookings/$bookingId/todaNumber" to todaNumber,
-                "bookings/$bookingId/status" to "ACCEPTED",
-                "bookingIndex/$bookingId/status" to "ACCEPTED",
-                "bookingIndex/$bookingId/driverRFID" to driverRFID
-            )
-
-            // Apply updates atomically and remove the queue entry
-            database.updateChildren(updates).await()
-            // Remove the queue entry now that it's assigned
-            queueRef.child(firstKey).removeValue().await()
-
-            println("Matched booking $bookingId with driverRFID=$driverRFID, driverName=$driverName, todaNumber=$todaNumber")
-            true
+            println("No available drivers in queue for booking $bookingId (all entries claimed/busy)")
+            false
         } catch (e: Exception) {
             println("Error matching booking to first driver: ${e.message}")
+            e.printStackTrace()
             false
         }
     }

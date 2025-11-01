@@ -162,29 +162,82 @@ fun DriverInterface(
         val driverRfidNorm = normalizeRfid(driverRFID)
         val assignedIdNorm = normalizeRfid(booking.assignedDriverId)
 
-        println("Checking booking ${booking.id}: driverRFID=${booking.driverRFID}, assignedDriverId=${booking.assignedDriverId}, status=${booking.status}")
-        println("Normalized: bookingRFID=$bookingRfidNorm, driverRFID=$driverRfidNorm, assignedId=$assignedIdNorm")
+        println("=== BOOKING FILTER DEBUG ===")
+        println("Checking booking ${booking.id}:")
+        println("  Customer: ${booking.customerName}")
+        println("  Booking driverRFID: '${booking.driverRFID}' [${getRfidFormat(booking.driverRFID)}]")
+        println("  Booking assignedDriverId: '${booking.assignedDriverId}' [${getRfidFormat(booking.assignedDriverId)}]")
+        println("  Booking status: ${booking.status}")
+        println("  Driver user.id: '${user.id}'")
+        println("  Driver RFID: '$driverRFID' [${getRfidFormat(driverRFID)}]")
+        println("  Driver name: '$driverName'")
+        println("  Normalized bookingRFID: '$bookingRfidNorm'")
+        println("  Normalized driverRFID: '$driverRfidNorm'")
+        println("  Normalized assignedId: '$assignedIdNorm'")
 
         // Match by any of:
-        // - booking.driverRFID == driver's RFID (normalized)
-        // - booking.assignedDriverId == driver's RFID (normalized) [legacy queue assignments]
-        // - booking.assignedDriverId == driver's user ID (explicit accept flow)
-        val isMyBooking =
-            (bookingRfidNorm.isNotEmpty() && bookingRfidNorm == driverRfidNorm) ||
-            (assignedIdNorm.isNotEmpty() && assignedIdNorm == driverRfidNorm) ||
-            (booking.assignedDriverId == user.id)
+        // 1. booking.driverRFID == driver's RFID (normalized)
+        // 2. booking.assignedDriverId == driver's RFID (normalized) [queue auto-assignments]
+        // 3. booking.assignedDriverId == driver's user ID (manual accept flow)
+        // 4. booking.driverRFID == driver's RFID (exact match, no normalization for hex values)
+        // 5. booking.assignedDriverId == driver's RFID (exact match)
+        val rfidMatch1 = bookingRfidNorm.isNotEmpty() && bookingRfidNorm == driverRfidNorm
+        val rfidMatch2 = assignedIdNorm.isNotEmpty() && assignedIdNorm == driverRfidNorm
+        val userIdMatch = booking.assignedDriverId == user.id
+        val exactRfidMatch = booking.driverRFID.equals(driverRFID, ignoreCase = true)
+        val exactAssignedMatch = booking.assignedDriverId.equals(driverRFID, ignoreCase = true)
+
+        println("  Match checks:")
+        println("    rfidMatch1 (normalized booking.driverRFID == driverRFID): $rfidMatch1")
+        println("      ('$bookingRfidNorm' == '$driverRfidNorm')")
+        println("    rfidMatch2 (normalized booking.assignedDriverId == driverRFID): $rfidMatch2")
+        println("      ('$assignedIdNorm' == '$driverRfidNorm')")
+        println("    userIdMatch (booking.assignedDriverId == user.id): $userIdMatch")
+        println("      ('${booking.assignedDriverId}' == '${user.id}')")
+        println("    exactRfidMatch (booking.driverRFID == driverRFID, ignoreCase): $exactRfidMatch")
+        println("    exactAssignedMatch (booking.assignedDriverId == driverRFID, ignoreCase): $exactAssignedMatch")
+
+        val isMyBooking = rfidMatch1 || rfidMatch2 || userIdMatch || exactRfidMatch || exactAssignedMatch
 
         val isActiveStatus = booking.status == BookingStatus.ACCEPTED ||
                            booking.status == BookingStatus.IN_PROGRESS
 
         val result = isMyBooking && isActiveStatus
 
-        if (result) {
-            println("✓ Matched booking ${booking.id} for driver RFID=$driverRFID (userId=${user.id})")
+        if (!isMyBooking && booking.status in listOf(BookingStatus.ACCEPTED, BookingStatus.IN_PROGRESS)) {
+            println("  ⚠️ RFID MISMATCH: This booking belongs to a different driver")
+            println("     Booking driverRFID: ${booking.driverRFID} (${getRfidFormat(booking.driverRFID)})")
+            println("     Booking assignedDriverId: ${booking.assignedDriverId} (${getRfidFormat(booking.assignedDriverId)})")
+            println("     Your RFID: $driverRFID (${getRfidFormat(driverRFID)})")
         }
+
+        if (isMyBooking && !isActiveStatus) {
+            println("  ⚠️ STATUS ISSUE: Booking matches your RFID but status is ${booking.status}")
+            println("     Only ACCEPTED and IN_PROGRESS bookings are shown in 'My Bookings'")
+        }
+
+        println("  Final result: isMyBooking=$isMyBooking, isActiveStatus=$isActiveStatus, result=$result")
+        if (result) {
+            println("  ✅ THIS BOOKING WILL BE SHOWN")
+        } else {
+            println("  ❌ THIS BOOKING WILL BE HIDDEN")
+        }
+        println("============================")
 
         result
     }
+
+    println("=== MY BOOKINGS SUMMARY ===")
+    println("Total active bookings in system: ${activeBookings.size}")
+    println("Bookings matching this driver (Lucas Abad, RFID: $driverRFID): ${myBookings.size}")
+    if (myBookings.isEmpty()) {
+        println("⚠️ NO BOOKINGS FOUND FOR THIS DRIVER")
+        println("Possible reasons:")
+        println("  1. No bookings have driverRFID or assignedDriverId matching '$driverRFID'")
+        println("  2. Matching bookings exist but have wrong status (not ACCEPTED or IN_PROGRESS)")
+        println("  3. Database not yet synced - wait a few seconds and check again")
+    }
+    println("===========================")
 
     val availableBookings = activeBookings.filter { booking ->
         val isPending = booking.status == BookingStatus.PENDING
@@ -846,19 +899,45 @@ fun BookingMonitoringCard(
 
     // State for showing/hiding the No Show button based on arrival time
     val currentTime = remember { mutableStateOf(System.currentTimeMillis()) }
-    val showNoShowButton = remember(booking.arrivedAtPickup, booking.arrivedAtPickupTime, currentTime.value) {
+    val showNoShowButton = remember(booking.arrivedAtPickup, booking.arrivedAtPickupTime, booking.status, currentTime.value) {
+        booking.status == BookingStatus.ACCEPTED &&
         booking.arrivedAtPickup &&
         booking.arrivedAtPickupTime > 0L &&
         (currentTime.value - booking.arrivedAtPickupTime) >= 5 * 60 * 1000 // 5 minutes
     }
 
-    // Update timer every minute when driver has arrived
-    LaunchedEffect(booking.arrivedAtPickup) {
-        if (booking.arrivedAtPickup) {
+    // Calculate remaining time until auto no-show - ONLY for ACCEPTED status
+    val remainingSeconds = remember(booking.arrivedAtPickup, booking.arrivedAtPickupTime, booking.status, currentTime.value) {
+        if (booking.status == BookingStatus.ACCEPTED && booking.arrivedAtPickup && booking.arrivedAtPickupTime > 0L) {
+            val elapsed = currentTime.value - booking.arrivedAtPickupTime
+            val remaining = (5 * 60 * 1000 - elapsed) / 1000 // Convert to seconds
+            maxOf(0, remaining)
+        } else {
+            0L
+        }
+    }
+
+    // Update timer every second when driver has arrived
+    LaunchedEffect(booking.arrivedAtPickup, booking.status) {
+        if (booking.arrivedAtPickup && booking.status == BookingStatus.ACCEPTED) {
             while (true) {
-                kotlinx.coroutines.delay(60000) // Update every minute
+                kotlinx.coroutines.delay(1000) // Update every second
                 currentTime.value = System.currentTimeMillis()
             }
+        }
+    }
+
+    // Start no-show monitoring when driver arrives
+    LaunchedEffect(booking.arrivedAtPickup, booking.arrivedAtPickupTime) {
+        if (booking.arrivedAtPickup && booking.arrivedAtPickupTime > 0L && booking.status == BookingStatus.ACCEPTED) {
+            viewModel.startNoShowMonitoring(booking.id, booking.arrivedAtPickupTime)
+        }
+    }
+
+    // Stop monitoring when trip starts
+    LaunchedEffect(booking.status) {
+        if (booking.status == BookingStatus.IN_PROGRESS) {
+            viewModel.stopNoShowMonitoring(booking.id)
         }
     }
 
@@ -895,30 +974,50 @@ fun BookingMonitoringCard(
             BookingDetailRow("Drop off", booking.destination)
             BookingDetailRow("Fare", formatFare(booking.estimatedFare))
 
-            // Show arrival time if driver has arrived
-            if (booking.arrivedAtPickup && booking.arrivedAtPickupTime > 0L) {
+            // Show arrival time and countdown if driver has arrived AND status is ACCEPTED
+            if (booking.status == BookingStatus.ACCEPTED && booking.arrivedAtPickup && booking.arrivedAtPickupTime > 0L) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFFE3F2FD), RoundedCornerShape(8.dp))
+                        .background(
+                            if (remainingSeconds > 60) Color(0xFFE3F2FD) else Color(0xFFFFEBEE),
+                            RoundedCornerShape(8.dp)
+                        )
                         .padding(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         Icons.Default.CheckCircle,
                         contentDescription = "Arrived",
-                        tint = Color(0xFF1976D2),
+                        tint = if (remainingSeconds > 60) Color(0xFF1976D2) else Color(0xFFD32F2F),
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    val waitTime = (currentTime.value - booking.arrivedAtPickupTime) / 60000 // minutes
-                    Text(
-                        text = "Arrived at pickup • Waiting ${waitTime}m",
-                        fontSize = 14.sp,
-                        color = Color(0xFF1976D2),
-                        fontWeight = FontWeight.Medium
-                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Arrived at pickup",
+                            fontSize = 14.sp,
+                            color = if (remainingSeconds > 60) Color(0xFF1976D2) else Color(0xFFD32F2F),
+                            fontWeight = FontWeight.Medium
+                        )
+                        if (remainingSeconds > 0) {
+                            val minutes = remainingSeconds / 60
+                            val seconds = remainingSeconds % 60
+                            Text(
+                                text = "Auto no-show in ${minutes}m ${seconds}s",
+                                fontSize = 12.sp,
+                                color = if (remainingSeconds > 60) Color.Gray else Color(0xFFD32F2F)
+                            )
+                        } else {
+                            Text(
+                                text = "Customer no-show",
+                                fontSize = 12.sp,
+                                color = Color(0xFFD32F2F),
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
             }
 
@@ -942,7 +1041,7 @@ fun BookingMonitoringCard(
                                             onSuccess = {
                                                 android.widget.Toast.makeText(
                                                     context,
-                                                    "Marked as arrived at pickup point",
+                                                    "Marked as arrived. Customer will be notified.",
                                                     android.widget.Toast.LENGTH_SHORT
                                                 ).show()
                                             },
@@ -970,7 +1069,10 @@ fun BookingMonitoringCard(
                         } else {
                             // Show "Start Trip" button after arrival
                             Button(
-                                onClick = { onStatusUpdate(booking.id, "IN_PROGRESS") },
+                                onClick = {
+                                    onStatusUpdate(booking.id, "IN_PROGRESS")
+                                    viewModel.stopNoShowMonitoring(booking.id)
+                                },
                                 modifier = Modifier.weight(1f),
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2))
                             ) {
@@ -1012,7 +1114,7 @@ fun BookingMonitoringCard(
                     }
                 }
 
-                // Second row: No Show button (only appears after 5 minutes of waiting)
+                // Second row: Manual No Show button (only appears after 5 minutes of waiting)
                 if (showNoShowButton && booking.status == BookingStatus.ACCEPTED) {
                     Button(
                         onClick = {
@@ -1331,9 +1433,29 @@ fun ContributionsContent(
 }
 
 // Helper to compare RFIDs ignoring leading zeros and whitespace
+// Also handles hex vs decimal format conversion
 private fun normalizeRfid(value: String?): String {
-    val raw = (value ?: "").trim()
-    // Drop all leading zeros to allow comparisons like "0089492266" vs "89492266"
-    val dropped = raw.dropWhile { it == '0' }
-    return if (dropped.isEmpty() && raw.isNotEmpty()) "0" else dropped
+    val raw = (value ?: "").trim().uppercase()
+    if (raw.isEmpty()) return ""
+
+    // Check if this is a hexadecimal RFID (contains A-F)
+    val isHex = raw.any { it in 'A'..'F' }
+
+    if (isHex) {
+        // For hex RFIDs, remove leading zeros but keep the hex format
+        val dropped = raw.dropWhile { it == '0' }
+        return if (dropped.isEmpty()) "0" else dropped
+    } else {
+        // For decimal RFIDs, remove leading zeros
+        val dropped = raw.dropWhile { it == '0' }
+        return if (dropped.isEmpty()) "0" else dropped
+    }
+}
+
+// Helper to get RFID format type for debugging
+private fun getRfidFormat(value: String?): String {
+    val raw = (value ?: "").trim().uppercase()
+    if (raw.isEmpty()) return "EMPTY"
+    val isHex = raw.any { it in 'A'..'F' }
+    return if (isHex) "HEX" else "DECIMAL"
 }

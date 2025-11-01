@@ -33,6 +33,12 @@ class EnhancedBookingViewModel @Inject constructor(
     // Polling jobs keyed by bookingId to avoid duplicates
     private val pollingJobs: MutableMap<String, Job> = mutableMapOf()
 
+    // No-show monitoring jobs keyed by bookingId
+    private val noShowMonitorJobs: MutableMap<String, Job> = mutableMapOf()
+
+    // No-show timeout in milliseconds (5 minutes)
+    private val NO_SHOW_TIMEOUT_MS = 5 * 60 * 1000L
+
     init {
         // Observe available drivers in real-time
         viewModelScope.launch {
@@ -45,6 +51,18 @@ class EnhancedBookingViewModel @Inject constructor(
         viewModelScope.launch {
             repository.getActiveBookings().collect { bookings ->
                 _activeBookings.value = bookings
+
+                // Monitor bookings for driver arrival and auto-start no-show countdown
+                bookings.forEach { booking ->
+                    if (booking.arrivedAtPickup &&
+                        booking.arrivedAtPickupTime > 0L &&
+                        booking.status == BookingStatus.ACCEPTED &&
+                        !noShowMonitorJobs.containsKey(booking.id)) {
+                        // Driver has arrived, start automatic no-show monitoring
+                        println("📍 Auto-starting no-show monitoring for booking ${booking.id}")
+                        startNoShowMonitoring(booking.id, booking.arrivedAtPickupTime)
+                    }
+                }
             }
         }
 
@@ -172,6 +190,48 @@ class EnhancedBookingViewModel @Inject constructor(
     fun stopBookingPolling(bookingId: String) {
         pollingJobs.remove(bookingId)?.cancel()
         println("Manually stopped polling for booking $bookingId")
+    }
+
+    // Start monitoring for no-show after driver arrives
+    fun startNoShowMonitoring(bookingId: String, arrivedAtPickupTime: Long) {
+        // Cancel existing monitoring for this booking if any
+        noShowMonitorJobs[bookingId]?.cancel()
+
+        val job = viewModelScope.launch {
+            val timeElapsed = System.currentTimeMillis() - arrivedAtPickupTime
+            val remainingTime = NO_SHOW_TIMEOUT_MS - timeElapsed
+
+            if (remainingTime > 0) {
+                println("Starting no-show monitoring for booking $bookingId, waiting ${remainingTime}ms")
+                delay(remainingTime)
+
+                // Check if booking is still in ACCEPTED status (not started)
+                val booking = repository.getBookingByIdOnce(bookingId)
+                if (booking != null && booking.status == BookingStatus.ACCEPTED && booking.arrivedAtPickup) {
+                    println("Auto-reporting no-show for booking $bookingId after timeout")
+                    reportNoShow(bookingId)
+                }
+            } else {
+                println("Timeout already passed for booking $bookingId, reporting no-show immediately")
+                reportNoShow(bookingId)
+            }
+        }
+
+        noShowMonitorJobs[bookingId] = job
+    }
+
+    // Stop monitoring (called when trip starts or is cancelled)
+    fun stopNoShowMonitoring(bookingId: String) {
+        noShowMonitorJobs[bookingId]?.cancel()
+        noShowMonitorJobs.remove(bookingId)
+        println("Stopped no-show monitoring for booking $bookingId")
+    }
+
+    // Clear all monitoring when view model is cleared
+    override fun onCleared() {
+        super.onCleared()
+        noShowMonitorJobs.values.forEach { it.cancel() }
+        noShowMonitorJobs.clear()
     }
 
     fun acceptBooking(bookingId: String, driverId: String) {

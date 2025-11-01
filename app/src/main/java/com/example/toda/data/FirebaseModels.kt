@@ -69,7 +69,7 @@ data class FirebaseBooking(
     val dropoffCoordinates: Map<String, Double> = emptyMap(), // lat, lng
     val estimatedFare: Double = 0.0,
     val actualFare: Double = 0.0,
-    val status: String = "PENDING", // PENDING, ACCEPTED, IN_PROGRESS, COMPLETED, CANCELLED
+    val status: String = "PENDING", // PENDING, ACCEPTED, IN_PROGRESS, COMPLETED, CANCELLED, NO_SHOW
     val timestamp: Long = System.currentTimeMillis(),
     val assignedDriverId: String = "",
     val assignedTricycleId: String = "",
@@ -85,7 +85,12 @@ data class FirebaseBooking(
     val driverRFID: String = "",
     val todaNumber: String = "",
     // New field to classify trip creation source
-    val tripType: String = ""
+    val tripType: String = "",
+    // Pickup arrival and no-show tracking
+    val arrivedAtPickup: Boolean = false,
+    val arrivedAtPickupTime: Long = 0L,
+    val isNoShow: Boolean = false,
+    val noShowReportedTime: Long = 0L
 ) {
     // Helper function to get completionTime as Long
     fun getCompletionTimeLong(): Long {
