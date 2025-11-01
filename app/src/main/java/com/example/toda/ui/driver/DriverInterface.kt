@@ -156,64 +156,40 @@ fun DriverInterface(
         }
     }
 
-    // Filter bookings for this driver using driverRFID (robust to leading zeros) and assignedDriverId
+    // Filter bookings for this driver using ONLY user.id
     val myBookings = activeBookings.filter { booking ->
-        val bookingRfidNorm = normalizeRfid(booking.driverRFID)
-        val driverRfidNorm = normalizeRfid(driverRFID)
-        val assignedIdNorm = normalizeRfid(booking.assignedDriverId)
-
         println("=== BOOKING FILTER DEBUG ===")
         println("Checking booking ${booking.id}:")
         println("  Customer: ${booking.customerName}")
-        println("  Booking driverRFID: '${booking.driverRFID}' [${getRfidFormat(booking.driverRFID)}]")
-        println("  Booking assignedDriverId: '${booking.assignedDriverId}' [${getRfidFormat(booking.assignedDriverId)}]")
+        println("  Booking assignedDriverId: '${booking.assignedDriverId}'")
         println("  Booking status: ${booking.status}")
         println("  Driver user.id: '${user.id}'")
-        println("  Driver RFID: '$driverRFID' [${getRfidFormat(driverRFID)}]")
         println("  Driver name: '$driverName'")
-        println("  Normalized bookingRFID: '$bookingRfidNorm'")
-        println("  Normalized driverRFID: '$driverRfidNorm'")
-        println("  Normalized assignedId: '$assignedIdNorm'")
 
-        // Match by any of:
-        // 1. booking.driverRFID == driver's RFID (normalized)
-        // 2. booking.assignedDriverId == driver's RFID (normalized) [queue auto-assignments]
-        // 3. booking.assignedDriverId == driver's user ID (manual accept flow)
-        // 4. booking.driverRFID == driver's RFID (exact match, no normalization for hex values)
-        // 5. booking.assignedDriverId == driver's RFID (exact match)
-        val rfidMatch1 = bookingRfidNorm.isNotEmpty() && bookingRfidNorm == driverRfidNorm
-        val rfidMatch2 = assignedIdNorm.isNotEmpty() && assignedIdNorm == driverRfidNorm
+        // Match ONLY by user.id - simple and reliable
         val userIdMatch = booking.assignedDriverId == user.id
-        val exactRfidMatch = booking.driverRFID.equals(driverRFID, ignoreCase = true)
-        val exactAssignedMatch = booking.assignedDriverId.equals(driverRFID, ignoreCase = true)
 
-        println("  Match checks:")
-        println("    rfidMatch1 (normalized booking.driverRFID == driverRFID): $rfidMatch1")
-        println("      ('$bookingRfidNorm' == '$driverRfidNorm')")
-        println("    rfidMatch2 (normalized booking.assignedDriverId == driverRFID): $rfidMatch2")
-        println("      ('$assignedIdNorm' == '$driverRfidNorm')")
+        println("  Match check:")
         println("    userIdMatch (booking.assignedDriverId == user.id): $userIdMatch")
         println("      ('${booking.assignedDriverId}' == '${user.id}')")
-        println("    exactRfidMatch (booking.driverRFID == driverRFID, ignoreCase): $exactRfidMatch")
-        println("    exactAssignedMatch (booking.assignedDriverId == driverRFID, ignoreCase): $exactAssignedMatch")
 
-        val isMyBooking = rfidMatch1 || rfidMatch2 || userIdMatch || exactRfidMatch || exactAssignedMatch
+        val isMyBooking = userIdMatch
 
         val isActiveStatus = booking.status == BookingStatus.ACCEPTED ||
+                           booking.status == BookingStatus.AT_PICKUP ||
                            booking.status == BookingStatus.IN_PROGRESS
 
         val result = isMyBooking && isActiveStatus
 
-        if (!isMyBooking && booking.status in listOf(BookingStatus.ACCEPTED, BookingStatus.IN_PROGRESS)) {
-            println("  ⚠️ RFID MISMATCH: This booking belongs to a different driver")
-            println("     Booking driverRFID: ${booking.driverRFID} (${getRfidFormat(booking.driverRFID)})")
-            println("     Booking assignedDriverId: ${booking.assignedDriverId} (${getRfidFormat(booking.assignedDriverId)})")
-            println("     Your RFID: $driverRFID (${getRfidFormat(driverRFID)})")
+        if (!isMyBooking && booking.status in listOf(BookingStatus.ACCEPTED, BookingStatus.AT_PICKUP, BookingStatus.IN_PROGRESS)) {
+            println("  ⚠️ USER ID MISMATCH: This booking belongs to a different driver")
+            println("     Booking assignedDriverId: ${booking.assignedDriverId}")
+            println("     Your user.id: ${user.id}")
         }
 
         if (isMyBooking && !isActiveStatus) {
-            println("  ⚠️ STATUS ISSUE: Booking matches your RFID but status is ${booking.status}")
-            println("     Only ACCEPTED and IN_PROGRESS bookings are shown in 'My Bookings'")
+            println("  ⚠️ STATUS ISSUE: Booking matches your user.id but status is ${booking.status}")
+            println("     Only ACCEPTED, AT_PICKUP, and IN_PROGRESS bookings are shown in 'My Bookings'")
         }
 
         println("  Final result: isMyBooking=$isMyBooking, isActiveStatus=$isActiveStatus, result=$result")
@@ -229,12 +205,12 @@ fun DriverInterface(
 
     println("=== MY BOOKINGS SUMMARY ===")
     println("Total active bookings in system: ${activeBookings.size}")
-    println("Bookings matching this driver (Lucas Abad, RFID: $driverRFID): ${myBookings.size}")
+    println("Bookings matching this driver ($driverName, user.id: ${user.id}): ${myBookings.size}")
     if (myBookings.isEmpty()) {
         println("⚠️ NO BOOKINGS FOUND FOR THIS DRIVER")
         println("Possible reasons:")
-        println("  1. No bookings have driverRFID or assignedDriverId matching '$driverRFID'")
-        println("  2. Matching bookings exist but have wrong status (not ACCEPTED or IN_PROGRESS)")
+        println("  1. No bookings have assignedDriverId matching '${user.id}'")
+        println("  2. Matching bookings exist but have wrong status (not ACCEPTED, AT_PICKUP, or IN_PROGRESS)")
         println("  3. Database not yet synced - wait a few seconds and check again")
     }
     println("===========================")
@@ -256,32 +232,20 @@ fun DriverInterface(
         result
     }
 
-    // Get completed bookings for history (check both driverRFID and assignedDriverId)
-    val completedBookings = remember(activeBookings, driverRFID, user.id) {
+    // Get completed bookings for history - match by user.id only
+    val completedBookings = remember(activeBookings, user.id) {
         println("=== FILTERING COMPLETED BOOKINGS ===")
         println("Total active bookings: ${activeBookings.size}")
-        println("Driver RFID: $driverRFID")
         println("Driver User ID: ${user.id}")
 
-        val driverRfidNorm = normalizeRfid(driverRFID)
-
-        // Match by RFID in multiple ways:
-        // 1. Booking's driverRFID matches driver's RFID
-        // 2. Booking's assignedDriverId matches driver's RFID (legacy bookings)
-        // 3. Booking's assignedDriverId matches driver's user ID
+        // Match ONLY by user.id - simple and reliable
         val filtered = activeBookings.filter { booking ->
             println("Checking booking ${booking.id}:")
-            println("  - driverRFID: ${booking.driverRFID}")
             println("  - assignedDriverId: ${booking.assignedDriverId}")
             println("  - status: ${booking.status}")
             println("  - customerName: ${booking.customerName}")
 
-            val bookingRfidNorm = normalizeRfid(booking.driverRFID)
-            val assignedIdNorm = normalizeRfid(booking.assignedDriverId)
-
-            val isMyBooking = (bookingRfidNorm == driverRfidNorm && driverRfidNorm.isNotEmpty()) ||
-                             (assignedIdNorm == driverRfidNorm && driverRfidNorm.isNotEmpty()) ||
-                             (booking.assignedDriverId == user.id)
+            val isMyBooking = booking.assignedDriverId == user.id
             val isCompleted = booking.status == BookingStatus.COMPLETED
 
             println("  - isMyBooking: $isMyBooking")
@@ -1432,30 +1396,3 @@ fun ContributionsContent(
     )
 }
 
-// Helper to compare RFIDs ignoring leading zeros and whitespace
-// Also handles hex vs decimal format conversion
-private fun normalizeRfid(value: String?): String {
-    val raw = (value ?: "").trim().uppercase()
-    if (raw.isEmpty()) return ""
-
-    // Check if this is a hexadecimal RFID (contains A-F)
-    val isHex = raw.any { it in 'A'..'F' }
-
-    if (isHex) {
-        // For hex RFIDs, remove leading zeros but keep the hex format
-        val dropped = raw.dropWhile { it == '0' }
-        return if (dropped.isEmpty()) "0" else dropped
-    } else {
-        // For decimal RFIDs, remove leading zeros
-        val dropped = raw.dropWhile { it == '0' }
-        return if (dropped.isEmpty()) "0" else dropped
-    }
-}
-
-// Helper to get RFID format type for debugging
-private fun getRfidFormat(value: String?): String {
-    val raw = (value ?: "").trim().uppercase()
-    if (raw.isEmpty()) return "EMPTY"
-    val isHex = raw.any { it in 'A'..'F' }
-    return if (isHex) "HEX" else "DECIMAL"
-}

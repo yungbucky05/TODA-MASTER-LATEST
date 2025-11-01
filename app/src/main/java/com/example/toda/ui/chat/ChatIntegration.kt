@@ -81,8 +81,10 @@ fun ChatFloatingActionButton(
     LaunchedEffect(booking.id, booking.status) {
         chatViewModel.setCurrentUser(currentUser)
         chatViewModel.setCurrentBooking(booking.id)
-        // Initialize chat once the booking is accepted or in progress and no active chat exists yet
-        if ((booking.status == BookingStatus.ACCEPTED || booking.status == BookingStatus.IN_PROGRESS) && !hasActiveChat) {
+        // Initialize chat once the booking is accepted, at pickup, or in progress and no active chat exists yet
+        if ((booking.status == BookingStatus.ACCEPTED ||
+             booking.status == BookingStatus.AT_PICKUP ||
+             booking.status == BookingStatus.IN_PROGRESS) && !hasActiveChat) {
             chatViewModel.initializeChat(booking, currentUser, null, null)
         }
     }

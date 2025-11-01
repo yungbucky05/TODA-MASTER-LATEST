@@ -59,9 +59,10 @@ fun ActiveBookingScreen(
     // State for live countdown timer
     val currentTime = remember { mutableStateOf(System.currentTimeMillis()) }
 
-    // Calculate remaining time until auto no-show - ONLY for ACCEPTED status
+    // Calculate remaining time until auto no-show - for ACCEPTED or AT_PICKUP status
     val remainingSeconds = remember(booking.arrivedAtPickup, booking.arrivedAtPickupTime, booking.status, currentTime.value) {
-        if (booking.status == BookingStatus.ACCEPTED && booking.arrivedAtPickup && booking.arrivedAtPickupTime > 0L) {
+        if ((booking.status == BookingStatus.ACCEPTED || booking.status == BookingStatus.AT_PICKUP) &&
+            booking.arrivedAtPickup && booking.arrivedAtPickupTime > 0L) {
             val elapsed = currentTime.value - booking.arrivedAtPickupTime
             val remaining = (5 * 60 * 1000 - elapsed) / 1000 // 5 minutes in seconds
             maxOf(0, remaining)
@@ -70,9 +71,9 @@ fun ActiveBookingScreen(
         }
     }
 
-    // Update timer every second when driver has arrived and status is ACCEPTED
+    // Update timer every second when driver has arrived and status is ACCEPTED or AT_PICKUP
     LaunchedEffect(booking.arrivedAtPickup, booking.status) {
-        if (booking.arrivedAtPickup && booking.status == BookingStatus.ACCEPTED) {
+        if (booking.arrivedAtPickup && (booking.status == BookingStatus.ACCEPTED || booking.status == BookingStatus.AT_PICKUP)) {
             while (true) {
                 kotlinx.coroutines.delay(1000) // Update every second
                 currentTime.value = System.currentTimeMillis()
@@ -312,8 +313,9 @@ fun ActiveBookingScreen(
                 }
             }
 
-            // Arrival notification card - ONLY show when driver has arrived AND status is ACCEPTED
-            if (booking.status == BookingStatus.ACCEPTED && booking.arrivedAtPickup && booking.arrivedAtPickupTime > 0L) {
+            // Arrival notification card - show when driver has arrived (ACCEPTED or AT_PICKUP status)
+            if ((booking.status == BookingStatus.ACCEPTED || booking.status == BookingStatus.AT_PICKUP) &&
+                booking.arrivedAtPickup && booking.arrivedAtPickupTime > 0L) {
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -448,6 +450,76 @@ private fun BookingDetailsCard(
             )
 
             Spacer(modifier = Modifier.height(12.dp))
+
+            // Driver Status - show prominently at the top with enhanced AT_PICKUP status
+            if (booking.status == BookingStatus.ACCEPTED ||
+                booking.status == BookingStatus.AT_PICKUP ||
+                booking.status == BookingStatus.IN_PROGRESS) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = when {
+                            booking.status == BookingStatus.AT_PICKUP -> Color(0xFF1B5E20) // Dark green when AT_PICKUP
+                            booking.arrivedAtPickup -> Color(0xFFE8F5E9) // Light green when arrived
+                            else -> MaterialTheme.colorScheme.primaryContainer
+                        }
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            when {
+                                booking.status == BookingStatus.AT_PICKUP -> Icons.Default.CheckCircle
+                                booking.arrivedAtPickup -> Icons.Default.CheckCircle
+                                else -> Icons.Default.DirectionsCar
+                            },
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                            tint = when {
+                                booking.status == BookingStatus.AT_PICKUP -> Color.White
+                                booking.arrivedAtPickup -> Color(0xFF2E7D32)
+                                else -> MaterialTheme.colorScheme.primary
+                            }
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = when {
+                                    booking.status == BookingStatus.AT_PICKUP -> "🚗 DRIVER HAS ARRIVED!"
+                                    booking.arrivedAtPickup -> "Driver is at pickup location!"
+                                    else -> "Driver Status"
+                                },
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = when {
+                                    booking.status == BookingStatus.AT_PICKUP -> Color.White
+                                    booking.arrivedAtPickup -> Color(0xFF2E7D32)
+                                    else -> MaterialTheme.colorScheme.onPrimaryContainer
+                                }
+                            )
+                            Text(
+                                text = when {
+                                    booking.status == BookingStatus.AT_PICKUP -> "Your driver is waiting at the pickup location. Please come out now!"
+                                    booking.arrivedAtPickup -> "Your driver is waiting for you"
+                                    else -> "Driver is on the way to pickup location"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = when {
+                                    booking.status == BookingStatus.AT_PICKUP -> Color.White.copy(alpha = 0.9f)
+                                    booking.arrivedAtPickup -> Color(0xFF1B5E20)
+                                    else -> MaterialTheme.colorScheme.onPrimaryContainer
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
             DetailRow(
                 icon = Icons.Default.LocationOn,

@@ -41,6 +41,46 @@ import com.google.firebase.auth.PhoneAuthProvider
 import java.util.concurrent.TimeUnit
 import android.util.Patterns
 import android.content.Context
+import androidx.compose.runtime.key
+import androidx.compose.ui.viewinterop.AndroidView
+import android.webkit.WebView
+import android.webkit.WebViewClient
+
+// Add a simple enum to track which policy is shown
+private enum class PolicyDoc { Terms, Privacy }
+
+// Helper to wrap plain text or partial HTML into a full HTML doc for WebView
+private fun buildPolicyHtml(title: String, bodyRaw: String): String {
+    val looksHtml = bodyRaw.contains("<html", ignoreCase = true) || bodyRaw.contains("<body", ignoreCase = true)
+    val body = if (looksHtml) bodyRaw else bodyRaw
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\n", "<br/>")
+    return """
+        <!DOCTYPE html>
+        <html lang='en'>
+        <head>
+            <meta charset='utf-8'/>
+            <meta name='viewport' content='width=device-width, initial-scale=1'/>
+            <style>
+                body { font-family: -apple-system, Roboto, Arial, sans-serif; padding: 12px; color: #111; }
+                h1 { font-size: 20px; margin: 0 0 12px; }
+                p, li { line-height: 1.5; font-size: 14px; }
+                .container { max-width: 900px; margin: 0 auto; }
+                a { color: #0b57d0; text-decoration: none; }
+            </style>
+            <title>$title</title>
+        </head>
+        <body>
+            <div class='container'>
+                <h1>$title</h1>
+                $body
+            </div>
+        </body>
+        </html>
+    """.trimIndent()
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -106,15 +146,23 @@ fun CustomerLoginScreen(
         return if (clean.startsWith("63") && clean.length == 12) "+$clean" else null
     }
 
-    // Terms dialog state and loader
-    var showTermsDialog by remember { mutableStateOf(false) }
+    // Terms & Privacy dialog state and loaders
+    var showPolicyDialog by remember { mutableStateOf(false) }
+    var policyDoc by remember { mutableStateOf<PolicyDoc?>(null) }
     var termsText by remember { mutableStateOf<String?>(null) }
-    // New: whether dialog was opened to require acceptance (from checkbox)
-    var termsRequireAcceptance by remember { mutableStateOf(false) }
+    var privacyText by remember { mutableStateOf<String?>(null) }
+    // Whether dialog was opened to require acceptance (from checkbox)
+    var requireAcceptance by remember { mutableStateOf(false) }
+
     fun loadTerms(c: Context): String = try {
         c.resources.openRawResource(R.raw.terms_and_conditions).bufferedReader().use { it.readText() }
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         "Terms and Conditions are currently unavailable."
+    }
+    fun loadPrivacy(c: Context): String = try {
+        c.resources.openRawResource(R.raw.privacy_policy).bufferedReader().use { it.readText() }
+    } catch (_: Exception) {
+        "Privacy Policy is currently unavailable."
     }
 
     // Start phone number verification (sends OTP)
@@ -353,9 +401,9 @@ fun CustomerLoginScreen(
             Spacer(modifier = Modifier.weight(1f))
             IconButton(onClick = {
                 if (termsText == null) termsText = loadTerms(context)
-                // Open as general view (no acceptance gating)
-                termsRequireAcceptance = false
-                showTermsDialog = true
+                requireAcceptance = false
+                policyDoc = PolicyDoc.Terms
+                showPolicyDialog = true
             }) {
                 Icon(Icons.Default.Info, contentDescription = "About / Terms and Conditions")
             }
@@ -990,10 +1038,10 @@ fun CustomerLoginScreen(
                                             checked = agreesToTerms,
                                             onCheckedChange = { shouldCheck ->
                                                 if (shouldCheck) {
-                                                    // Open dialog requiring acceptance; only check after scroll-to-bottom and close
                                                     if (termsText == null) termsText = loadTerms(context)
-                                                    termsRequireAcceptance = true
-                                                    showTermsDialog = true
+                                                    requireAcceptance = true
+                                                    policyDoc = PolicyDoc.Terms
+                                                    showPolicyDialog = true
                                                 } else {
                                                     agreesToTerms = false
                                                 }
@@ -1005,14 +1053,19 @@ fun CustomerLoginScreen(
                                             style = MaterialTheme.typography.bodyMedium
                                         )
                                         Spacer(modifier = Modifier.weight(1f))
+                                        // Non-gated quick views
                                         TextButton(onClick = {
                                             if (termsText == null) termsText = loadTerms(context)
-                                            // General viewing (no gating)
-                                            termsRequireAcceptance = false
-                                            showTermsDialog = true
-                                        }) {
-                                            Text("View")
-                                        }
+                                            requireAcceptance = false
+                                            policyDoc = PolicyDoc.Terms
+                                            showPolicyDialog = true
+                                        }) { Text("View Terms") }
+                                        TextButton(onClick = {
+                                            if (privacyText == null) privacyText = loadPrivacy(context)
+                                            requireAcceptance = false
+                                            policyDoc = PolicyDoc.Privacy
+                                            showPolicyDialog = true
+                                        }) { Text("Privacy Policy") }
                                     }
                                 }
                             }
@@ -1255,62 +1308,100 @@ fun CustomerLoginScreen(
             }
         }
 
-        // Terms & Conditions Dialog (with scroll-to-bottom gating when required)
-        if (showTermsDialog) {
-            val scrollState = rememberScrollState()
-            val hasReachedBottom by remember {
-                derivedStateOf {
-                    // Allow immediate close if content fits, else require near-bottom
-                    scrollState.maxValue == 0 || scrollState.value >= (scrollState.maxValue - 8)
+        // Policy Dialog (Terms/Privacy) with scroll-to-bottom gating when required
+        if (showPolicyDialog && policyDoc != null) {
+            key(policyDoc) {
+                var reachedBottom by remember { mutableStateOf(false) }
+                val title = when (policyDoc) {
+                    PolicyDoc.Terms -> "Terms and Conditions"
+                    PolicyDoc.Privacy -> "Privacy Policy"
+                    else -> ""
                 }
-            }
-            val canClose = !termsRequireAcceptance || hasReachedBottom
+                val raw = when (policyDoc) {
+                    PolicyDoc.Terms -> termsText ?: ""
+                    PolicyDoc.Privacy -> privacyText ?: ""
+                    else -> ""
+                }
+                val html = remember(policyDoc, raw) { buildPolicyHtml(title, raw) }
 
-            AlertDialog(
-                onDismissRequest = {
-                    // Dismiss without changing checkbox if not explicitly closed
-                    showTermsDialog = false
-                    // Reset gating flag for safety
-                    termsRequireAcceptance = false
-                },
-                title = { Text("Terms and Conditions") },
-                text = {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 420.dp)
-                            .verticalScroll(scrollState)
-                    ) {
-                        Text(text = termsText ?: "")
-                    }
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            // Close, and if acceptance required and bottom reached, set agreed
-                            if (termsRequireAcceptance && hasReachedBottom) {
-                                agreesToTerms = true
+                val canClose = !requireAcceptance || reachedBottom
+
+                AlertDialog(
+                    onDismissRequest = {
+                        // Dismiss without accepting
+                        showPolicyDialog = false
+                        requireAcceptance = false
+                        policyDoc = null
+                    },
+                    title = { Text(title) },
+                    text = {
+                        AndroidView(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 420.dp),
+                            factory = { ctx ->
+                                WebView(ctx).apply {
+                                    settings.javaScriptEnabled = false
+                                    settings.builtInZoomControls = true
+                                    settings.displayZoomControls = false
+                                    isVerticalScrollBarEnabled = true
+                                    webViewClient = object : WebViewClient() {
+                                        override fun onPageFinished(view: WebView?, url: String?) {
+                                            view?.let { wv ->
+                                                // Evaluate initial bottom state (for short content)
+                                                val contentPx = (wv.contentHeight * wv.scale).toInt()
+                                                reachedBottom = (wv.scrollY + wv.height) >= (contentPx - 4)
+                                            }
+                                        }
+                                    }
+                                    setOnScrollChangeListener { v, _, _, _, _ ->
+                                        (v as? WebView)?.let { wv ->
+                                            val contentPx = (wv.contentHeight * wv.scale).toInt()
+                                            reachedBottom = (wv.scrollY + wv.height) >= (contentPx - 4)
+                                        }
+                                    }
+                                    loadDataWithBaseURL(null, html, "text/html", "UTF-8", null)
+                                }
+                            },
+                            update = { wv ->
+                                wv.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null)
                             }
-                            showTermsDialog = false
-                            termsRequireAcceptance = false
-                        },
-                        enabled = canClose
-                    ) {
-                        Text("Close")
-                    }
-                },
-                dismissButton = {
-                    if (termsRequireAcceptance) {
-                        TextButton(onClick = {
-                            // Cancel without accepting
-                            showTermsDialog = false
-                            termsRequireAcceptance = false
-                        }) {
-                            Text("Cancel")
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                if (requireAcceptance) {
+                                    if (!reachedBottom) return@TextButton
+                                    if (policyDoc == PolicyDoc.Terms) {
+                                        if (privacyText == null) privacyText = loadPrivacy(context)
+                                        policyDoc = PolicyDoc.Privacy
+                                        // Reset bottom detection for next doc; key(policyDoc) will recreate state
+                                        return@TextButton
+                                    } else if (policyDoc == PolicyDoc.Privacy) {
+                                        agreesToTerms = true
+                                    }
+                                }
+                                // Close dialog (non-gated or after final acceptance)
+                                showPolicyDialog = false
+                                requireAcceptance = false
+                                policyDoc = null
+                            },
+                            enabled = canClose
+                        ) { Text("Close") }
+                    },
+                    dismissButton = {
+                        if (requireAcceptance) {
+                            TextButton(onClick = {
+                                // Cancel without accepting
+                                showPolicyDialog = false
+                                requireAcceptance = false
+                                policyDoc = null
+                            }) { Text("Cancel") }
                         }
                     }
-                }
-            )
+                )
+            }
         }
     }
 }

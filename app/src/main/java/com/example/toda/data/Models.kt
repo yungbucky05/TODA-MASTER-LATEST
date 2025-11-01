@@ -32,6 +32,7 @@ data class Booking(
 enum class BookingStatus {
     PENDING,
     ACCEPTED,
+    AT_PICKUP,
     IN_PROGRESS,
     REJECTED,
     COMPLETED,

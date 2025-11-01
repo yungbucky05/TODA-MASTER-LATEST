@@ -817,7 +817,6 @@ private fun PreferencesAndTermsStep(
                             "• Follow TODA Barangay 177 guidelines\n" +
                             "• Pay agreed fares for completed trips\n" +
                             "• Respect drivers and their vehicles",
-                    style = MaterialTheme.typography.bodySmall
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))

@@ -39,6 +39,7 @@ import com.example.toda.viewmodel.EnhancedBookingViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.toda.utils.FeeCalculator
 import com.example.toda.ui.booking.ActiveBookingScreen
+import com.example.toda.utils.NotificationManager
 
 data class LocationValidation(
     val isValid: Boolean,
@@ -124,6 +125,7 @@ fun CustomerInterface(
     val assignedBooking = bookings.find { booking ->
         val isMyBooking = booking.customerId == user.id
         val isActiveStatus = booking.status == BookingStatus.ACCEPTED ||
+                           booking.status == BookingStatus.AT_PICKUP ||
                            booking.status == BookingStatus.IN_PROGRESS
 
         // Add debugging
@@ -176,7 +178,7 @@ fun CustomerInterface(
         println("My bookings count: ${myBookings.size}")
 
         val activeBookings = myBookings.filter {
-            it.status == BookingStatus.ACCEPTED || it.status == BookingStatus.IN_PROGRESS
+            it.status == BookingStatus.ACCEPTED || it.status == BookingStatus.AT_PICKUP || it.status == BookingStatus.IN_PROGRESS
         }
         println("My active bookings count: ${activeBookings.size}")
 
@@ -220,6 +222,29 @@ fun CustomerInterface(
             }
         } else {
             customerLocationService?.stopLocationTracking()
+        }
+    }
+
+    // Notify customer when driver arrives at pickup point
+    LaunchedEffect(assignedBooking?.arrivedAtPickup) {
+        if (assignedBooking != null && assignedBooking.arrivedAtPickup && assignedBooking.arrivedAtPickupTime > 0L) {
+            println("=== DRIVER ARRIVED - SENDING NOTIFICATION ===")
+            println("Booking ID: ${assignedBooking.id}")
+            println("Driver: ${assignedBooking.driverName}")
+            println("TODA Number: ${assignedBooking.todaNumber}")
+            println("Arrival Time: ${assignedBooking.arrivedAtPickupTime}")
+            println("===========================================")
+
+            // Send notification to customer
+            val notificationManager = NotificationManager(context)
+            notificationManager.sendDriverArrivalNotification(assignedBooking)
+
+            // Also show a toast for immediate feedback
+            android.widget.Toast.makeText(
+                context,
+                "Your driver has arrived at the pickup point!",
+                android.widget.Toast.LENGTH_LONG
+            ).show()
         }
     }
 
@@ -1559,14 +1584,8 @@ private fun EnhancedFareEstimationCard(fareBreakdown: FareBreakdown) {
                 }
             }
 
-            // New: Convenience/System Fee (dynamic based on verified discount)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("Convenience Fee:")
-                Text("₱${String.format(Locale.getDefault(), "%.2f", fareBreakdown.convenienceFee)}")
-            }
+            // Removed: Convenience/System Fee breakdown (now included in base fare)
+            // Previously displayed here
 
             // Discount information row
             if (fareBreakdown.discountAmount > 0) {
@@ -1981,7 +2000,7 @@ private fun calculateDetailedFare(
     driverLocation: GeoPoint,
     userProfile: UserProfile? // User profile containing discount information
 ): FareBreakdown {
-    println("=== FARE CALCULATION WITH DISCOUNT ===")
+    println("=== FARE CALCULATION WITH DISCOUNT (CONVENIENCE INCLUDED IN BASE) ===")
     println("User Profile: $userProfile")
     println("Discount Type: ${userProfile?.discountType}")
     println("Discount Verified: ${userProfile?.discountVerified}")
@@ -1992,8 +2011,8 @@ private fun calculateDetailedFare(
     // Calculate driver travel distance to pickup
     val driverToPickupDistance = calculateDistance(driverLocation, pickupLocation)
 
-    // Calculate base fare for passenger trip
-    val baseFare = calculateFare(passengerDistance)
+    // Calculate base fare for passenger trip (before convenience)
+    val baseFareCore = calculateFare(passengerDistance)
 
     // Calculate driver travel fee (reduced rate for driver positioning)
     val driverTravelFee = if (driverToPickupDistance <= 1.0) {
@@ -2002,13 +2021,16 @@ private fun calculateDetailedFare(
         (driverToPickupDistance - 1.0) * 5.0 // 5 PHP per km beyond 1km
     }
 
-    // Calculate subtotal fare (base fare + driver travel fee)
-    val subtotalFare = baseFare + driverTravelFee
-
-    // New: Variable convenience/system fee based on verified discount
+    // Variable convenience/system fee based on verified discount
     val convenienceFee = FeeCalculator.convenienceFee(userProfile)
 
-    // Apply discount if user has verified discount eligibility (on subtotal only)
+    // Combine convenience fee into displayed base fare
+    val displayedBaseFare = baseFareCore + convenienceFee
+
+    // Subtotal BEFORE convenience (used as discount base to preserve policy)
+    val discountBaseSubtotal = baseFareCore + driverTravelFee
+
+    // Apply discount if user has verified discount eligibility (on subtotal excluding convenience)
     var discountType: String? = null
     var discountPercent = 0.0
     var discountAmount = 0.0
@@ -2019,7 +2041,7 @@ private fun calculateDetailedFare(
 
         discountType = userProfile.discountType.displayName
         discountPercent = userProfile.discountType.discountPercent
-        discountAmount = subtotalFare * (discountPercent / 100.0)
+        discountAmount = discountBaseSubtotal * (discountPercent / 100.0)
 
         println("✅ DISCOUNT APPLIED:")
         println("   Type: $discountType")
@@ -2032,13 +2054,14 @@ private fun calculateDetailedFare(
         }
     }
 
-    // Calculate total fare (subtotal + convenience - discount)
-    val totalFare = subtotalFare + convenienceFee - discountAmount
+    // Total fare = displayed base (including convenience) + driver fee - discount
+    val totalFare = displayedBaseFare + driverTravelFee - discountAmount
 
-    println("Base Fare: ₱${String.format(Locale.getDefault(), "%.2f", baseFare)}")
+    println("Base Fare (core): ₱${String.format(Locale.getDefault(), "%.2f", baseFareCore)}")
+    println("Convenience (included in base): ₱${String.format(Locale.getDefault(), "%.2f", convenienceFee)}")
+    println("Displayed Base Fare: ₱${String.format(Locale.getDefault(), "%.2f", displayedBaseFare)}")
     println("Driver Travel Fee: ₱${String.format(Locale.getDefault(), "%.2f", driverTravelFee)}")
-    println("Subtotal: ₱${String.format(Locale.getDefault(), "%.2f", subtotalFare)}")
-    println("Convenience Fee: ₱${String.format(Locale.getDefault(), "%.2f", convenienceFee)}")
+    println("Discount Base Subtotal: ₱${String.format(Locale.getDefault(), "%.2f", discountBaseSubtotal)}")
     println("Discount: -₱${String.format(Locale.getDefault(), "%.2f", discountAmount)}")
     println("Total: ₱${String.format(Locale.getDefault(), "%.2f", totalFare)}")
     println("=======================================")
@@ -2046,10 +2069,10 @@ private fun calculateDetailedFare(
     return FareBreakdown(
         passengerDistance = passengerDistance,
         driverToPickupDistance = driverToPickupDistance,
-        baseFare = baseFare,
+        baseFare = displayedBaseFare, // already includes convenience
         driverTravelFee = driverTravelFee,
-        subtotalFare = subtotalFare,
-        convenienceFee = convenienceFee,
+        subtotalFare = displayedBaseFare + driverTravelFee,
+        convenienceFee = 0.0, // hidden in base fare for UI
         discountType = discountType,
         discountPercent = discountPercent,
         discountAmount = discountAmount,

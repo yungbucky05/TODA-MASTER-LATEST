@@ -198,68 +198,104 @@ class FirebaseRealtimeDatabaseService {
             override fun onDataChange(snapshot: DataSnapshot) {
                 println("=== FIREBASE SERVICE ACTIVE BOOKINGS DEBUG ===")
                 println("Total bookings in Firebase: ${snapshot.childrenCount}")
+                println("Timestamp: ${System.currentTimeMillis()}")
 
                 val bookings = mutableListOf<FirebaseBooking>()
+                var processedCount = 0
+                var addedCount = 0
+                var skippedCount = 0
+
                 snapshot.children.forEach { child ->
-                    println("Processing booking: ${child.key}")
+                    processedCount++
+                    println("\n--- Processing booking #$processedCount: ${child.key} ---")
 
                     val rawStatus = child.child("status").getValue(String::class.java)
-                    println("Raw status from Firebase: '$rawStatus'")
+                    val rawCustomerId = child.child("customerId").getValue(String::class.java)
+                    println("  Raw status from Firebase: '$rawStatus'")
+                    println("  Raw customer ID: '$rawCustomerId'")
 
                     try {
                         // Try direct conversion first
                         val booking = child.getValue(FirebaseBooking::class.java)
                         if (booking != null) {
-                            println("Direct conversion SUCCESS for ${booking.id}")
-                            println("Booking status: ${booking.status}")
-                            println("Customer ID: ${booking.customerId}")
-                            println("Driver RFID: ${booking.driverRFID}")
-                            println("Assigned Driver ID: ${booking.assignedDriverId}")
+                            println("  ✓ Direct conversion SUCCESS for ${booking.id}")
+                            println("    - Booking status: '${booking.status}'")
+                            println("    - Customer ID: '${booking.customerId}'")
+                            println("    - Customer Name: '${booking.customerName}'")
+                            println("    - Driver RFID: '${booking.driverRFID}'")
+                            println("    - Assigned Driver ID: '${booking.assignedDriverId}'")
+                            println("    - Timestamp: ${booking.timestamp}")
 
-                            // Include PENDING, ACCEPTED, IN_PROGRESS, and COMPLETED bookings
-                            if (booking.status in listOf("PENDING", "ACCEPTED", "IN_PROGRESS", "COMPLETED")) {
-                                println("Adding booking to active list: ${booking.id}")
+                            // Include PENDING, ACCEPTED, AT_PICKUP, IN_PROGRESS, and COMPLETED bookings
+                            val allowedStatuses = listOf("PENDING", "ACCEPTED", "AT_PICKUP", "IN_PROGRESS", "COMPLETED")
+                            println("    - Checking if status '${booking.status}' is in: $allowedStatuses")
+
+                            if (booking.status in allowedStatuses) {
+                                println("    ✓✓✓ ADDING booking to active list: ${booking.id}")
                                 bookings.add(booking)
+                                addedCount++
                             } else {
-                                println("Booking status '${booking.status}' not in active list")
+                                println("    ✗✗✗ SKIPPING - Status '${booking.status}' not in active list")
+                                skippedCount++
                             }
                         } else {
-                            println("Direct conversion returned NULL for ${child.key}")
+                            println("  ✗ Direct conversion returned NULL for ${child.key}")
                         }
                     } catch (e: Exception) {
-                        println("Direct conversion FAILED for ${child.key}: ${e.message}")
+                        println("  ✗ Direct conversion FAILED for ${child.key}: ${e.message}")
+                        e.printStackTrace()
 
                         // If direct conversion fails, try manual conversion
                         try {
                             val manualBooking = convertDataSnapshotToFirebaseBooking(child)
                             if (manualBooking != null) {
-                                println("Manual conversion SUCCESS for ${manualBooking.id}")
-                                println("Manual booking status: ${manualBooking.status}")
+                                println("  ✓ Manual conversion SUCCESS for ${manualBooking.id}")
+                                println("    - Manual booking status: '${manualBooking.status}'")
+                                println("    - Manual customer ID: '${manualBooking.customerId}'")
 
-                                if (manualBooking.status in listOf("PENDING", "ACCEPTED", "IN_PROGRESS", "COMPLETED")) {
-                                    println("Adding manually converted booking to active list: ${manualBooking.id}")
+                                val allowedStatuses = listOf("PENDING", "ACCEPTED", "AT_PICKUP", "IN_PROGRESS", "COMPLETED")
+                                if (manualBooking.status in allowedStatuses) {
+                                    println("    ✓✓✓ ADDING manually converted booking to active list: ${manualBooking.id}")
                                     bookings.add(manualBooking)
+                                    addedCount++
+                                } else {
+                                    println("    ✗✗✗ SKIPPING manual - Status '${manualBooking.status}' not in active list")
+                                    skippedCount++
                                 }
                             } else {
-                                println("Manual conversion also returned NULL for ${child.key}")
+                                println("  ✗ Manual conversion also returned NULL for ${child.key}")
                             }
                         } catch (e2: Exception) {
-                            println("Manual conversion also FAILED for ${child.key}: ${e2.message}")
+                            println("  ✗ Manual conversion also FAILED for ${child.key}: ${e2.message}")
                             android.util.Log.e("FirebaseService", "Failed to convert booking: ${child.key}", e2)
+                            e2.printStackTrace()
                         }
                     }
                 }
 
+                println("\n=== FIREBASE SERVICE SUMMARY ===")
+                println("Total bookings processed: $processedCount")
+                println("Bookings added to active list: $addedCount")
+                println("Bookings skipped: $skippedCount")
                 println("Final active bookings count: ${bookings.size}")
-                bookings.forEach { booking ->
-                    println("Active booking: ${booking.id} - Status: ${booking.status} - Customer: ${booking.customerId} - DriverRFID: ${booking.driverRFID}")
+
+                if (bookings.isNotEmpty()) {
+                    println("\n=== ACTIVE BOOKINGS LIST ===")
+                    bookings.forEachIndexed { index, booking ->
+                        println("[$index] ID: ${booking.id}")
+                        println("    Status: ${booking.status}")
+                        println("    Customer: ${booking.customerName} (${booking.customerId})")
+                        println("    Driver: ${booking.driverName} (RFID: ${booking.driverRFID})")
+                    }
+                } else {
+                    println("⚠️⚠️⚠️ NO ACTIVE BOOKINGS FOUND! ⚠️⚠️⚠️")
                 }
-                println("===============================================")
+                println("===============================================\n")
 
                 trySend(bookings.toList())
             }
             override fun onCancelled(error: DatabaseError) {
-                println("Firebase listener cancelled: ${error.message}")
+                println("❌ Firebase listener cancelled: ${error.message}")
                 trySend(emptyList())
             }
         })
@@ -402,12 +438,56 @@ class FirebaseRealtimeDatabaseService {
                 "bookings/$bookingId/status" to status
             )
 
-            driverId?.let {
-                updates["bookings/$bookingId/assignedDriverId"] = it
-                updates["bookings/$bookingId/driverRFID"] = it
+            driverId?.let { userId ->
+                // Set the assignedDriverId to the actual driver user ID
+                updates["bookings/$bookingId/assignedDriverId"] = userId
 
-                // Update bookingIndex with driver assignment
-                updates["bookingIndex/$bookingId/driverRFID"] = it
+                // Fetch the driver's details from the drivers table using the user ID
+                try {
+                    val driverSnapshot = hardwareDriversRef.child(userId).get().await()
+
+                    if (driverSnapshot.exists()) {
+                        // Get driver data from hardware drivers table
+                        val driverRFID = driverSnapshot.child("rfidUID").getValue(String::class.java) ?: ""
+                        val driverName = driverSnapshot.child("driverName").getValue(String::class.java) ?: ""
+                        val todaNumber = driverSnapshot.child("todaNumber").getValue(String::class.java) ?: ""
+
+                        // Set driverRFID to the actual RFID from driver profile
+                        if (driverRFID.isNotEmpty()) {
+                            updates["bookings/$bookingId/driverRFID"] = driverRFID
+                            updates["bookingIndex/$bookingId/driverRFID"] = driverRFID
+                        }
+
+                        // Set driver name
+                        if (driverName.isNotEmpty()) {
+                            updates["bookings/$bookingId/driverName"] = driverName
+                        }
+
+                        // Set TODA number (tricycle ID)
+                        if (todaNumber.isNotEmpty()) {
+                            updates["bookings/$bookingId/assignedTricycleId"] = todaNumber
+                            updates["bookings/$bookingId/todaNumber"] = todaNumber
+                        }
+
+                        println("✓ Driver assignment: ID=$userId, RFID=$driverRFID, Name=$driverName, TODA=$todaNumber")
+                    } else {
+                        println("⚠ Driver profile not found in drivers table for ID: $userId")
+                        // Fallback: Try users table
+                        val userSnapshot = usersRef.child(userId).get().await()
+                        val userName = userSnapshot.child("name").getValue(String::class.java) ?: ""
+                        if (userName.isNotEmpty()) {
+                            updates["bookings/$bookingId/driverName"] = userName
+                        }
+                        // Set user ID as driverRFID as fallback (legacy behavior)
+                        updates["bookings/$bookingId/driverRFID"] = userId
+                        updates["bookingIndex/$bookingId/driverRFID"] = userId
+                    }
+                } catch (e: Exception) {
+                    println("⚠ Error fetching driver profile: ${e.message}")
+                    // Fallback: set user ID as driverRFID
+                    updates["bookings/$bookingId/driverRFID"] = userId
+                    updates["bookingIndex/$bookingId/driverRFID"] = userId
+                }
             }
 
             // Update bookingIndex status
@@ -1547,9 +1627,74 @@ class FirebaseRealtimeDatabaseService {
                     continue
                 }
 
+                // Look up the driver's user ID from their RFID
+                var driverUserId = ""
+                try {
+                    // 1) Fast-path: rfidUIDIndex (populated by assignRfidToDriver)
+                    try {
+                        val idx = database.child("rfidUIDIndex").child(driverRFID).get().await()
+                        val fromIndex = idx.getValue(String::class.java) ?: ""
+                        if (fromIndex.isNotEmpty()) {
+                            driverUserId = fromIndex
+                            println("✓ Found driver user ID from rfidUIDIndex: $driverUserId for RFID: $driverRFID")
+                        }
+                    } catch (e: Exception) {
+                        println("⚠ rfidUIDIndex lookup failed: ${e.message}")
+                    }
+
+                    // 2) Drivers table by RFID (if not resolved by index)
+                    if (driverUserId.isEmpty()) {
+                        val driversSnapshot = hardwareDriversRef.orderByChild("rfidUID").equalTo(driverRFID).get().await()
+                        if (driversSnapshot.exists()) {
+                            // The user ID is the key of the driver entry
+                            val driverEntry = driversSnapshot.children.firstOrNull()
+                            driverUserId = driverEntry?.key ?: ""
+                            println("✓ Found driver user ID from drivers table: $driverUserId for RFID: $driverRFID")
+                        }
+                    }
+
+                    // 3) Users table by rfidNumber (legacy schema)
+                    if (driverUserId.isEmpty()) {
+                        val usersSnapshot = usersRef.orderByChild("rfidNumber").equalTo(driverRFID).get().await()
+                        if (usersSnapshot.exists()) {
+                            val userEntry = usersSnapshot.children.firstOrNull()
+                            driverUserId = userEntry?.key ?: ""
+                            println("✓ Found driver user ID from users table (rfidNumber): $driverUserId for RFID: $driverRFID")
+                        }
+                    }
+
+                    // 4) Drivers table by todaNumber (as last-ditch structured hint from queue)
+                    if (driverUserId.isEmpty() && todaNumber.isNotEmpty()) {
+                        try {
+                            val byToda = hardwareDriversRef.orderByChild("todaNumber").equalTo(todaNumber).get().await()
+                            if (byToda.exists()) {
+                                val driverEntry = byToda.children.firstOrNull()
+                                driverUserId = driverEntry?.key ?: ""
+                                println("✓ Found driver user ID from drivers table (todaNumber=$todaNumber): $driverUserId")
+                            }
+                        } catch (e: Exception) {
+                            println("⚠ todaNumber lookup failed: ${e.message}")
+                        }
+                    }
+
+                    if (driverUserId.isNotEmpty()) {
+                        println("✓ Successfully resolved driver user ID: $driverUserId for RFID: $driverRFID")
+                    } else {
+                        println("⚠ Could not find driver user ID for RFID: $driverRFID (todaNumber='$todaNumber', driverName='$driverName')")
+                    }
+                } catch (e: Exception) {
+                    println("⚠ Error looking up driver user ID: ${e.message}")
+                }
+
+                // If we couldn't find the user ID, use the RFID as fallback (legacy behavior)
+                if (driverUserId.isEmpty()) {
+                    println("⚠ Could not find user ID for RFID $driverRFID, using RFID as fallback")
+                    driverUserId = driverRFID
+                }
+
                 // Prepare updates for booking and index
                 val updates = mutableMapOf<String, Any>(
-                    "bookings/$bookingId/assignedDriverId" to driverRFID,
+                    "bookings/$bookingId/assignedDriverId" to driverUserId,  // ✅ Prefer actual user ID; falls back to RFID only if unresolved
                     "bookings/$bookingId/driverRFID" to driverRFID,
                     "bookings/$bookingId/driverName" to driverName,
                     "bookings/$bookingId/assignedTricycleId" to todaNumber,
@@ -1564,7 +1709,7 @@ class FirebaseRealtimeDatabaseService {
                 // Remove the queue entry now that it's assigned
                 queueRef.child(queueKey).removeValue().await()
 
-                println("✅ Matched booking $bookingId with driverRFID=$driverRFID, driverName=$driverName, todaNumber=$todaNumber")
+                println("✅ Matched booking $bookingId with driverUserId=$driverUserId, driverRFID=$driverRFID, driverName=$driverName, todaNumber=$todaNumber")
                 return true
             }
 
@@ -1874,5 +2019,5 @@ class FirebaseRealtimeDatabaseService {
             })
         awaitClose { chatRoomsRef.removeEventListener(customerListener) }
     }
-}
 
+}
