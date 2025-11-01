@@ -368,7 +368,10 @@ fun BookingApp(
                 // Filter bookings for the current customer - include ALL active statuses for active bookings
                 val customerBookings = activeBookings.filter {
                     it.customerId == user.id &&
-                    (it.status == BookingStatus.PENDING || it.status == BookingStatus.ACCEPTED || it.status == BookingStatus.IN_PROGRESS)
+                    (it.status == BookingStatus.PENDING ||
+                     it.status == BookingStatus.ACCEPTED ||
+                     it.status == BookingStatus.AT_PICKUP ||
+                     it.status == BookingStatus.IN_PROGRESS)
                 }
                 val customerBookingHistory = activeBookings.filter {
                     it.customerId == user.id &&

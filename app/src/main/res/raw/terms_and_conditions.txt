@@ -15,7 +15,8 @@ You agree to provide accurate information. Phone verification may be required.
 Cancellations and no-shows may be handled according to barangay guidelines.
 
 5. Payments
-If applicable, fares and fees are governed by barangay-approved rates.
+- Displayed base fare already includes a convenience/system fee. Discounts, if applicable, are calculated before this fee.
+- If applicable, fares and fees are governed by barangay-approved rates.
 
 6. Safety
 Follow driver and barangay safety guidelines. In emergencies, dial local authorities.
