@@ -98,6 +98,49 @@ class TODARepository @Inject constructor(
         }
     }
 
+    // Overloaded function for customer registration with email and extended user data
+    suspend fun registerUser(
+        email: String,
+        phoneNumber: String,
+        password: String,
+        userData: Map<String, Any>
+    ): Result<FirebaseUser> {
+        return try {
+            // First create user in Firebase Auth with email
+            val authResult = authService.createUserWithEmail(email, password)
+
+            authResult.fold(
+                onSuccess = { userId ->
+                    // Create a user object with the provided user data
+                    val user = FirebaseUser(
+                        id = userId,
+                        phoneNumber = phoneNumber,
+                        name = userData["name"] as? String ?: "",
+                        userType = userData["userType"] as? String ?: "PASSENGER",
+                        isVerified = userData["verified"] as? Boolean ?: true,
+                        registrationDate = userData["registrationDate"] as? Long ?: System.currentTimeMillis()
+                    )
+
+                    // Add the userId to userData
+                    val updatedUserData = userData + ("id" to userId)
+
+                    // Then create user profile in Realtime Database
+                    val success = firebaseService.createUserWithData(userId, updatedUserData)
+                    if (success) {
+                        Result.success(user)
+                    } else {
+                        Result.failure(Exception("Failed to create user profile"))
+                    }
+                },
+                onFailure = { error ->
+                    Result.failure(error)
+                }
+            )
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun getUserByPhoneNumber(phoneNumber: String): FirebaseUser? {
         return try {
             firebaseService.getUserByPhoneNumber(phoneNumber)
@@ -1180,6 +1223,41 @@ class TODARepository @Inject constructor(
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    // Link email/password to the currently authenticated user (after phone OTP) and create profile
+    suspend fun registerUserByLinkingEmailToCurrentUser(
+        email: String,
+        phoneNumber: String,
+        password: String,
+        userData: Map<String, Any>
+    ): Result<FirebaseUser> {
+        return try {
+            val linkResult = authService.linkEmailPasswordToCurrentUser(email, password)
+            linkResult.fold(
+                onSuccess = { userId ->
+                    val user = FirebaseUser(
+                        id = userId,
+                        phoneNumber = phoneNumber,
+                        name = userData["name"] as? String ?: "",
+                        userType = userData["userType"] as? String ?: "PASSENGER",
+                        isVerified = userData["verified"] as? Boolean ?: true,
+                        registrationDate = userData["registrationDate"] as? Long ?: System.currentTimeMillis()
+                    )
+
+                    val updatedUserData = userData + ("id" to userId)
+                    val success = firebaseService.createUserWithData(userId, updatedUserData)
+                    if (success) Result.success(user) else Result.failure(Exception("Failed to create user profile"))
+                },
+                onFailure = { error -> Result.failure(error) }
+            )
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun sendPasswordResetEmail(email: String): Result<Unit> {
+        return authService.sendPasswordResetEmail(email)
     }
 }
 

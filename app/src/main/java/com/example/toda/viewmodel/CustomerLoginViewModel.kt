@@ -19,10 +19,14 @@ class CustomerLoginViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _loginState = MutableStateFlow(CustomerLoginState())
-    val loginState = _loginState.asStateFlow()
+    val loginState: StateFlow<CustomerLoginState> = _loginState.asStateFlow()
 
     private val _currentUser = MutableStateFlow<FirebaseUser?>(null)
-    val currentUser = _currentUser.asStateFlow()
+    val currentUser: StateFlow<FirebaseUser?> = _currentUser.asStateFlow()
+
+    // New: password reset state
+    private val _passwordReset: MutableStateFlow<PasswordResetState> = MutableStateFlow(PasswordResetState())
+    val passwordReset: StateFlow<PasswordResetState> = _passwordReset.asStateFlow()
 
     fun login(phoneNumber: String, password: String) {
         if (phoneNumber.isBlank() || password.isBlank()) {
@@ -168,7 +172,7 @@ class CustomerLoginViewModel @Inject constructor(
                     "notificationPreferences" to notificationPreferences
                 )
 
-                repository.registerUser(phoneNumber, password, userData).fold(
+                repository.registerUser(email, phoneNumber, password, userData).fold(
                     onSuccess = { user ->
                         println("Registration successful for user: ${user.name}")
 
@@ -230,11 +234,36 @@ class CustomerLoginViewModel @Inject constructor(
         _currentUser.value = null
         _loginState.value = CustomerLoginState()
     }
+
+    // New: trigger Firebase password reset email (requires the account email)
+    fun resetPassword(email: String) {
+        if (email.isBlank() || !Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            _passwordReset.value = PasswordResetState(error = "Enter a valid email address")
+            return
+        }
+        viewModelScope.launch {
+            _passwordReset.value = PasswordResetState(isSending = true)
+            val result = repository.sendPasswordResetEmail(email)
+            _passwordReset.value = result.fold(
+                onSuccess = { PasswordResetState(sent = true) },
+                onFailure = { PasswordResetState(error = it.message ?: "Failed to send reset email") }
+            )
+        }
+    }
+
+    fun clearPasswordReset() { _passwordReset.value = PasswordResetState() }
 }
 
 data class CustomerLoginState(
     val isLoading: Boolean = false,
     val isSuccess: Boolean = false,
     val userId: String? = null,
+    val error: String? = null
+)
+
+// New state holder for password reset UI
+data class PasswordResetState(
+    val isSending: Boolean = false,
+    val sent: Boolean = false,
     val error: String? = null
 )

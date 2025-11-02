@@ -329,6 +329,34 @@ fun BookingApp(
             )
         }
 
+        "barker_login" -> {
+            val coroutineScope = rememberCoroutineScope()
+            AdminLoginScreen(
+                onLoginSuccess = { userId, firebaseUser ->
+                    currentUserId = userId
+                    coroutineScope.launch {
+                        // Barker uses simplified admin authentication
+                        val userWithProfile = convertFirebaseUserToUser(firebaseUser)
+                        currentUser = userWithProfile
+                        currentScreen = "barker_interface"
+                    }
+                },
+                onBack = {
+                    currentScreen = "user_selection"
+                },
+                showBack = (initialScreen == null)
+            )
+        }
+
+        "barker_interface" -> {
+            com.example.toda.ui.barker.BarkerInterface(
+                onLogout = {
+                    handleAdminLogout()
+                    currentScreen = "barker_login"
+                }
+            )
+        }
+
         "customer_auth" -> {
             AuthenticationScreen(
                 onAuthSuccess = { user ->

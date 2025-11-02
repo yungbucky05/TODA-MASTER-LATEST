@@ -75,7 +75,10 @@ fun DriverInterface(
             val driverResult = viewModel.getDriverById(user.id)
             driverResult.fold(
                 onSuccess = { driverData ->
-                    driverRFID = driverData["rfidUID"] as? String ?: ""
+                    // Check rfidNumber first, then fall back to rfidUID for backwards compatibility
+                    val rfidNumber = driverData["rfidNumber"] as? String ?: ""
+                    val rfidUID = driverData["rfidUID"] as? String ?: ""
+                    driverRFID = if (rfidNumber.isNotEmpty()) rfidNumber else rfidUID
                     driverName = driverData["driverName"] as? String ?: user.name
                     println("Driver ${user.id} RFID: $driverRFID, Name: $driverName")
                 },
@@ -1395,4 +1398,3 @@ fun ContributionsContent(
         viewModel = viewModel
     )
 }
-

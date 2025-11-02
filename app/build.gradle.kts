@@ -42,6 +42,12 @@ android {
             versionNameSuffix = "-admin"
             resValue("string", "app_name", "TODA Admin")
         }
+        create("barker") {
+            dimension = "role"
+            applicationIdSuffix = ".barker"
+            versionNameSuffix = "-barker"
+            resValue("string", "app_name", "TODA Barker Terminal")
+        }
     }
 
     buildTypes {

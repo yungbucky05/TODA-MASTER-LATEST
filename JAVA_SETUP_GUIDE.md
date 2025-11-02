@@ -1,54 +1,64 @@
 # TODA Project Java Setup Guide
 
-## Issue: JAVA_HOME is not set
+Android Gradle Plugin 8.x requires JDK 17 or newer. Java 8 will NOT work for builds.
 
-You're getting this error because the Gradle build system can't find Java. Here's how to fix it:
+## Issue: JAVA_HOME is not set or points to an invalid JDK
+Gradle can't find a compatible Java runtime. Fix it with one of the options below.
 
-## Quick Fix - Set JAVA_HOME for this session:
+## Quick Fix (current terminal session only)
 
-### Option 1: Use Android Studio's Embedded JDK (Recommended)
-Open PowerShell in your project directory and run:
+Option A: Use Android Studio's embedded JBR (recommended)
 
-```powershell
-$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
-$env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
-./gradlew build
+On cmd.exe:
+
+```
+set "JAVA_HOME=C:\Program Files\Android\Android Studio\jbr"
+set "PATH=%JAVA_HOME%\bin;%PATH%"
+gradlew.bat -Dorg.gradle.java.home="%JAVA_HOME%" -v
 ```
 
-### Option 2: If the above path doesn't work, try:
-```powershell
-$env:JAVA_HOME = "C:\Program Files\Android\Android Studio1\jbr"
-$env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
-./gradlew build
+If you have a different install path, try:
+
+```
+set "JAVA_HOME=C:\Program Files\Android\Android Studio1\jbr"
+set "PATH=%JAVA_HOME%\bin;%PATH%"
+gradlew.bat -Dorg.gradle.java.home="%JAVA_HOME%" -v
 ```
 
-## Permanent Fix - Set JAVA_HOME permanently:
+Option B: Use a standalone JDK 17/21 (Microsoft, Temurin, Zulu, etc.)
 
-1. **Open System Environment Variables:**
-   - Press `Win + R`, type `sysdm.cpl`, press Enter
-   - Click "Environment Variables..." button
+Replace the path with your installed JDK:
 
-2. **Add JAVA_HOME:**
-   - In "System Variables" section, click "New..."
-   - Variable name: `JAVA_HOME`
-   - Variable value: `C:\Program Files\Android\Android Studio\jbr`
-   - Click OK
+```
+set "JAVA_HOME=C:\Program Files\Microsoft\jdk-17.0.11.9-hotspot"
+set "PATH=%JAVA_HOME%\bin;%PATH%"
+java -version
+gradlew.bat -Dorg.gradle.java.home="%JAVA_HOME%" -v
+```
 
-3. **Update PATH:**
-   - Find "Path" in System Variables, select it, click "Edit..."
-   - Click "New" and add: `%JAVA_HOME%\bin`
-   - Click OK on all dialogs
+## Permanent Fix (system-wide)
 
-4. **Restart PowerShell** and try building again
+1. Open System Environment Variables
+   - Press Win + R, type `sysdm.cpl`, press Enter
+   - Click "Environment Variables..."
+2. Add JAVA_HOME
+   - System variables -> New...
+   - Name: `JAVA_HOME`
+   - Value: `C:\Program Files\Android\Android Studio\jbr` (or your JDK 17 path)
+3. Update PATH
+   - Edit the `Path` system variable -> New -> `%JAVA_HOME%\bin`
+4. Open a new cmd terminal and verify:
 
-## Verify Java Installation:
-```powershell
+```
 java -version
 javac -version
 ```
 
-## Alternative: Use Gradle Wrapper with Java Detection
-If you're still having issues, you can also specify the Java path directly:
-```powershell
-./gradlew -Dorg.gradle.java.home="C:\Program Files\Android\Android Studio\jbr" build
+## Alternative: Tell Gradle which JDK to use
+You can explicitly point Gradle at a JDK without changing global env vars:
+
 ```
+gradlew.bat -Dorg.gradle.java.home="C:\Program Files\Android\Android Studio\jbr" build
+```
+
+If builds still fail due to Java issues, run `setup_diagnostic.bat` and follow its hints.

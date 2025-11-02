@@ -26,7 +26,9 @@ data class Booking(
     val arrivedAtPickup: Boolean = false,
     val arrivedAtPickupTime: Long = 0L,
     val isNoShow: Boolean = false,
-    val noShowReportedTime: Long = 0L
+    val noShowReportedTime: Long = 0L,
+    // Walk-in booking flag (bookings made at physical terminal)
+    val isWalkIn: Boolean = false
 )
 
 enum class BookingStatus {
