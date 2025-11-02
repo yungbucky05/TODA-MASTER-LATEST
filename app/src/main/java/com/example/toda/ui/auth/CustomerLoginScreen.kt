@@ -120,6 +120,7 @@ fun CustomerLoginScreen(
 
     val loginState by viewModel.loginState.collectAsStateWithLifecycle()
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycle()
+    val passwordReset by viewModel.passwordReset.collectAsStateWithLifecycle()
 
     // Context / Activity
     val context = LocalContext.current
@@ -1265,6 +1266,70 @@ fun CustomerLoginScreen(
                             Spacer(modifier = Modifier.width(8.dp))
                         }
                         Text(if (loginState.isLoading) "Signing In..." else "Sign In")
+                    }
+
+                    // Forgot password link and dialog
+                    var showResetDialog by remember { mutableStateOf(false) }
+                    var resetEmail by remember { mutableStateOf("") }
+
+                    TextButton(onClick = { showResetDialog = true }) {
+                        Text("Forgot password?")
+                    }
+
+                    if (showResetDialog) {
+                        AlertDialog(
+                            onDismissRequest = {
+                                if (!passwordReset.isSending) {
+                                    showResetDialog = false
+                                    viewModel.clearPasswordReset()
+                                    resetEmail = ""
+                                }
+                            },
+                            title = { Text("Reset password") },
+                            text = {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text("Enter the email you used during registration.")
+                                    OutlinedTextField(
+                                        value = resetEmail,
+                                        onValueChange = { resetEmail = it.trim() },
+                                        label = { Text("Email") },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                                        singleLine = true,
+                                        enabled = !passwordReset.isSending,
+                                        isError = resetEmail.isNotEmpty() && !Patterns.EMAIL_ADDRESS.matcher(resetEmail).matches(),
+                                        supportingText = {
+                                            val msg = when {
+                                                passwordReset.error != null -> passwordReset.error
+                                                passwordReset.sent -> "If an account exists for this email, a reset link has been sent. Check your inbox and spam folder."
+                                                else -> null
+                                            }
+                                            if (msg != null) Text(msg!!, style = MaterialTheme.typography.bodySmall)
+                                        }
+                                    )
+                                }
+                            },
+                            confirmButton = {
+                                TextButton(
+                                    onClick = { viewModel.resetPassword(resetEmail) },
+                                    enabled = !passwordReset.isSending && Patterns.EMAIL_ADDRESS.matcher(resetEmail).matches()
+                                ) {
+                                    if (passwordReset.isSending) {
+                                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                        Spacer(Modifier.width(8.dp))
+                                    }
+                                    Text(if (passwordReset.isSending) "Sending..." else if (passwordReset.sent) "Resend" else "Send link")
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(
+                                    onClick = {
+                                        showResetDialog = false
+                                        viewModel.clearPasswordReset()
+                                        resetEmail = ""
+                                    }
+                                ) { Text("Close") }
+                            }
+                        )
                     }
                 }
             }

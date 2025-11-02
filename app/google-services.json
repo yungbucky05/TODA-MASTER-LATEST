@@ -27,9 +27,85 @@
     },
     {
       "client_info": {
+        "mobilesdk_app_id": "1:536068566619:android:c6ea775ac10b401458997e",
+        "android_client_info": {
+          "package_name": "com.example.toda.admin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAbEJ8tzm5RIeXvKhlxZl71a_tBX4WmN4E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:536068566619:android:8ab0b3dbc574978958997e",
+        "android_client_info": {
+          "package_name": "com.example.toda.barker"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAbEJ8tzm5RIeXvKhlxZl71a_tBX4WmN4E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:536068566619:android:e1c2dea2314e169d58997e",
         "android_client_info": {
           "package_name": "com.example.toda.debug"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAbEJ8tzm5RIeXvKhlxZl71a_tBX4WmN4E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:536068566619:android:b58e66cfb8685e3e58997e",
+        "android_client_info": {
+          "package_name": "com.example.toda.driver"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAbEJ8tzm5RIeXvKhlxZl71a_tBX4WmN4E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:536068566619:android:e1e31c3343e61dff58997e",
+        "android_client_info": {
+          "package_name": "com.example.toda.passenger"
         }
       },
       "oauth_client": [],
