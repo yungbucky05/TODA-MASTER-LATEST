@@ -771,26 +771,36 @@ class TODARepository @Inject constructor(
             println("Creating Firebase Auth account...")
 
             // Step 1: Create Firebase Auth account and user profile first
-            val authResult = registerUser(
-                phoneNumber = driver.phoneNumber,
-                name = driver.name,
-                userType = UserType.DRIVER,
-                password = driver.password,
-                email = driver.email
-            )
+            val authResult: Result<String> = if (driver.email.isNotBlank()) {
+                authService.createUserWithEmail(driver.email, driver.password).mapCatching { userId ->
+                    val userProfile = FirebaseUser(
+                        id = userId,
+                        phoneNumber = driver.phoneNumber,
+                        email = driver.email,
+                        name = driver.name,
+                        userType = UserType.DRIVER.name,
+                        isVerified = true,
+                        registrationDate = System.currentTimeMillis()
+                    )
+
+                    if (!firebaseService.createUser(userProfile)) {
+                        throw Exception("Failed to create driver user profile")
+                    }
+
+                    userId
+                }
+            } else {
+                registerUser(
+                    phoneNumber = driver.phoneNumber,
+                    name = driver.name,
+                    userType = UserType.DRIVER,
+                    password = driver.password
+                )
+            }
 
             authResult.fold(
                 onSuccess = { userId ->
                     println("✓ Firebase Auth account created: $userId")
-
-                    // Update the driver's auth email so password resets go to their inbox
-                    if (driver.email.isNotBlank()) {
-                        authService.updateEmailForCurrentUser(driver.email).getOrElse { updateError ->
-                            println("✗ Failed to update driver email ${driver.email}: ${updateError.message}")
-                            val friendly = updateError.message ?: "Unable to assign email to driver account"
-                            throw Exception(friendly, updateError)
-                        }
-                    }
 
                     // Step 2: Add additional driver-specific data to drivers table
                     println("Creating driver record in database...")
@@ -1347,8 +1357,8 @@ class TODARepository @Inject constructor(
         userData: Map<String, Any>
     ): Result<FirebaseUser> {
         return try {
-            val updateResult = authService.updateEmailForCurrentUser(email)
-            updateResult.fold(
+            val linkResult = authService.linkEmailPasswordToCurrentUser(email, password)
+            linkResult.fold(
                 onSuccess = { userId ->
                     val user = FirebaseUser(
                         id = userId,

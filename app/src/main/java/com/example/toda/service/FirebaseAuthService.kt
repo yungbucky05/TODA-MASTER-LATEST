@@ -1,5 +1,6 @@
 package com.example.toda.service
 
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.ktx.auth
@@ -126,14 +127,15 @@ class FirebaseAuthService @Inject constructor() {
         }
     }
 
-    // Update the currently authenticated user's email address (used after creating with phone alias)
-    suspend fun updateEmailForCurrentUser(newEmail: String): Result<String> {
-        val user = auth.currentUser ?: return Result.failure(Exception("No authenticated user to update"))
+    // Link email/password credential to the currently signed-in user (e.g., after phone OTP)
+    suspend fun linkEmailPasswordToCurrentUser(email: String, password: String): Result<String> {
+        val user = auth.currentUser ?: return Result.failure(Exception("No authenticated user to link to"))
         return try {
-            user.updateEmail(newEmail).await()
+            val cred = EmailAuthProvider.getCredential(email, password)
+            user.linkWithCredential(cred).await()
             Result.success(user.uid)
         } catch (e: Exception) {
-            Result.failure(Exception(e.message ?: "Failed to update user email"))
+            Result.failure(Exception(e.message ?: "Failed to link email/password"))
         }
     }
 
