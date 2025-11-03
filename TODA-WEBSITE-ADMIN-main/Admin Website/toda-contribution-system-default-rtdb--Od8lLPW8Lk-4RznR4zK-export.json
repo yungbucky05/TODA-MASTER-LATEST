@@ -1,0 +1,41 @@
+{
+  "actualFare": 20,
+  "arrivedAtPickup": false,
+  "arrivedAtPickupTime": 0,
+  "assignedDriverId": "",
+  "assignedTricycleId": "",
+  "bookingApp": "passengerApp",
+  "completionTime": "0",
+  "completionTimeLong": 0,
+  "customerId": "yBF1Bfl4gHRdpFQ4boZrlB403SZ2",
+  "customerName": "ken",
+  "destination": "Genesis Street, Barangay 177, Caloocan City",
+  "distance": 0.17555822173939017,
+  "driverName": "",
+  "driverRFID": "",
+  "dropoffCoordinates": {
+    "lat": 14.747319271800578,
+    "lng": 121.05045318603516
+  },
+  "duration": 0,
+  "estimatedFare": 20,
+  "feedback": "",
+  "id": "-Od8lLPW8Lk-4RznR4zK",
+  "noShow": false,
+  "noShowReportedTime": 0,
+  "paymentMethod": "CASH",
+  "phoneActuallyVerified": true,
+  "phoneNumber": "09123123456",
+  "phoneVerified": true,
+  "pickupCoordinates": {
+    "lat": 14.748892375160793,
+    "lng": 121.05031422206332
+  },
+  "pickupLocation": "Molave Street, Barangay 177, Caloocan City",
+  "rating": 0,
+  "status": "PENDING",
+  "timestamp": 1762174255119,
+  "todaNumber": "",
+  "tripType": "App Booking",
+  "verificationCode": "840373"
+}

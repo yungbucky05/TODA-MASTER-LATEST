@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Database Migration Tool</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 800px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+
+    .warning {
+      background: #fff3cd;
+      border: 2px solid #ffc107;
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 30px;
+    }
+
+    .warning-title {
+      color: #856404;
+      font-weight: bold;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .warning-text {
+      color: #856404;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .section {
+      margin-bottom: 30px;
+    }
+
+    .section-title {
+      font-size: 18px;
+      color: #333;
+      margin-bottom: 15px;
+      font-weight: 600;
+    }
+
+    .migration-option {
+      background: #f8f9fa;
+      border: 2px solid #dee2e6;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 15px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .migration-option:hover {
+      border-color: #667eea;
+      background: #f0f4ff;
+    }
+
+    .option-title {
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 5px;
+    }
+
+    .option-desc {
+      font-size: 13px;
+      color: #666;
+    }
+
+    .btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s;
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .progress-section {
+      display: none;
+      margin-top: 30px;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 30px;
+      background: #e9ecef;
+      border-radius: 15px;
+      overflow: hidden;
+      margin-bottom: 15px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      transition: width 0.3s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .log {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 10px;
+      padding: 15px;
+      max-height: 300px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+    }
+
+    .log-item {
+      padding: 5px 0;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .log-item:last-child {
+      border-bottom: none;
+    }
+
+    .log-success {
+      color: #28a745;
+    }
+
+    .log-error {
+      color: #dc3545;
+    }
+
+    .log-info {
+      color: #007bff;
+    }
+
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 20px;
+      padding: 15px;
+      background: #fff3cd;
+      border-radius: 10px;
+    }
+
+    .checkbox-container input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+    }
+
+    .checkbox-container label {
+      color: #856404;
+      font-weight: 600;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔄 Database Migration Tool</h1>
+    <p class="subtitle">Migrate flags and rfidHistory to separate collections</p>
+
+    <div class="warning">
+      <div class="warning-title">
+        ⚠️ Important - Read Before Proceeding
+      </div>
+      <div class="warning-text">
+        This migration will move nested <code>flags</code> and <code>rfidHistory</code> from driver/user objects 
+        to separate collections. This is a <strong>one-way operation</strong>. Make sure you have a backup of your database before proceeding.
+        <br><br>
+        <strong>What this does:</strong>
+        <ul style="margin-left: 20px; margin-top: 10px;">
+          <li>Creates <code>driverFlags/{driverId}</code> collection from <code>drivers/{driverId}/flags</code></li>
+          <li>Creates <code>userFlags/{userId}</code> collection from <code>users/{userId}/flags</code></li>
+          <li>Removes nested <code>flags</code> and <code>rfidHistory</code> arrays from driver/user objects</li>
+          <li>Keeps <code>flagScore</code> and <code>flagStatus</code> in driver/user objects for quick access</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Select Migration Options</div>
+      
+      <div class="migration-option" onclick="toggleOption('drivers')">
+        <input type="checkbox" id="migrateDrivers" checked>
+        <div class="option-title">Migrate Driver Data</div>
+        <div class="option-desc">Move driver flags and rfidHistory to separate collections</div>
+      </div>
+
+      <div class="migration-option" onclick="toggleOption('users')">
+        <input type="checkbox" id="migrateUsers" checked>
+        <div class="option-title">Migrate User/Passenger Data</div>
+        <div class="option-desc">Move user flags to separate userFlags collection</div>
+      </div>
+
+      <div class="checkbox-container">
+        <input type="checkbox" id="confirmBackup">
+        <label for="confirmBackup">I have backed up my database and understand this cannot be undone</label>
+      </div>
+
+      <button class="btn" id="startMigration" disabled onclick="startMigration()">
+        🚀 Start Migration
+      </button>
+    </div>
+
+    <div class="progress-section" id="progressSection">
+      <div class="section-title">Migration Progress</div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill">0%</div>
+      </div>
+      <div class="log" id="migrationLog"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+    import { getDatabase, ref, get, set, update } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyA9ADVig4CiO2Y3ELl3unzXajdzxCgRxHI",
+      authDomain: "toda-contribution-system.firebaseapp.com",
+      databaseURL: "https://toda-contribution-system-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "toda-contribution-system",
+      storageBucket: "toda-contribution-system.firebasestorage.app",
+      messagingSenderId: "536068566619",
+      appId: "1:536068566619:web:ff7cc576e59b76ae58997e"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    window.db = getDatabase(app);
+
+    // Enable start button when backup is confirmed
+    document.getElementById('confirmBackup').addEventListener('change', (e) => {
+      document.getElementById('startMigration').disabled = !e.target.checked;
+    });
+
+    window.toggleOption = function(type) {
+      const checkbox = document.getElementById(`migrate${type.charAt(0).toUpperCase() + type.slice(1)}`);
+      checkbox.checked = !checkbox.checked;
+    };
+
+    window.startMigration = async function() {
+      const migrateDrivers = document.getElementById('migrateDrivers').checked;
+      const migrateUsers = document.getElementById('migrateUsers').checked;
+
+      if (!migrateDrivers && !migrateUsers) {
+        alert('Please select at least one migration option');
+        return;
+      }
+
+      document.getElementById('startMigration').disabled = true;
+      document.getElementById('progressSection').style.display = 'block';
+
+      const results = {
+        driversProcessed: 0,
+        driversFlagsLiveMigrated: 0,
+        driversHistoryRemoved: 0,
+        usersProcessed: 0,
+        usersFlagsMigrated: 0,
+        errors: []
+      };
+
+      try {
+        if (migrateDrivers) {
+          await migrateDriverData(results);
+        }
+
+        if (migrateUsers) {
+          await migrateUserData(results);
+        }
+
+        updateProgress(100, 'Migration Complete!');
+        logMessage('success', '✅ Migration completed successfully!');
+        logMessage('info', `Drivers processed: ${results.driversProcessed}`);
+        logMessage('info', `Driver flags migrated: ${results.driversFlagsMigrated}`);
+        logMessage('info', `Driver history cleaned: ${results.driversHistoryRemoved}`);
+        logMessage('info', `Users processed: ${results.usersProcessed}`);
+        logMessage('info', `User flags migrated: ${results.usersFlagsMigrated}`);
+        
+        if (results.errors.length > 0) {
+          logMessage('error', `Errors encountered: ${results.errors.length}`);
+          results.errors.forEach(err => logMessage('error', err));
+        }
+
+      } catch (error) {
+        logMessage('error', `Migration failed: ${error.message}`);
+        console.error(error);
+      }
+    };
+
+    async function migrateDriverData(results) {
+      logMessage('info', '📦 Starting driver data migration...');
+      
+      const driversRef = ref(window.db, 'drivers');
+      const snapshot = await get(driversRef);
+      
+      if (!snapshot.exists()) {
+        logMessage('info', 'No drivers found to migrate');
+        return;
+      }
+
+      const drivers = snapshot.val();
+      const driverIds = Object.keys(drivers);
+      const total = driverIds.length;
+
+      for (let i = 0; i < total; i++) {
+        const driverId = driverIds[i];
+        const driver = drivers[driverId];
+        results.driversProcessed++;
+
+        try {
+          // Migrate flags if they exist
+          if (driver.flags && Object.keys(driver.flags).length > 0) {
+            const flagsRef = ref(window.db, `driverFlags/${driverId}`);
+            await set(flagsRef, driver.flags);
+            results.driversFlagsMigrated++;
+            logMessage('success', `✓ Migrated flags for driver: ${driver.driverName || driverId}`);
+          }
+
+          // Remove nested data from driver object
+          const updates = {};
+          if (driver.flags) updates.flags = null;
+          if (driver.rfidHistory) {
+            updates.rfidHistory = null;
+            results.driversHistoryRemoved++;
+          }
+
+          if (Object.keys(updates).length > 0) {
+            const driverRef = ref(window.db, `drivers/${driverId}`);
+            await update(driverRef, updates);
+          }
+
+        } catch (error) {
+          const errorMsg = `Error migrating driver ${driverId}: ${error.message}`;
+          results.errors.push(errorMsg);
+          logMessage('error', `✗ ${errorMsg}`);
+        }
+
+        updateProgress(((i + 1) / total) * 50, `Processing drivers: ${i + 1}/${total}`);
+      }
+
+      logMessage('success', `✅ Driver migration complete: ${results.driversFlagsMigrated} flags migrated`);
+    }
+
+    async function migrateUserData(results) {
+      logMessage('info', '👥 Starting user data migration...');
+      
+      const usersRef = ref(window.db, 'users');
+      const snapshot = await get(usersRef);
+      
+      if (!snapshot.exists()) {
+        logMessage('info', 'No users found to migrate');
+        return;
+      }
+
+      const users = snapshot.val();
+      const userIds = Object.keys(users);
+      const total = userIds.length;
+
+      for (let i = 0; i < total; i++) {
+        const userId = userIds[i];
+        const user = users[userId];
+        results.usersProcessed++;
+
+        try {
+          // Migrate flags if they exist
+          if (user.flags && Object.keys(user.flags).length > 0) {
+            const flagsRef = ref(window.db, `userFlags/${userId}`);
+            await set(flagsRef, user.flags);
+            results.usersFlagsMigrated++;
+            logMessage('success', `✓ Migrated flags for user: ${user.name || userId}`);
+          }
+
+          // Remove nested flags from user object
+          if (user.flags) {
+            const userRef = ref(window.db, `users/${userId}`);
+            await update(userRef, { flags: null });
+          }
+
+        } catch (error) {
+          const errorMsg = `Error migrating user ${userId}: ${error.message}`;
+          results.errors.push(errorMsg);
+          logMessage('error', `✗ ${errorMsg}`);
+        }
+
+        updateProgress(50 + ((i + 1) / total) * 50, `Processing users: ${i + 1}/${total}`);
+      }
+
+      logMessage('success', `✅ User migration complete: ${results.usersFlagsMigrated} flags migrated`);
+    }
+
+    function updateProgress(percent, text) {
+      const fill = document.getElementById('progressFill');
+      fill.style.width = percent + '%';
+      fill.textContent = Math.round(percent) + '%';
+    }
+
+    function logMessage(type, message) {
+      const log = document.getElementById('migrationLog');
+      const item = document.createElement('div');
+      item.className = `log-item log-${type}`;
+      item.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      log.appendChild(item);
+      log.scrollTop = log.scrollHeight;
+    }
+  </script>
+</body>
+</html>

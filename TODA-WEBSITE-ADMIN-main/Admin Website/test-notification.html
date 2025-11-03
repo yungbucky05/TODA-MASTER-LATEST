@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Notification System</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f8f9fa;
+    }
+    
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    h1 {
+      color: #1e293b;
+      margin-bottom: 10px;
+    }
+    
+    p {
+      color: #64748b;
+      margin-bottom: 30px;
+    }
+    
+    .button-group {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    
+    button {
+      padding: 15px 20px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    
+    button:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+    
+    button.danger {
+      background: #ef4444;
+    }
+    
+    button.danger:hover {
+      background: #dc2626;
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+    }
+    
+    .status {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f0f4ff;
+      border-left: 4px solid #667eea;
+      border-radius: 4px;
+      color: #1e293b;
+      font-size: 14px;
+    }
+    
+    .back-link {
+      display: inline-block;
+      margin-top: 20px;
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    
+    .back-link:hover {
+      text-decoration: underline;
+    }
+    
+    .code-block {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 15px;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      overflow-x: auto;
+      margin: 20px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔔 Notification System Test</h1>
+    <p>Use these buttons to create test notifications in Firebase. Then check your admin dashboard to see them appear!</p>
+    
+    <div class="button-group">
+      <button onclick="createRFIDMissingNotification()">
+        🚨 Create RFID Missing Notification (High Priority)
+      </button>
+      
+      <button onclick="createDriverVerificationNotification()">
+        👤 Create Driver Verification Notification
+      </button>
+      
+      <button onclick="createDiscountApplicationNotification()">
+        🎫 Create Discount Application Notification
+      </button>
+      
+      <button onclick="createMultipleNotifications()">
+        📬 Create Multiple Test Notifications
+      </button>
+      
+      <button class="danger" onclick="clearAllNotifications()">
+        🗑️ Clear All Notifications
+      </button>
+    </div>
+    
+    <div id="status" class="status" style="display: none;"></div>
+    
+    <div class="code-block">
+      <strong>Expected Notification Structure:</strong><br>
+      {<br>
+      &nbsp;&nbsp;"id": "notification_id",<br>
+      &nbsp;&nbsp;"type": "RFID_MISSING",<br>
+      &nbsp;&nbsp;"title": "RFID Reported Missing",<br>
+      &nbsp;&nbsp;"message": "Driver Name reported RFID ABC123 as missing",<br>
+      &nbsp;&nbsp;"driverId": "driver_123",<br>
+      &nbsp;&nbsp;"driverName": "Driver Name",<br>
+      &nbsp;&nbsp;"oldRfidUID": "ABC123",<br>
+      &nbsp;&nbsp;"timestamp": 1730409600000,<br>
+      &nbsp;&nbsp;"isRead": false,<br>
+      &nbsp;&nbsp;"priority": "high",<br>
+      &nbsp;&nbsp;"actionRequired": true<br>
+      }
+    </div>
+    
+    <a href="index.html" class="back-link">← Back to Dashboard</a>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+    import { getDatabase, ref, push, set, remove, update, get } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyA9ADVig4CiO2Y3ELl3unzXajdzxCgRxHI",
+      authDomain: "toda-contribution-system.firebaseapp.com",
+      databaseURL: "https://toda-contribution-system-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "toda-contribution-system",
+      storageBucket: "toda-contribution-system.firebasestorage.app",
+      messagingSenderId: "536068566619",
+      appId: "1:536068566619:web:ff7cc576e59b76ae58997e"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    function showStatus(message, isError = false) {
+      const statusEl = document.getElementById('status');
+      statusEl.textContent = message;
+      statusEl.style.display = 'block';
+      statusEl.style.background = isError ? '#fee2e2' : '#f0f4ff';
+      statusEl.style.borderLeftColor = isError ? '#ef4444' : '#667eea';
+      
+      setTimeout(() => {
+        statusEl.style.display = 'none';
+      }, 5000);
+    }
+
+    window.createRFIDMissingNotification = async function() {
+      try {
+        // First, get a driver from Firebase to use realistic data
+        const driversRef = ref(db, 'drivers');
+        const driversSnapshot = await get(driversRef);
+        
+        let driverId = 'driver_001';
+        let driverName = 'Juan Dela Cruz';
+        let oldRfidUID = 'ABC123XYZ';
+        
+        if (driversSnapshot.exists()) {
+          const drivers = driversSnapshot.val();
+          const driverKeys = Object.keys(drivers);
+          
+          // Find first driver with RFID
+          for (const key of driverKeys) {
+            const driver = drivers[key];
+            if (driver.rfidUID || driver.rfidNumber) {
+              driverId = key;
+              driverName = driver.driverName || `${driver.firstName || ''} ${driver.lastName || ''}`.trim();
+              oldRfidUID = driver.rfidUID || driver.rfidNumber;
+              
+              // SIMULATE WHAT MOBILE APP DOES:
+              // 1. Save old RFID for reference
+              // 2. Mark RFID as missing
+              // 3. UNLINK the RFID (remove it from driver record)
+              await update(ref(db, `drivers/${key}`), {
+                rfidMissing: true,
+                rfidReported: true,
+                oldRfidUID: oldRfidUID,
+                rfidReportedMissingAt: Date.now(),
+                // AUTO-UNLINK: Remove RFID from driver
+                rfidNumber: '',
+                rfidUID: '',
+                // Remove needsRfidAssignment flag - use rfidMissing instead
+                needsRfidAssignment: false
+              });
+              
+              break;
+            }
+          }
+        }
+        
+        // Create notification
+        const notificationsRef = ref(db, 'notifications');
+        const newNotifRef = push(notificationsRef);
+        
+        const notification = {
+          id: newNotifRef.key,
+          type: "RFID_MISSING",
+          title: "RFID Reported Missing",
+          message: `${driverName} (ID: ${driverId}) reported RFID ${oldRfidUID} as missing. RFID has been auto-unlinked.`,
+          driverId: driverId,
+          driverName: driverName,
+          oldRfidUID: oldRfidUID,
+          timestamp: Date.now(),
+          isRead: false,
+          priority: "high",
+          actionRequired: true
+        };
+        
+        await set(newNotifRef, notification);
+        showStatus(`✓ RFID Missing notification created!\n• Driver: ${driverName}\n• Old RFID: ${oldRfidUID}\n• RFID has been auto-unlinked\n• Driver marked as "RFID Missing"`);
+      } catch (error) {
+        showStatus('✗ Error: ' + error.message, true);
+      }
+    };
+
+    window.createDriverVerificationNotification = async function() {
+      try {
+        const notificationsRef = ref(db, 'notifications');
+        const newNotifRef = push(notificationsRef);
+        
+        const notification = {
+          id: newNotifRef.key,
+          type: "DRIVER_VERIFICATION",
+          title: "New Driver Verification Request",
+          message: "Maria Santos has submitted documents for verification. Please review and approve.",
+          driverId: "driver_002",
+          driverName: "Maria Santos",
+          timestamp: Date.now(),
+          isRead: false,
+          priority: "normal",
+          actionRequired: true
+        };
+        
+        await set(newNotifRef, notification);
+        showStatus('✓ Driver verification notification created successfully!');
+      } catch (error) {
+        showStatus('✗ Error: ' + error.message, true);
+      }
+    };
+
+    window.createDiscountApplicationNotification = async function() {
+      try {
+        const notificationsRef = ref(db, 'notifications');
+        const newNotifRef = push(notificationsRef);
+        
+        const notification = {
+          id: newNotifRef.key,
+          type: "DISCOUNT_APPLICATION",
+          title: "New Discount Application",
+          message: "Pedro Reyes applied for Senior Citizen discount. Supporting documents attached.",
+          userId: "user_003",
+          userName: "Pedro Reyes",
+          timestamp: Date.now(),
+          isRead: false,
+          priority: "normal",
+          actionRequired: true
+        };
+        
+        await set(newNotifRef, notification);
+        showStatus('✓ Discount application notification created successfully!');
+      } catch (error) {
+        showStatus('✗ Error: ' + error.message, true);
+      }
+    };
+
+    window.createMultipleNotifications = async function() {
+      try {
+        await createRFIDMissingNotification();
+        await new Promise(resolve => setTimeout(resolve, 500));
+        await createDriverVerificationNotification();
+        await new Promise(resolve => setTimeout(resolve, 500));
+        await createDiscountApplicationNotification();
+        
+        showStatus('✓ Multiple notifications created successfully!');
+      } catch (error) {
+        showStatus('✗ Error: ' + error.message, true);
+      }
+    };
+
+    window.clearAllNotifications = async function() {
+      if (confirm('Are you sure you want to delete all notifications?')) {
+        try {
+          const notificationsRef = ref(db, 'notifications');
+          await remove(notificationsRef);
+          showStatus('✓ All notifications cleared successfully!');
+        } catch (error) {
+          showStatus('✗ Error: ' + error.message, true);
+        }
+      }
+    };
+  </script>
+</body>
+</html>

@@ -68,7 +68,7 @@ fun AdminLoginScreen(
                 }
             }
             Text(
-                text = "Admin Login",
+                text = "Barker Login",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(start = 8.dp)
@@ -89,20 +89,20 @@ fun AdminLoginScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        Icons.Default.AdminPanelSettings,
+                        Icons.Default.DirectionsBus,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Welcome, Administrator!",
+                        text = "Welcome, Barker!",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Access administrative functions and manage TODA operations.",
+                    text = "Keep the TODA terminal moving smoothly by managing today’s passenger queue and driver assignments.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
@@ -119,7 +119,7 @@ fun AdminLoginScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
-                    text = "Administrator Login",
+                    text = "Barker Terminal Login",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -157,7 +157,7 @@ fun AdminLoginScreen(
                         val cleaned = it.filter { char -> char.isDigit() || char == '+' }
                         if (cleaned.length <= 13) phoneNumber = cleaned
                     },
-                    label = { Text("Phone Number") },
+                    label = { Text("Barker Phone Number") },
                     leadingIcon = {
                         Icon(Icons.Default.Phone, contentDescription = null)
                     },
@@ -167,7 +167,7 @@ fun AdminLoginScreen(
                     enabled = !loginState.isLoading,
                     supportingText = {
                         Text(
-                            text = "Enter your registered admin phone number",
+                            text = "Enter the phone number tied to your Barker account",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -233,12 +233,12 @@ fun AdminLoginScreen(
                 modifier = Modifier.padding(16.dp)
             ) {
                 Text(
-                    text = "🔐 Administrator Access",
+                    text = "🔐 Barker Access",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "• Full system management\n• Driver application approval\n• Financial reports access\n• User management\n• System configuration",
+                    text = "• Manage passenger queue updates\n• Coordinate with on-duty drivers\n• Track bookings and drop-offs\n• Help customers with fare questions\n• Receive dispatch and payment alerts",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

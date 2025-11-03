@@ -152,9 +152,12 @@ fun BookingApp(
 
     LaunchedEffect(bookingState.currentBookingId) {
         bookingState.currentBookingId?.let { newId ->
-            currentActiveBookingId = newId
-            currentScreen = "active_booking"
-            // Note: Do NOT clear saved pending data here so it persists if no driver accepts
+            // Only redirect to active_booking for customer screens, not barker or operator
+            if (currentScreen == "customer_interface" || currentScreen == "customer_dashboard") {
+                currentActiveBookingId = newId
+                currentScreen = "active_booking"
+                // Note: Do NOT clear saved pending data here so it persists if no driver accepts
+            }
         }
     }
 
@@ -257,7 +260,7 @@ fun BookingApp(
         adminLoginViewModel.logout()
         currentUser = null
         currentUserId = null
-        currentScreen = "admin_login"
+        currentScreen = "user_selection"
         locationBookingViewModel.stopCustomerLocationTracking()
     }
 
@@ -268,7 +271,6 @@ fun BookingApp(
                     when (userType) {
                         "customer" -> currentScreen = "customer_login"
                         "driver_login" -> currentScreen = "driver_login"
-                        "admin" -> currentScreen = "admin_login"
                         else -> currentScreen = "user_selection"
                     }
                 }
@@ -334,26 +336,6 @@ fun BookingApp(
                 },
                 showBack = (initialScreen == null),
                 loginViewModel = loginViewModel
-            )
-        }
-
-        "admin_login" -> {
-            val coroutineScope = rememberCoroutineScope()
-            AdminLoginScreen(
-                onLoginSuccess = { userId, firebaseUser ->
-                    currentUserId = userId
-                    coroutineScope.launch {
-                        // Fetch user profile first before navigation
-                        val userWithProfile = convertFirebaseUserToUser(firebaseUser)
-                        currentUser = userWithProfile
-                        // Only navigate after profile is loaded
-                        currentScreen = "admin_dashboard"
-                    }
-                },
-                onBack = {
-                    currentScreen = "user_selection"
-                },
-                showBack = (initialScreen == null)
             )
         }
 

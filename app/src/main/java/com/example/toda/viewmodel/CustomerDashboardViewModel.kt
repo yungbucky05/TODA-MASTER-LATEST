@@ -2,7 +2,9 @@ package com.example.toda.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.toda.data.*
+import com.example.toda.data.BookingStatus
+import com.example.toda.data.DiscountType
+import com.example.toda.data.UserProfile
 import com.example.toda.repository.TODARepository
 import com.google.firebase.database.FirebaseDatabase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -18,6 +20,7 @@ class CustomerDashboardViewModel @Inject constructor(
 
     private val database = FirebaseDatabase.getInstance()
     private val usersRef = database.getReference("users")
+    private val bookingsRef = database.getReference("bookings")
 
     private val _dashboardState = MutableStateFlow(CustomerDashboardState())
     val dashboardState = _dashboardState.asStateFlow()
@@ -25,8 +28,8 @@ class CustomerDashboardViewModel @Inject constructor(
     private val _userProfile = MutableStateFlow<UserProfile?>(null)
     val userProfile = _userProfile.asStateFlow()
 
-    private val _recentBookings = MutableStateFlow<List<Booking>>(emptyList())
-    val recentBookings = _recentBookings.asStateFlow()
+    private val _rideSummary = MutableStateFlow(RideSummaryCounts())
+    val rideSummary = _rideSummary.asStateFlow()
 
     fun loadUserData(userId: String) {
         viewModelScope.launch {
@@ -68,9 +71,55 @@ class CustomerDashboardViewModel @Inject constructor(
                     _userProfile.value = profile
                 }
 
-                // Load recent bookings (this would need to be implemented in repository)
-                // For now, we'll use empty list
-                _recentBookings.value = emptyList()
+                // Load bookings belonging to this customer to compute ride summary
+                val bookingsSnapshot = bookingsRef
+                    .orderByChild("customerId")
+                    .equalTo(userId)
+                    .get()
+                    .await()
+
+                var completedCount = 0
+                var cancelledCount = 0
+                var ongoingCount = 0
+
+                bookingsSnapshot.children.forEach { bookingSnapshot ->
+                    val statusValue = bookingSnapshot
+                        .child("status")
+                        .getValue(String::class.java)
+                        ?.uppercase()
+                        ?: BookingStatus.PENDING.name
+
+                    val status = runCatching { BookingStatus.valueOf(statusValue) }
+                        .getOrDefault(BookingStatus.PENDING)
+
+                    when (status) {
+                        BookingStatus.COMPLETED -> completedCount++
+                        BookingStatus.CANCELLED,
+                        BookingStatus.NO_SHOW,
+                        BookingStatus.REJECTED -> cancelledCount++
+                        BookingStatus.PENDING,
+                        BookingStatus.ACCEPTED,
+                        BookingStatus.AT_PICKUP,
+                        BookingStatus.IN_PROGRESS -> ongoingCount++
+                    }
+                }
+
+                _rideSummary.value = RideSummaryCounts(
+                    completed = completedCount,
+                    ongoing = ongoingCount,
+                    cancelled = cancelledCount
+                )
+
+                // Reflect the computed counts in the profile state for consistency across the app
+                val currentProfile = _userProfile.value
+                if (currentProfile != null) {
+                    val totalCount = completedCount + cancelledCount + ongoingCount
+                    _userProfile.value = currentProfile.copy(
+                        totalBookings = totalCount,
+                        completedBookings = completedCount,
+                        cancelledBookings = cancelledCount
+                    )
+                }
 
                 _dashboardState.value = _dashboardState.value.copy(
                     isLoading = false,
@@ -170,4 +219,10 @@ data class CustomerDashboardState(
     val userId: String? = null,
     val error: String? = null,
     val message: String? = null
+)
+
+data class RideSummaryCounts(
+    val completed: Int = 0,
+    val ongoing: Int = 0,
+    val cancelled: Int = 0
 )

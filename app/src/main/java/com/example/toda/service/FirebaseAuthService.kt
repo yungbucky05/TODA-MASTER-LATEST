@@ -1,5 +1,6 @@
 package com.example.toda.service
 
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.ktx.auth
@@ -7,7 +8,6 @@ import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
-import com.google.firebase.auth.EmailAuthProvider
 
 @Singleton
 class FirebaseAuthService @Inject constructor() {
@@ -127,7 +127,7 @@ class FirebaseAuthService @Inject constructor() {
         }
     }
 
-    // New: link email/password credential to the currently signed-in user (e.g., after phone OTP)
+    // Link email/password credential to the currently signed-in user (e.g., after phone OTP)
     suspend fun linkEmailPasswordToCurrentUser(email: String, password: String): Result<String> {
         val user = auth.currentUser ?: return Result.failure(Exception("No authenticated user to link to"))
         return try {

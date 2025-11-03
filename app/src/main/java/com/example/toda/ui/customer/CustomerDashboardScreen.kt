@@ -1,9 +1,10 @@
 package com.example.toda.ui.customer
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
@@ -11,12 +12,18 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.toda.data.UserProfile
 import com.example.toda.viewmodel.CustomerDashboardViewModel
+import com.example.toda.viewmodel.RideSummaryCounts
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,7 +37,7 @@ fun CustomerDashboardScreen(
 ) {
     val dashboardState by viewModel.dashboardState.collectAsStateWithLifecycle()
     val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
-    val recentBookings by viewModel.recentBookings.collectAsStateWithLifecycle()
+    val rideSummary by viewModel.rideSummary.collectAsStateWithLifecycle()
 
     var showDiscountCategoryDialog by remember { mutableStateOf(false) }
     var showPendingApplicationDialog by remember { mutableStateOf(false) }
@@ -94,384 +101,430 @@ fun CustomerDashboardScreen(
         )
     }
 
-    Column(
+    val showDiscountAction = userProfile?.discountVerified != true
+    val gradientColors = listOf(
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+        MaterialTheme.colorScheme.surface
+    )
+    val handleDiscountClick: () -> Unit = {
+        val profile = userProfile
+        if (profile?.discountType != null && !profile.discountVerified) {
+            showPendingApplicationDialog = true
+        } else {
+            showDiscountCategoryDialog = true
+        }
+    }
+
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .background(Brush.verticalGradient(gradientColors))
     ) {
-        // Display messages/errors from dashboard state
-        dashboardState.error?.let { error ->
-            Card(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer
-                )
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Default.Error,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onErrorContainer
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            dashboardState.error?.let { error ->
+                item {
+                    DashboardMessageCard(
                         text = error,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        style = MaterialTheme.typography.bodySmall
+                        icon = Icons.Default.Error,
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer
                     )
                 }
             }
-        }
 
-        dashboardState.message?.let { message ->
-            Card(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
+            dashboardState.message?.let { message ->
+                item {
+                    DashboardMessageCard(
                         text = message,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        style = MaterialTheme.typography.bodySmall
+                        icon = Icons.Default.CheckCircle,
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 }
             }
-        }
 
-        // Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = "Welcome ${userProfile?.name ?: ""}",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "TODA Barangay 177",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+            item {
+                DashboardHeader(
+                    profile = userProfile,
+                    onBookRide = onBookRide
                 )
             }
 
-            IconButton(onClick = onViewProfile) {
-                Icon(
-                    Icons.Default.AccountCircle,
-                    contentDescription = "Profile",
-                    modifier = Modifier.size(32.dp)
-                )
+            if (showDiscountAction) {
+                item {
+                    OutlinedButton(
+                        onClick = handleDiscountClick,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Discount, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Apply for Discount")
+                    }
+                }
             }
-        }
 
-        Spacer(modifier = Modifier.height(24.dp))
+            item {
+                StatsSection(rideSummary = rideSummary)
+            }
 
-        // Quick Actions
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp)
-            ) {
-                Text(
-                    text = "Quick Actions",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
+            item {
+                CustomerInformationCard(userProfile = userProfile)
+            }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Button(
-                    onClick = onBookRide,
+            item {
+                OutlinedButton(
+                    onClick = onLogout,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Icons.Default.DirectionsCar, contentDescription = null)
+                    Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Book a Ride")
+                    Text("Sign Out")
                 }
             }
         }
+    }
+}
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // User Stats
+@Composable
+private fun DashboardMessageCard(
+    text: String,
+    icon: ImageVector,
+    containerColor: Color,
+    contentColor: Color
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = containerColor,
+        contentColor = contentColor
+    ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(imageVector = icon, contentDescription = null)
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+    }
+}
+
+@Composable
+private fun DashboardHeader(
+    profile: UserProfile?,
+    onBookRide: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(28.dp))
+            .background(
+                Brush.linearGradient(
+                    listOf(
+                        MaterialTheme.colorScheme.primary,
+                        MaterialTheme.colorScheme.primaryContainer
+                    )
+                )
+            )
+            .padding(24.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+            Column {
+                Text(
+                    text = "Welcome back",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
+                )
+                Text(
+                    text = profile?.name?.ifBlank { "Passenger" } ?: "Passenger",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                HeaderInfoChip(
+                    icon = Icons.Default.Phone,
+                    label = profile?.phoneNumber?.takeIf { it.isNotBlank() } ?: "No phone"
+                )
+                HeaderInfoChip(
+                    icon = Icons.Default.Star,
+                    label = "Trust ${profile?.trustScore?.toInt() ?: 100}%"
+                )
+            }
+            Button(
+                onClick = onBookRide,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.18f)
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.DirectionsCar,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimary
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Book a Ride",
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HeaderInfoChip(
+    icon: ImageVector,
+    label: String
+) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.18f)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            userProfile?.let { profile ->
-                StatCard(
-                    title = "Total Trips",
-                    value = profile.totalBookings.toString(),
-                    modifier = Modifier.weight(1f)
-                )
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimary
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
 
-                StatCard(
-                    title = "Completed",
-                    value = profile.completedBookings.toString(),
-                    modifier = Modifier.weight(1f)
-                )
+@Composable
+private fun StatsSection(rideSummary: RideSummaryCounts) {
+    DashboardSectionCard(
+        title = "Ride Summary",
+        subtitle = "Your recent booking stats"
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            StatCard(
+                title = "Completed",
+                value = rideSummary.completed.toString(),
+                modifier = Modifier.weight(1f)
+            )
+            StatCard(
+                title = "Ongoing",
+                value = rideSummary.ongoing.toString(),
+                modifier = Modifier.weight(1f)
+            )
+            StatCard(
+                title = "Cancelled",
+                value = rideSummary.cancelled.toString(),
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
 
-                StatCard(
-                    title = "Trust Score",
-                    value = "${profile.trustScore.toInt()}%",
-                    modifier = Modifier.weight(1f)
-                )
-            } ?: run {
-                // Show placeholder stats while loading
-                StatCard(
-                    title = "Total Trips",
-                    value = "0",
-                    modifier = Modifier.weight(1f)
-                )
+@Composable
+private fun CustomerInformationCard(userProfile: UserProfile?) {
+    val phone = userProfile?.phoneNumber?.takeIf { it.isNotBlank() } ?: "Not provided"
+    val address = userProfile?.address?.takeIf { it.isNotBlank() }
 
-                StatCard(
-                    title = "Completed",
-                    value = "0",
-                    modifier = Modifier.weight(1f)
-                )
+    DashboardSectionCard(
+        title = "Passenger Details",
+        subtitle = address
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            InfoItem(label = "Mobile Number", value = phone)
+            HorizontalDivider()
+            DiscountStatusRow(userProfile = userProfile)
+            AccountStatusBanner(userProfile = userProfile)
+        }
+    }
+}
 
-                StatCard(
-                    title = "Trust Score",
-                    value = "100%",
-                    modifier = Modifier.weight(1f)
+@Composable
+private fun DiscountStatusRow(userProfile: UserProfile?) {
+    val discountType = userProfile?.discountType
+    val verified = userProfile?.discountVerified == true
+
+    val (containerColor, contentColor, message) = when {
+        discountType != null && verified -> Triple(
+            MaterialTheme.colorScheme.secondaryContainer,
+            MaterialTheme.colorScheme.onSecondaryContainer,
+            "${discountType.displayName} discount is active"
+        )
+        discountType != null -> Triple(
+            MaterialTheme.colorScheme.surfaceVariant,
+            MaterialTheme.colorScheme.onSurfaceVariant,
+            "${discountType.displayName} pending verification"
+        )
+        else -> Triple(
+            MaterialTheme.colorScheme.surfaceVariant,
+            MaterialTheme.colorScheme.onSurfaceVariant,
+            "No discount applied"
+        )
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = containerColor
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                imageVector = if (verified) Icons.Default.Verified else Icons.Default.Discount,
+                contentDescription = null,
+                tint = contentColor
+            )
+            Column {
+                Text(
+                    text = "Discount",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = contentColor
+                )
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = contentColor
+                )
+                if (discountType != null && userProfile?.discountIdNumber?.isNotBlank() == true) {
+                    Text(
+                        text = "ID: ${userProfile.discountIdNumber}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = contentColor
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccountStatusBanner(userProfile: UserProfile?) {
+    val isBlocked = userProfile?.isBlocked == true
+    val (containerColor, contentColor, message) = if (isBlocked) {
+        Triple(
+            MaterialTheme.colorScheme.errorContainer,
+            MaterialTheme.colorScheme.onErrorContainer,
+            "Contact support to restore booking access."
+        )
+    } else {
+        Triple(
+            MaterialTheme.colorScheme.secondaryContainer,
+            MaterialTheme.colorScheme.onSecondaryContainer,
+            "You're all set to request rides."
+        )
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = containerColor
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                imageVector = if (isBlocked) Icons.Default.Block else Icons.Default.Verified,
+                contentDescription = null,
+                tint = contentColor
+            )
+            Column {
+                Text(
+                    text = if (isBlocked) "Account Status: Blocked" else "Account Status: Active",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = contentColor
+                )
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = contentColor
                 )
             }
         }
+    }
+}
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Customer Information Card
-        userProfile?.let { profile ->
-            Card(
+@Composable
+private fun DashboardSectionCard(
+    title: String,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    actions: (@Composable RowScope.() -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Customer Information",
+                        text = title,
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
+                    subtitle?.let {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+                actions?.let { actionContent ->
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            InfoItem("Phone Number", profile.phoneNumber)
-                            InfoItem("Address", profile.address.ifEmpty { "Not provided" })
-                            InfoItem("Emergency Contact", profile.emergencyContact.ifEmpty { "Not provided" })
-
-                            // Display discount information if available
-                            if (profile.discountType != null) {
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Card(
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = if (profile.discountVerified) {
-                                            MaterialTheme.colorScheme.primaryContainer
-                                        } else {
-                                            MaterialTheme.colorScheme.secondaryContainer
-                                        }
-                                    )
-                                ) {
-                                    Column(modifier = Modifier.padding(12.dp)) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(
-                                                    text = "Discount: ${profile.discountType.displayName}",
-                                                    fontWeight = FontWeight.Bold,
-                                                    style = MaterialTheme.typography.bodyMedium
-                                                )
-                                                Text(
-                                                    text = "${profile.discountType.discountPercent.toInt()}% off fares",
-                                                    style = MaterialTheme.typography.bodySmall
-                                                )
-                                                Text(
-                                                    text = "ID: ${profile.discountIdNumber}",
-                                                    style = MaterialTheme.typography.bodySmall
-                                                )
-                                            }
-                                            Icon(
-                                                if (profile.discountVerified) Icons.Default.CheckCircle else Icons.Default.Schedule,
-                                                contentDescription = null,
-                                                tint = if (profile.discountVerified) {
-                                                    MaterialTheme.colorScheme.onPrimaryContainer
-                                                } else {
-                                                    MaterialTheme.colorScheme.onSecondaryContainer
-                                                }
-                                            )
-                                        }
-                                        Text(
-                                            text = if (profile.discountVerified) "Verified" else "Pending Verification",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = if (profile.discountVerified) {
-                                                MaterialTheme.colorScheme.onPrimaryContainer
-                                            } else {
-                                                MaterialTheme.colorScheme.onSecondaryContainer
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    if (profile.isBlocked) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer
-                            )
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    Icons.Default.Warning,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onErrorContainer
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Account Status: Blocked",
-                                    color = MaterialTheme.colorScheme.onErrorContainer,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-
-        // Discount Button - Only show if discount is not verified
-        if (userProfile?.discountVerified != true) {
-            OutlinedButton(
-                onClick = {
-                    val profile = userProfile
-                    // Check if user has a pending application
-                    if (profile?.discountType != null && !profile.discountVerified) {
-                        // Show pending application dialog
-                        showPendingApplicationDialog = true
-                    } else {
-                        // Show category selection dialog
-                        showDiscountCategoryDialog = true
-                    }
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Default.Discount, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Apply for Discount")
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-        }
-
-        // Recent Bookings
-        Card(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Recent Bookings",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically,
+                        content = actionContent
                     )
-
-                    TextButton(onClick = { /* View all bookings */ }) {
-                        Text("View All")
-                    }
-                }
-
-                if (recentBookings.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(
-                                Icons.Default.History,
-                                contentDescription = null,
-                                modifier = Modifier.size(48.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "No bookings yet",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = "Book your first ride to get started!",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.heightIn(max = 300.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(recentBookings) { booking ->
-                            BookingHistoryItem(booking = booking)
-                        }
-                    }
                 }
             }
-        }
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        // Logout Button
-        OutlinedButton(
-            onClick = onLogout,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Sign Out")
+            content()
         }
     }
 }
@@ -482,92 +535,29 @@ private fun StatCard(
     value: String,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    Surface(
         modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer
-        )
+        shape = RoundedCornerShape(20.dp),
+        tonalElevation = 2.dp,
+        color = MaterialTheme.colorScheme.secondaryContainer
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier = Modifier.padding(vertical = 20.dp, horizontal = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Text(
                 text = value,
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                color = MaterialTheme.colorScheme.onSecondaryContainer
             )
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
             )
         }
-    }
-}
-
-@Composable
-private fun BookingHistoryItem(
-    booking: com.example.toda.data.Booking
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = booking.pickupLocation,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Text(
-                        text = "to ${booking.destination}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "₱${String.format("%.2f", booking.estimatedFare)}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                StatusChip(status = booking.status.name)
-            }
-        }
-    }
-}
-
-@Composable
-private fun StatusChip(status: String) {
-    val (backgroundColor, textColor) = when (status) {
-        "COMPLETED" -> MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer
-        "PENDING" -> MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer
-        "CANCELLED" -> MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.onErrorContainer
-        else -> MaterialTheme.colorScheme.surfaceVariant to MaterialTheme.colorScheme.onSurfaceVariant
-    }
-
-    Surface(
-        color = backgroundColor,
-        shape = MaterialTheme.shapes.small
-    ) {
-        Text(
-            text = status,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-            style = MaterialTheme.typography.labelSmall,
-            color = textColor
-        )
     }
 }
 
@@ -583,14 +573,14 @@ private fun InfoItem(
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(1f),
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f)
         )
 
         Text(
             text = value,
             style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurface
         )
     }

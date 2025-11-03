@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flagged Accounts - TODA Admin</title>
+  <link rel="stylesheet" href="FlaggedAccounts.css">
+  <link rel="icon" type="image/png" href="../moto_logo.png">
+</head>
+<body>
+  <div class="page-container">
+    <!-- Top Bar -->
+    <header class="top-bar">
+      <button class="back-btn" onclick="window.location.href='../index.html'">
+        <span class="icon">←</span> 
+      </button>
+      <div class="page-title">
+        <h1>🚩 Flagged Accounts</h1>
+        <p>Monitor and manage problematic accounts</p>
+      </div>
+    </header>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+      <div class="stat-card red">
+        <div class="stat-icon">🚨</div>
+        <div class="stat-details">
+          <div class="stat-value" id="criticalCount">0</div>
+          <div class="stat-label">Critical Flags</div>
+        </div>
+      </div>
+
+      <div class="stat-card orange">
+        <div class="stat-icon">⚠️</div>
+        <div class="stat-details">
+          <div class="stat-value" id="highCount">0</div>
+          <div class="stat-label">High Priority</div>
+        </div>
+      </div>
+
+      <div class="stat-card yellow">
+        <div class="stat-icon">👀</div>
+        <div class="stat-details">
+          <div class="stat-value" id="mediumCount">0</div>
+          <div class="stat-label">Monitored</div>
+        </div>
+      </div>
+
+      <div class="stat-card blue">
+        <div class="stat-icon">📊</div>
+        <div class="stat-details">
+          <div class="stat-value" id="totalFlagged">0</div>
+          <div class="stat-label">Total Flagged</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters and Actions -->
+    <div class="controls-section">
+      <div class="filters">
+        <select id="accountTypeFilter" onchange="applyFilters()">
+          <option value="all">All Accounts</option>
+          <option value="driver">Drivers Only</option>
+          <option value="customer">Customers Only</option>
+        </select>
+
+        <select id="severityFilter" onchange="applyFilters()">
+          <option value="all">All Severities</option>
+          <option value="critical">Critical</option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+
+        <select id="statusFilter" onchange="applyFilters()">
+          <option value="active">Active Flags</option>
+          <option value="all">All Statuses</option>
+          <option value="resolved">Resolved</option>
+          <option value="expired">Expired</option>
+        </select>
+
+        <input type="text" id="searchInput" placeholder="🔍 Search by name, ID, or phone..." oninput="applyFilters()">
+      </div>
+
+      <div class="action-buttons">
+        <button class="btn-secondary" onclick="exportReport()">
+          <span class="icon">📥</span> Export Report
+        </button>
+        <button class="btn-primary" onclick="runAutoDetection()">
+          <span class="icon">🔍</span> Run Auto-Detection
+        </button>
+      </div>
+    </div>
+
+    <!-- Flagged Accounts Table -->
+    <div class="table-container">
+      <div class="table-header">
+        <h2>Flagged Accounts</h2>
+        <div class="table-info">
+          <span id="tableCount">0 accounts</span>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
+        <table class="flagged-table">
+          <thead>
+            <tr>
+              <th>Account</th>
+              <th>Type</th>
+              <th>Flag Type</th>
+              <th>Severity</th>
+              <th>Score</th>
+              <th>Status</th>
+              <th>Flagged Date</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="flaggedTableBody">
+            <tr>
+              <td colspan="8" class="loading-row">
+                <div class="loading">Loading flagged accounts...</div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination" id="pagination">
+      <button class="page-btn" onclick="changePage(-1)">Previous</button>
+      <span class="page-info" id="pageInfo">Page 1 of 1</span>
+      <button class="page-btn" onclick="changePage(1)">Next</button>
+    </div>
+  </div>
+
+  <!-- Flag Details Modal -->
+  <div class="modal" id="flagDetailsModal">
+    <div class="modal-content large">
+      <div class="modal-header">
+        <h2>🚩 Flag Details</h2>
+        <button class="close-btn" onclick="closeFlagDetails()">×</button>
+      </div>
+      <div class="modal-body" id="flagDetailsContent">
+        <!-- Content will be injected by JavaScript -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn-danger" onclick="escalateFlag()">Escalate</button>
+        <button class="btn-secondary" onclick="dismissFlag()">Dismiss</button>
+        <button class="btn-success" onclick="resolveFlag()">Resolve</button>
+        <button class="btn-secondary" onclick="closeFlagDetails()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Auto-Detection Progress Modal -->
+  <div class="modal" id="detectionModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>🔍 Running Auto-Detection</h2>
+      </div>
+      <div class="modal-body">
+        <div class="progress-container">
+          <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+          <div class="progress-text" id="progressText">Initializing...</div>
+        </div>
+        <div class="detection-results" id="detectionResults"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeDetectionModal()" id="closeDetectionBtn" disabled>Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirmation Modal -->
+  <div class="modal" id="confirmModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="confirmTitle">⚠️ Confirm Action</h2>
+      </div>
+      <div class="modal-body">
+        <p id="confirmMessage"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeConfirmModal()">Cancel</button>
+        <button class="btn-primary" id="confirmBtn" onclick="handleConfirm()">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Message Notification -->
+  <div class="message-container" id="messageContainer"></div>
+
+  <script type="module" src="FlaggedAccounts.js"></script>
+</body>
+</html>

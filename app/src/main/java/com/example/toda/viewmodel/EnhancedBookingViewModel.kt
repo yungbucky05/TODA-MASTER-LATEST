@@ -50,6 +50,9 @@ class EnhancedBookingViewModel @Inject constructor(
     private val _queueList = MutableStateFlow<List<QueueEntry>>(emptyList())
     val queueList = _queueList.asStateFlow()
 
+    private val _regularFareMatrix = MutableStateFlow(FareMatrix())
+    val regularFareMatrix = _regularFareMatrix.asStateFlow()
+
     // Polling jobs keyed by bookingId to avoid duplicates
     private val pollingJobs: MutableMap<String, Job> = mutableMapOf()
 
@@ -90,6 +93,13 @@ class EnhancedBookingViewModel @Inject constructor(
         viewModelScope.launch {
             repository.observeDriverQueue().collect { queueEntries ->
                 _queueList.value = queueEntries
+            }
+        }
+
+        // Observe fare matrix in real-time
+        viewModelScope.launch {
+            repository.observeRegularFareMatrix().collect { fareMatrix ->
+                _regularFareMatrix.value = fareMatrix
             }
         }
     }

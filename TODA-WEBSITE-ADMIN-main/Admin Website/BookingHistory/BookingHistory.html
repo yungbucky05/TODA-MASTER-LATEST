@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Booking History - TODA Admin</title>
+  <link rel="stylesheet" href="BookingHistory.css">
+  <link rel="icon" type="image/png" href="../moto_logo.png">
+</head>
+<body>
+  <div class="page-container">
+    <!-- Top Bar -->
+    <header class="top-bar">
+      <button class="back-btn" onclick="window.location.href='../index.html'">
+        <span class="icon">←</span>
+      </button>
+      <div class="page-title">
+        <h1>Booking History</h1>
+        <p>View and manage all booking records</p>
+      </div>
+    </header>
+
+    <!-- Controls Section -->
+    <div class="controls-section">
+      <input type="text" id="searchInput" placeholder="🔍 Search bookings..." class="search-input">
+      <select id="statusFilter" class="filter-select">
+        <option value="all">All Status</option>
+        <option value="completed">Completed</option>
+        <option value="cancelled">Cancelled</option>
+        <option value="active">Active</option>
+      </select>
+      <select id="tripTypeFilter" class="filter-select">
+        <option value="all">All Booking Sources</option>
+        <option value="passengerApp">Online Booking</option>
+        <option value="barkerApp">On Site</option>
+        <option value="unknown">Unknown Source</option>
+      </select>
+      <select id="driverFilter" class="driver-select">
+        <option value="">All Drivers</option>
+      </select>
+      <input type="date" id="dateFilter" class="date-input">
+      <button class="btn-export" onclick="exportBookings()">📥 Export Report</button>
+      <button class="btn-clear" onclick="clearFilters()">Clear Filters</button>
+    </div>
+
+    <!-- Active Filters Display -->
+    <div id="activeFilters" class="active-filters"></div>
+
+    <!-- Bookings List -->
+    <div class="content-card">
+      <div class="card-header">
+        <h2>Bookings</h2>
+      </div>
+      <div id="bookingsList" class="bookings-list">
+        <div class="loading">Loading bookings...</div>
+      </div>
+      
+      <!-- Pagination Controls -->
+      <div id="paginationControls" class="pagination-controls" style="display: none;">
+        <div class="pagination-info">
+          <span id="paginationInfo">Showing 0-0 of 0</span>
+        </div>
+        <div class="pagination-buttons">
+          <button id="firstPageBtn" class="pagination-btn" onclick="goToPage(1)">
+            <span>««</span>
+          </button>
+          <button id="prevPageBtn" class="pagination-btn" onclick="previousPage()">
+            <span>‹</span>
+          </button>
+          <div id="pageNumbers" class="page-numbers"></div>
+          <button id="nextPageBtn" class="pagination-btn" onclick="nextPage()">
+            <span>›</span>
+          </button>
+          <button id="lastPageBtn" class="pagination-btn" onclick="goToPage('last')">
+            <span>»»</span>
+          </button>
+        </div>
+        <div class="items-per-page">
+          <label for="itemsPerPage">Items per page:</label>
+          <select id="itemsPerPage" onchange="changeItemsPerPage()">
+            <option value="10">10</option>
+            <option value="25" selected>25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Booking Details Modal -->
+  <div id="bookingModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Booking Details</h2>
+        <button class="close-btn" onclick="closeBookingModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBody">
+        <!-- Booking details will be injected here -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeBookingModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Message Container for Notifications -->
+  <div id="messageContainer" class="message-container"></div>
+
+  <script type="module" src="BookingHistory.js"></script>
+</body>
+</html>
+

@@ -26,6 +26,22 @@ class DriverRegistrationViewModel @Inject constructor(
     val uiState: StateFlow<DriverRegistrationUiState> = _uiState.asStateFlow()
 
     fun submitRegistration(driver: Driver) {
+        if (driver.licensePhotoURL.isBlank()) {
+            _uiState.value = _uiState.value.copy(
+                isLoading = false,
+                errorMessage = "Please upload a clear photo of your driver's license"
+            )
+            return
+        }
+
+        if (driver.selfiePhotoURL.isBlank()) {
+            _uiState.value = _uiState.value.copy(
+                isLoading = false,
+                errorMessage = "Please upload a recent selfie for identity verification"
+            )
+            return
+        }
+
         // Validate Philippine Driver's License
         if (!isValidPhilippineLicense(driver.licenseNumber)) {
             _uiState.value = _uiState.value.copy(

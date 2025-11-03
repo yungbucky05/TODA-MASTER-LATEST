@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fare Matrix - TODA Admin</title>
+  <link rel="stylesheet" href="FareMatrix.css">
+  <link rel="icon" type="image/png" href="../moto_logo.png">
+</head>
+<body>
+  <div class="page-container">
+    <!-- Top Bar -->
+    <header class="top-bar">
+      <button class="back-btn" onclick="window.location.href='../index.html'">
+        <span class="icon">←</span> 
+      </button>
+      <div class="page-title">
+        <h1>Fare Matrix Management</h1>
+        <p>Configure and manage base fare rates</p>
+      </div>
+    </header>
+
+    <!-- Current Fare Card -->
+    <div class="stats-grid">
+      <div class="stat-card blue">
+        <div class="stat-icon">🚖</div>
+        <div class="stat-details">
+          <div class="stat-value">
+            <span id="specialBaseFare">₱0.00</span>
+            <span class="rate-separator">+</span>
+            <span id="specialPerKm">₱0.00</span><span class="per-km-label">/km</span>
+          </div>
+          <div class="stat-label">Special Trip - Fare Rate</div>
+          <div class="stat-hint">💡 Base fare + Per kilometer rate</div>
+        </div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-icon">🚕</div>
+        <div class="stat-details">
+          <div class="stat-value">
+            <span id="regularBaseFare">₱0.00</span>
+            <span class="rate-separator">+</span>
+            <span id="regularPerKm">₱0.00</span><span class="per-km-label">/km</span>
+          </div>
+          <div class="stat-label">Regular Trip - Fare Rate</div>
+          <div class="stat-hint">💡 Base fare + Per kilometer rate</div>
+        </div>
+      </div>
+      <div class="stat-card orange">
+        <div class="stat-icon">📅</div>
+        <div class="stat-details">
+          <div class="stat-value" id="lastUpdated">Never</div>
+          <div class="stat-label">Last Updated</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Update Fare Form -->
+    <div class="content-card">
+      <div class="card-header">
+        <h2>Update Fare Rates</h2>
+      </div>
+      <div class="card-body">
+        <form id="fareUpdateForm" class="fare-form">
+          <div class="trip-type-tabs">
+            <button type="button" class="tab-btn active" data-tab="special" onclick="switchTab('special')">
+              🚖 Special Trip
+            </button>
+            <button type="button" class="tab-btn" data-tab="regular" onclick="switchTab('regular')">
+              🚕 Regular Trip
+            </button>
+          </div>
+
+          <!-- Special Trip Form -->
+          <div id="specialForm" class="tab-content active">
+            <h3 class="form-section-title">Special Trip Rates</h3>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="specialBaseFareInput">Base Fare - First KM (₱)</label>
+                <input type="number" id="specialBaseFareInput" step="0.01" min="0" placeholder="Enter base fare">
+                <small>Current: ₱25.00 for first kilometer</small>
+              </div>
+              <div class="form-group">
+                <label for="specialPerKmInput">Per Kilometer Rate (₱)</label>
+                <input type="number" id="specialPerKmInput" step="0.01" min="0" placeholder="Enter per km rate">
+                <small>Current: ₱5.00 per additional kilometer</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- Regular Trip Form -->
+          <div id="regularForm" class="tab-content">
+            <h3 class="form-section-title">Regular Trip Rates</h3>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="regularBaseFareInput">Base Fare - First KM (₱)</label>
+                <input type="number" id="regularBaseFareInput" step="0.01" min="0" placeholder="Enter base fare">
+                <small>Current: ₱8.00 for first kilometer</small>
+              </div>
+              <div class="form-group">
+                <label for="regularPerKmInput">Per Kilometer Rate (₱)</label>
+                <input type="number" id="regularPerKmInput" step="0.01" min="0" placeholder="Enter per km rate">
+                <small>Current: ₱2.00 per additional kilometer</small>
+              </div>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="reason">Reason for Change</label>
+            <textarea id="reason" rows="3" placeholder="Enter reason for fare update (e.g., fuel price increase, regulatory changes)" required></textarea>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn-secondary" onclick="resetForm()">Cancel</button>
+            <button type="submit" class="btn-primary">
+              💾 Update Fare Rates
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Fare Change History -->
+    <div class="content-card">
+      <div class="card-header">
+        <h2>Fare Change History</h2>
+      </div>
+      <div id="fareHistory" class="fare-history">
+        <div class="loading">Loading history...</div>
+      </div>
+      
+      <!-- Pagination Controls -->
+      <div id="paginationControls" class="pagination-controls" style="display: none;">
+        <div class="pagination-info">
+          <span id="paginationInfo">Showing 0-0 of 0</span>
+        </div>
+        <div class="pagination-buttons">
+          <button id="firstPageBtn" class="pagination-btn" onclick="goToPage(1)">
+            <span>««</span>
+          </button>
+          <button id="prevPageBtn" class="pagination-btn" onclick="previousPage()">
+            <span>‹</span>
+          </button>
+          <div id="pageNumbers" class="page-numbers"></div>
+          <button id="nextPageBtn" class="pagination-btn" onclick="nextPage()">
+            <span>›</span>
+          </button>
+          <button id="lastPageBtn" class="pagination-btn" onclick="goToPage('last')">
+            <span>»»</span>
+          </button>
+        </div>
+        <div class="items-per-page">
+          <label for="itemsPerPage">Items per page:</label>
+          <select id="itemsPerPage" onchange="changeItemsPerPage()">
+            <option value="10" selected>10</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirmation Modal -->
+  <div id="confirmModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Confirm Fare Update</h2>
+        <button class="close-btn" onclick="closeConfirmModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="confirmation-details">
+          <div class="warning-banner">
+            <span class="warning-icon">⚠️</span>
+            <div>
+              <strong>Important:</strong> This will update the fare rates for all new trips in the mobile app.
+            </div>
+          </div>
+          
+          <div class="change-summary">
+            <h3>New Fare Rates:</h3>
+            <div class="trip-type-badge" id="confirmTripType"></div>
+            <div class="summary-grid">
+              <div class="summary-item">
+                <span class="summary-label">Base Fare (1st KM):</span>
+                <span class="summary-value" id="confirmBaseFare">₱0.00</span>
+              </div>
+              <div class="summary-item">
+                <span class="summary-label">Per KM Rate:</span>
+                <span class="summary-value" id="confirmPerKm">₱0.00</span>
+              </div>
+            </div>
+            
+            <div class="reason-display">
+              <strong>Reason:</strong>
+              <p id="confirmReason"></p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeConfirmModal()">Cancel</button>
+        <button class="btn-primary" onclick="confirmUpdate()">Confirm Update</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Success Message -->
+  <div id="messageContainer" class="message-container"></div>
+
+  <script type="module" src="FareMatrix.js"></script>
+</body>
+</html>

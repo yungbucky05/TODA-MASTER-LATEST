@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Discount Applications - TODA Admin</title>
+  <link rel="stylesheet" href="DiscountApplications.css">
+  <link rel="icon" type="image/png" href="../moto_logo.png">
+</head>
+<body>
+  <div class="page-container">
+    <!-- Top Bar -->
+    <header class="top-bar">
+      <button class="back-btn" onclick="window.location.href='../index.html'">
+        <span class="icon">←</span> 
+      </button>
+      <div class="page-title">
+        <h1>Discount Applications</h1>
+        <p>Review and approve discount applications</p>
+      </div>
+    </header>
+
+    <!-- Stats Card -->
+    <div class="stats-grid">
+      <div class="stat-card red">
+        <div class="stat-icon">🎫</div>
+        <div class="stat-details">
+          <div class="stat-value" id="pendingCount">0</div>
+          <div class="stat-label">Pending Applications</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status Messages -->
+    <div id="messageContainer"></div>
+
+    <!-- Applications List -->
+    <div class="content-card">
+      <div class="card-header">
+        <h2>Applications</h2>
+      </div>
+      <div id="applicationsList" class="applications-list">
+        <div class="loading">Loading applications...</div>
+      </div>
+      
+      <!-- Pagination Controls -->
+      <div id="paginationControls" class="pagination-controls" style="display: none;">
+        <div class="pagination-info">
+          <span id="paginationInfo">Showing 0-0 of 0</span>
+        </div>
+        <div class="pagination-buttons">
+          <button id="firstPageBtn" class="pagination-btn" onclick="goToPage(1)">
+            <span>««</span>
+          </button>
+          <button id="prevPageBtn" class="pagination-btn" onclick="previousPage()">
+            <span>‹</span>
+          </button>
+          <div id="pageNumbers" class="page-numbers"></div>
+          <button id="nextPageBtn" class="pagination-btn" onclick="nextPage()">
+            <span>›</span>
+          </button>
+          <button id="lastPageBtn" class="pagination-btn" onclick="goToPage('last')">
+            <span>»»</span>
+          </button>
+        </div>
+        <div class="items-per-page">
+          <label for="itemsPerPage">Items per page:</label>
+          <select id="itemsPerPage" onchange="changeItemsPerPage()">
+            <option value="10">10</option>
+            <option value="25" selected>25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Application Details Modal -->
+  <div id="applicationModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Discount Application Details</h2>
+        <button class="close-btn" onclick="closeApplicationModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBody">
+        <!-- Application details will be injected here -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeApplicationModal()">Close</button>
+        <button class="btn-danger" onclick="rejectApplication()">Reject</button>
+        <button class="btn-success" onclick="approveApplication()">Approve</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Image Viewer Modal -->
+  <div id="imageModal" class="modal">
+    <div class="modal-content large">
+      <div class="modal-header">
+        <h2>Document Preview</h2>
+        <button class="close-btn" onclick="closeImageModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <img id="imagePreview" src="" alt="Document Preview" style="width: 100%; border-radius: 8px;">
+      </div>
+    </div>
+  </div>
+
+  <!-- Message Container for Notifications -->
+  <div id="messageContainer" class="message-container"></div>
+
+  <!-- Rejection Reasons Modal -->
+  <div id="rejectionModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>❌ Reject Discount Application</h2>
+        <button class="close-btn" onclick="closeRejectionModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="margin-bottom: 20px; color: #666;">Select the reason(s) for rejecting this discount application:</p>
+        
+        <div id="rejectionReasons" style="margin-bottom: 20px;">
+          <label class="rejection-option">
+            <input type="checkbox" value="Invalid or expired ID">
+            <span>Invalid or expired ID</span>
+          </label>
+          <label class="rejection-option">
+            <input type="checkbox" value="ID photo is unclear or unreadable">
+            <span>ID photo is unclear or unreadable</span>
+          </label>
+          <label class="rejection-option">
+            <input type="checkbox" value="ID does not match applicant information">
+            <span>ID does not match applicant information</span>
+          </label>
+          <label class="rejection-option">
+            <input type="checkbox" value="Incomplete information provided">
+            <span>Incomplete information provided</span>
+          </label>
+          <label class="rejection-option">
+            <input type="checkbox" value="Duplicate application">
+            <span>Duplicate application</span>
+          </label>
+          <label class="rejection-option">
+            <input type="checkbox" value="Does not qualify for selected discount type">
+            <span>Does not qualify for selected discount type</span>
+          </label>
+        </div>
+
+        <label for="customRejectionReason" style="display: block; margin-bottom: 8px; font-weight: 500; color: #333;">
+          Additional Notes (Optional):
+        </label>
+        <textarea 
+          id="customRejectionReason" 
+          placeholder="Enter any additional details about the rejection..."
+          style="width: 100%; min-height: 80px; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-family: inherit; font-size: 14px; resize: vertical;"
+        ></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="cancelRejection()">Cancel</button>
+        <button class="btn-danger" onclick="submitRejection()">Submit Rejection</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirmation Modal -->
+  <div id="confirmModal" class="modal">
+    <div class="modal-content confirm-modal-content">
+      <div class="modal-header">
+        <h2 id="confirmTitle">⚠️ Confirm Action</h2>
+        <button class="close-btn" onclick="closeConfirmModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="confirmMessage" style="white-space: pre-wrap; font-size: 15px; line-height: 1.6; color: #495057;"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeConfirmModal()">Cancel</button>
+        <button class="btn-primary" id="confirmButton" onclick="handleConfirm()">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="DiscountApplications.js"></script>
+</body>
+</html>
+

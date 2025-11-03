@@ -1,5 +1,6 @@
 package com.example.toda.viewmodel
 
+import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.toda.data.*
@@ -19,6 +20,9 @@ class DriverLoginViewModel @Inject constructor(
 
     private val _currentUser = MutableStateFlow<FirebaseUser?>(null)
     val currentUser = _currentUser.asStateFlow()
+
+    private val _passwordReset = MutableStateFlow(PasswordResetState())
+    val passwordReset = _passwordReset.asStateFlow()
 
     fun login(phoneNumber: String, password: String) {
         if (phoneNumber.isBlank() || password.isBlank()) {
@@ -212,6 +216,25 @@ class DriverLoginViewModel @Inject constructor(
     fun logout() {
         _currentUser.value = null
         _loginState.value = DriverLoginState()
+    }
+
+    fun resetPassword(email: String) {
+        if (email.isBlank() || !Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            _passwordReset.value = PasswordResetState(error = "Enter a valid email address")
+            return
+        }
+        viewModelScope.launch {
+            _passwordReset.value = PasswordResetState(isSending = true)
+            val result = repository.sendPasswordResetEmail(email)
+            _passwordReset.value = result.fold(
+                onSuccess = { PasswordResetState(sent = true) },
+                onFailure = { PasswordResetState(error = it.message ?: "Failed to send reset email") }
+            )
+        }
+    }
+
+    fun clearPasswordReset() {
+        _passwordReset.value = PasswordResetState()
     }
 }
 

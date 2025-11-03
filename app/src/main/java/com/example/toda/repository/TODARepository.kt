@@ -24,7 +24,8 @@ class TODARepository @Inject constructor(
         phoneNumber: String,
         name: String,
         userType: UserType,
-        password: String
+        password: String,
+        email: String = ""
     ): Result<String> {
         return try {
             // First create user in Firebase Auth
@@ -36,6 +37,7 @@ class TODARepository @Inject constructor(
                     val user = FirebaseUser(
                         id = userId,
                         phoneNumber = phoneNumber,
+                        email = email,
                         name = name,
                         userType = userType.name,
                         isVerified = true, // Since we're using Firebase Auth
@@ -421,6 +423,10 @@ class TODARepository @Inject constructor(
         }
     }
 
+    fun observeRegularFareMatrix(): Flow<FareMatrix> {
+        return firebaseService.observeRegularFareMatrix().map { it ?: FareMatrix() }
+    }
+
     // Booking Management
     suspend fun createBooking(booking: Booking): Result<String> {
         return try {
@@ -453,7 +459,8 @@ class TODARepository @Inject constructor(
                 paymentMethod = "CASH", // Default payment method
                 duration = 0, // Will be calculated during trip
                 // New key to indicate origin of booking
-                tripType = "App Booking"
+                tripType = "App Booking",
+                bookingApp = booking.bookingApp.ifBlank { "passengerApp" }
             )
 
             println("Converted Firebase booking: $firebaseBooking")
@@ -551,7 +558,8 @@ class TODARepository @Inject constructor(
                         arrivedAtPickup = firebaseBooking.arrivedAtPickup,
                         arrivedAtPickupTime = firebaseBooking.arrivedAtPickupTime,
                         isNoShow = firebaseBooking.isNoShow,
-                        noShowReportedTime = firebaseBooking.noShowReportedTime
+                        noShowReportedTime = firebaseBooking.noShowReportedTime,
+                        bookingApp = firebaseBooking.bookingApp
                     )
 
                     println("Successfully converted booking: ${booking.id} with status: ${booking.status}")
@@ -695,7 +703,8 @@ class TODARepository @Inject constructor(
                 arrivedAtPickup = firebaseBooking.arrivedAtPickup,
                 arrivedAtPickupTime = firebaseBooking.arrivedAtPickupTime,
                 isNoShow = firebaseBooking.isNoShow,
-                noShowReportedTime = firebaseBooking.noShowReportedTime
+                noShowReportedTime = firebaseBooking.noShowReportedTime,
+                bookingApp = firebaseBooking.bookingApp
             )
         } catch (e: Exception) {
             println("Error getting booking by ID: ${e.message}")
@@ -768,17 +777,50 @@ class TODARepository @Inject constructor(
             println("Phone: ${driver.phoneNumber}")
             println("Creating Firebase Auth account...")
 
-            // Step 1: Create Firebase Auth account and user profile first
-            val authResult = registerUser(
-                phoneNumber = driver.phoneNumber,
-                name = driver.name,
-                userType = UserType.DRIVER,
-                password = driver.password
-            )
+            val currentAuthUser = authService.getCurrentUser()
+
+            // Step 1: Ensure the driver has an auth account we can attach profile data to
+            val authResult: Result<String> = when {
+                currentAuthUser != null && driver.email.isNotBlank() -> {
+                    println("Linking driver email to existing phone-auth user...")
+                    authService.linkEmailPasswordToCurrentUser(driver.email, driver.password)
+                }
+                currentAuthUser != null -> {
+                    Result.success(currentAuthUser.uid)
+                }
+                driver.email.isNotBlank() -> {
+                    println("No active auth session found; creating user with email credential")
+                    authService.createUserWithEmail(driver.email, driver.password)
+                }
+                else -> {
+                    println("No email provided; creating driver using phone alias account")
+                    registerUser(
+                        phoneNumber = driver.phoneNumber,
+                        name = driver.name,
+                        userType = UserType.DRIVER,
+                        password = driver.password
+                    )
+                }
+            }
 
             authResult.fold(
                 onSuccess = { userId ->
                     println("✓ Firebase Auth account created: $userId")
+
+                    val profile = FirebaseUser(
+                        id = userId,
+                        phoneNumber = driver.phoneNumber,
+                        email = driver.email,
+                        name = driver.name,
+                        userType = UserType.DRIVER.name,
+                        isVerified = true,
+                        registrationDate = System.currentTimeMillis()
+                    )
+
+                    if (!firebaseService.createUser(profile)) {
+                        println("✗ Failed to persist driver user profile")
+                        return Result.failure(Exception("Failed to create driver user profile"))
+                    }
 
                     // Step 2: Add additional driver-specific data to drivers table
                     println("Creating driver record in database...")
@@ -787,12 +829,15 @@ class TODARepository @Inject constructor(
                         driverName = driver.name,
                         todaNumber = "", // Empty - admin will assign TODA number later
                         phoneNumber = driver.phoneNumber,
+                        email = driver.email,
                         address = driver.address,
                         emergencyContact = "", // Not in registration form anymore
                         licenseNumber = driver.licenseNumber,
                         licenseExpiry = 0, // Not in registration form anymore
                         yearsOfExperience = 0, // Not in registration form anymore
-                        tricyclePlateNumber = driver.tricyclePlateNumber // Add tricycle plate number
+                        tricyclePlateNumber = driver.tricyclePlateNumber, // Add tricycle plate number
+                        licensePhotoURL = driver.licensePhotoURL,
+                        selfiePhotoURL = driver.selfiePhotoURL
                     )
 
                     if (driverId != null) {
@@ -828,6 +873,7 @@ class TODARepository @Inject constructor(
                     id = driverData["id"] as? String ?: "",
                     name = driverData["driverName"] as? String ?: "",
                     phoneNumber = driverData["phoneNumber"] as? String ?: "",
+                    email = driverData["email"] as? String ?: "",
                     address = driverData["address"] as? String ?: "",
                     licenseNumber = driverData["licenseNumber"] as? String ?: "",
                     tricyclePlateNumber = driverData["tricyclePlateNumber"] as? String ?: "",
@@ -1005,6 +1051,7 @@ class TODARepository @Inject constructor(
                     id = driverId,
                     name = driverData["driverName"] as? String ?: "",
                     phoneNumber = driverData["phoneNumber"] as? String ?: "",
+                    email = driverData["email"] as? String ?: "",
                     address = driverData["address"] as? String ?: "",
                     licenseNumber = driverData["licenseNumber"] as? String ?: "",
                     tricyclePlateNumber = driverData["tricyclePlateNumber"] as? String ?: "",
@@ -1324,7 +1371,7 @@ class TODARepository @Inject constructor(
         }
     }
 
-    // Link email/password to the currently authenticated user (after phone OTP) and create profile
+    // Update the currently authenticated user's email (after phone OTP) and create profile
     suspend fun registerUserByLinkingEmailToCurrentUser(
         email: String,
         phoneNumber: String,

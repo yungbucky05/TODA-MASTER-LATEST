@@ -7,6 +7,7 @@ import com.google.firebase.database.IgnoreExtraProperties
 data class FirebaseUser(
     val id: String = "",
     val phoneNumber: String = "",
+    val email: String = "",
     val name: String = "",
     val userType: String = "PASSENGER", // PASSENGER, DRIVER, OPERATOR, TODA_ADMIN
     val isVerified: Boolean = false,
@@ -86,6 +87,7 @@ data class FirebaseBooking(
     val todaNumber: String = "",
     // New field to classify trip creation source
     val tripType: String = "",
+    val bookingApp: String = "",
     // Pickup arrival and no-show tracking
     val arrivedAtPickup: Boolean = false,
     val arrivedAtPickupTime: Long = 0L,
