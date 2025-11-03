@@ -921,6 +921,7 @@ class FirebaseRealtimeDatabaseService {
                 val timestamp = child.child("timestamp").getValue(String::class.java) ?: "0"
                 val driverName = child.child("driverName").getValue(String::class.java) ?: ""
                 val todaNumber = child.child("todaNumber").getValue(String::class.java) ?: ""
+                val paidFlag = child.child("paid").getValue(Boolean::class.java) ?: true
 
                 // Convert timestamp string to Long
                 val timestampLong = try {
@@ -941,7 +942,8 @@ class FirebaseRealtimeDatabaseService {
                         contributionType = "MANUAL",
                         notes = "TODA $todaNumber",
                         verified = true,
-                        source = "mobile"
+                        source = "mobile",
+                        paid = paidFlag
                     )
                 )
             }

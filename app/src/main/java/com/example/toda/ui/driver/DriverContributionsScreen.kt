@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import com.example.toda.data.*
 import com.example.toda.viewmodel.EnhancedBookingViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.platform.LocalContext
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.launch
@@ -39,9 +40,10 @@ fun DriverContributionsScreen(
     var paymentMode by remember { mutableStateOf<String?>(null) }
     var driverBalance by remember { mutableStateOf(0.0) }
     var showPaymentModeDialog by remember { mutableStateOf(false) }
-    var payBalanceMarked by remember { mutableStateOf(false) }
+    var isRestoringPaymentMode by remember { mutableStateOf(false) }
 
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     // Load contributions and payment data on first load
     LaunchedEffect(driverId) {
@@ -69,7 +71,8 @@ fun DriverContributionsScreen(
                 }
             )
         } catch (e: Exception) {
-            errorMessage = "Error loading contributions: ${e.message}"
+                println("Failed to load driver contributions: ${e.message}")
+                errorMessage = "Unexpected error: ${e.message}"
         } finally {
             isLoading = false
         }
@@ -97,18 +100,25 @@ fun DriverContributionsScreen(
         }
     }
 
-    // Real-time observer for pay_balance status
-    LaunchedEffect(driverId) {
-        if (driverId.isNotEmpty()) {
-            viewModel.observePayBalanceStatus(driverId).collect { status ->
-                println("=== PAY_BALANCE STATUS UPDATE ===")
-                println("Driver $driverId pay_balance: $status")
-                payBalanceMarked = status
-            }
+    // Auto-restore payment mode when balance clears in pay_balance mode
+    LaunchedEffect(driverBalance, paymentMode) {
+        if (!isRestoringPaymentMode && paymentMode == "pay_balance" && driverBalance <= 0.0) {
+            isRestoringPaymentMode = true
+            println("=== AUTO RESTORE PAYMENT MODE TRIGGERED ===")
+            println("Balance cleared; restoring preferred payment mode...")
+            viewModel.restorePreferredPaymentMode(driverId).fold(
+                onSuccess = { restoredMode ->
+                    println("✓ Payment mode restored to $restoredMode after balance cleared")
+                    paymentMode = restoredMode
+                },
+                onFailure = { error ->
+                    println("✗ Failed to restore payment mode: ${error.message}")
+                }
+            )
+            isRestoringPaymentMode = false
         }
     }
 
-    // Filter contributions based on selected filter
     val filteredContributions = remember(contributions, selectedFilter) {
         when (selectedFilter) {
             "Today" -> {
@@ -178,17 +188,28 @@ fun DriverContributionsScreen(
                 onChangePaymentMode = { showPaymentModeDialog = true },
                 onMarkPayBalance = {
                     coroutineScope.launch {
-                        viewModel.markPayBalance(driverId, true).fold(
+                        if (driverBalance <= 0) {
+                            println("⚠ No outstanding balance to pay")
+                            return@launch
+                        }
+
+                        viewModel.updatePaymentMode(driverId, "pay_balance").fold(
                             onSuccess = {
-                                println("✓ Marked pay_balance as true")
+                                paymentMode = "pay_balance"
+                                println("✓ Payment mode set to pay_balance; please settle at the terminal")
                             },
                             onFailure = { error ->
-                                println("✗ Error marking pay_balance: ${error.message}")
+                                println("✗ Error enabling pay_balance: ${error.message}")
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "Error switching to pay balance: ${error.message}",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
                             }
                         )
                     }
                 },
-                payBalanceMarked = payBalanceMarked
+                payBalanceMarked = (paymentMode == "pay_balance")
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -279,6 +300,31 @@ fun DriverContributionsScreen(
                                 viewModel.updatePaymentMode(driverId, "pay_later").fold(
                                     onSuccess = {
                                         paymentMode = "pay_later"
+                                        showPaymentModeDialog = false
+                                    },
+                                    onFailure = { error ->
+                                        println("Error updating payment mode: ${error.message}")
+                                    }
+                                )
+                            }
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    PaymentModeOption(
+                        title = "Pay Balance Now",
+                        description = "Switch kiosk to balance payoff mode",
+                        isSelected = paymentMode == "pay_balance",
+                        enabled = driverBalance > 0,
+                        onClick = {
+                            coroutineScope.launch {
+                                if (driverBalance <= 0) {
+                                    println("⚠ No outstanding balance to settle")
+                                    return@launch
+                                }
+
+                                viewModel.updatePaymentMode(driverId, "pay_balance").fold(
+                                    onSuccess = {
+                                        paymentMode = "pay_balance"
                                         showPaymentModeDialog = false
                                     },
                                     onFailure = { error ->
@@ -416,6 +462,27 @@ private fun FilterTabs(
 
 @Composable
 private fun ContributionItem(contribution: FirebaseContribution) {
+    val isPayLaterContribution = contribution.paid == false
+    val isAdminAdjustment = contribution.contributionType == "ADMIN_ADJUSTMENT"
+
+    val contributionTitle = when {
+        isAdminAdjustment -> "Admin Adjustment"
+        isPayLaterContribution -> "Pay Later Contribution"
+        else -> "Pay Every Trip Contribution"
+    }
+
+    val contributionIcon = when {
+        isAdminAdjustment -> Icons.Default.AdminPanelSettings
+        isPayLaterContribution -> Icons.Default.Schedule
+        else -> Icons.Default.MonetizationOn
+    }
+
+    val iconTint = when {
+        isAdminAdjustment -> Color(0xFF9C27B0)
+        isPayLaterContribution -> Color(0xFFFFA000)
+        else -> Color(0xFF4CAF50)
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -429,14 +496,9 @@ private fun ContributionItem(contribution: FirebaseContribution) {
         ) {
             // Contribution Type Icon
             Icon(
-                imageVector = when (contribution.contributionType) {
-                    "COIN_INSERTION" -> Icons.Default.MonetizationOn
-                    "MANUAL" -> Icons.Default.Edit
-                    "ADMIN_ADJUSTMENT" -> Icons.Default.AdminPanelSettings
-                    else -> Icons.Default.Payment
-                },
+                imageVector = contributionIcon,
                 contentDescription = null,
-                tint = Color(0xFF4CAF50),
+                tint = iconTint,
                 modifier = Modifier.size(32.dp)
             )
 
@@ -447,12 +509,7 @@ private fun ContributionItem(contribution: FirebaseContribution) {
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
-                    text = when (contribution.contributionType) {
-                        "COIN_INSERTION" -> "Coin Insertion"
-                        "MANUAL" -> "Manual Entry"
-                        "ADMIN_ADJUSTMENT" -> "Admin Adjustment"
-                        else -> "Payment"
-                    },
+                    text = contributionTitle,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
                     color = Color.Black
@@ -463,6 +520,15 @@ private fun ContributionItem(contribution: FirebaseContribution) {
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.Gray
                 )
+
+                if (isPayLaterContribution) {
+                    Text(
+                        text = "Marked as pay later (unpaid)",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFFFFA000),
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                }
 
                 if (contribution.notes.isNotEmpty()) {
                     Text(
@@ -616,7 +682,12 @@ private fun PaymentModeAndBalanceCard(
                         color = Color.Gray
                     )
                     Text(
-                        text = if (paymentMode == "pay_later") "Pay Later" else "Pay Every Trip",
+                        text = when (paymentMode) {
+                            "pay_later" -> "Pay Later"
+                            "pay_balance" -> "Pay Balance Now"
+                            "pay_every_trip" -> "Pay Every Trip"
+                            else -> paymentMode.replaceFirstChar { it.uppercase() }
+                        },
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = Color.Black
@@ -705,11 +776,11 @@ private fun PaymentModeAndBalanceCard(
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = if (payBalanceMarked)
-                            "Go to the terminal to settle your balance"
-                        else
-                            "Outstanding balance from completed trips. Click button above when ready to pay at terminal.",
+                        Text(
+                            text = if (payBalanceMarked)
+                                "Go to the terminal to settle your balance"
+                            else
+                                "Outstanding balance from completed trips. Click button above when ready to pay at terminal.",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFFD32F2F)
                     )
@@ -724,16 +795,21 @@ private fun PaymentModeOption(
     title: String,
     description: String,
     isSelected: Boolean,
+    enabled: Boolean = true,
     onClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) Color(0xFF1976D2) else Color.White
+            containerColor = when {
+                !enabled -> Color(0xFFF5F5F5)
+                isSelected -> Color(0xFF1976D2)
+                else -> Color.White
+            }
         ),
-        border = if (isSelected) null else androidx.compose.foundation.BorderStroke(1.dp, Color.LightGray)
+        border = if (isSelected) null else androidx.compose.foundation.BorderStroke(1.dp, Color.LightGray.copy(alpha = if (enabled) 1f else 0.5f))
     ) {
         Row(
             modifier = Modifier
@@ -744,8 +820,11 @@ private fun PaymentModeOption(
             RadioButton(
                 selected = isSelected,
                 onClick = onClick,
+                enabled = enabled,
                 colors = RadioButtonDefaults.colors(
-                    selectedColor = if (isSelected) Color.White else Color(0xFF1976D2)
+                    selectedColor = if (isSelected) Color.White else Color(0xFF1976D2),
+                    disabledSelectedColor = Color.White.copy(alpha = 0.3f),
+                    disabledUnselectedColor = Color.Gray.copy(alpha = 0.4f)
                 )
             )
             Spacer(modifier = Modifier.width(12.dp))
@@ -754,12 +833,20 @@ private fun PaymentModeOption(
                     text = title,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    color = if (isSelected) Color.White else Color.Black
+                    color = when {
+                        !enabled -> Color.Gray
+                        isSelected -> Color.White
+                        else -> Color.Black
+                    }
                 )
                 Text(
                     text = description,
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (isSelected) Color.White.copy(alpha = 0.9f) else Color.Gray
+                    color = when {
+                        !enabled -> Color.Gray.copy(alpha = 0.6f)
+                        isSelected -> Color.White.copy(alpha = 0.9f)
+                        else -> Color.Gray
+                    }
                 )
             }
         }

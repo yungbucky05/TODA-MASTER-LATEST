@@ -6,6 +6,7 @@ import com.example.toda.service.FirebaseAuthService
 import com.example.toda.service.FirebaseSyncService
 import com.example.toda.service.ChatService
 import com.example.toda.service.RoutingService
+import com.example.toda.service.DriverPaymentService
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import dagger.Module
@@ -62,10 +63,17 @@ object DatabaseModule {
 
     @Provides
     @Singleton
+    fun provideDriverPaymentService(database: FirebaseDatabase): DriverPaymentService {
+        return DriverPaymentService(database)
+    }
+
+    @Provides
+    @Singleton
     fun provideTODARepository(
         firebaseService: FirebaseRealtimeDatabaseService,
-        authService: FirebaseAuthService
+        authService: FirebaseAuthService,
+        driverPaymentService: DriverPaymentService
     ): TODARepository {
-        return TODARepository(firebaseService, authService)
+        return TODARepository(firebaseService, authService, driverPaymentService)
     }
 }

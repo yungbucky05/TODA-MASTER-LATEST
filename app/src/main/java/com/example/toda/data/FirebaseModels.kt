@@ -279,7 +279,8 @@ data class FirebaseContribution(
     val notes: String = "",
     val deviceId: String = "", // Which coin insertion device recorded this
     val verified: Boolean = true,
-    val source: String = "hardware" // "hardware" | "mobile"
+    val source: String = "hardware", // "hardware" | "mobile"
+    val paid: Boolean = true // false indicates pay_later contribution
 )
 
 @IgnoreExtraProperties

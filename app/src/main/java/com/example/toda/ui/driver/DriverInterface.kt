@@ -70,6 +70,7 @@ fun DriverInterface(
 
     // Payment mode and balance state - for display and mode selection
     var paymentMode by remember { mutableStateOf<String?>(null) }
+    var isRestoringPaymentMode by remember { mutableStateOf(false) }
     var driverBalance by remember { mutableStateOf(0.0) }
     var showPaymentModeSelection by remember { mutableStateOf(false) }
 
@@ -171,6 +172,23 @@ fun DriverInterface(
                 println("Driver ${user.id} payment mode changed to: $mode")
                 paymentMode = mode
             }
+        }
+    }
+
+    LaunchedEffect(driverBalance, paymentMode) {
+        if (!isRestoringPaymentMode && paymentMode == "pay_balance" && driverBalance <= 0.0) {
+            isRestoringPaymentMode = true
+            println("=== DRIVER INTERFACE AUTO RESTORE PAYMENT MODE ===")
+            viewModel.restorePreferredPaymentMode(user.id).fold(
+                onSuccess = { restoredMode ->
+                    println("✓ Payment mode restored to $restoredMode after balance cleared")
+                    paymentMode = restoredMode
+                },
+                onFailure = { error ->
+                    println("✗ Failed to restore payment mode in interface: ${error.message}")
+                }
+            )
+            isRestoringPaymentMode = false
         }
     }
 
@@ -654,6 +672,14 @@ fun DriverInterface(
                                             android.widget.Toast.LENGTH_LONG
                                         ).show()
                                     }
+                                } else if (selectedMode == "pay_balance") {
+                                    println("=== PAY BALANCE MODE SELECTED ===")
+                                    println("Switching kiosk to balance payoff on next RFID tap")
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        "Pay balance mode activated. Visit the terminal to settle your balance.",
+                                        android.widget.Toast.LENGTH_LONG
+                                    ).show()
                                 } else {
                                     // Pay Every Trip mode: Inform driver to use hardware system
                                     println("=== PAY EVERY TRIP MODE SELECTED ===")
@@ -751,8 +777,14 @@ fun DashboardContent(
                                 fontSize = 14.sp,
                                 color = Color.Gray
                             )
+                            val paymentModeLabel = when (paymentMode) {
+                                "pay_later" -> "Pay Later"
+                                "pay_balance" -> "Pay Balance Now"
+                                "pay_every_trip" -> "Pay Every Trip"
+                                else -> paymentMode.replaceFirstChar { it.uppercase() }
+                            }
                             Text(
-                                text = if (paymentMode == "pay_later") "Pay Later" else "Pay Every Trip",
+                                text = paymentModeLabel,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = Color.Black
@@ -787,8 +819,13 @@ fun DashboardContent(
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
+                            val balanceMessage = if (paymentMode == "pay_balance") {
+                                "Pay balance mode active. Settle at terminal before taking new trips."
+                            } else {
+                                "Outstanding balance from completed trips"
+                            }
                             Text(
-                                text = "Outstanding balance from completed trips",
+                                text = balanceMessage,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Color(0xFFFF9800)
                             )
@@ -1124,28 +1161,31 @@ fun BookingMonitoringCard(
 
             // Payment mode indicator
             if (booking.paymentMode.isNotEmpty()) {
+                val (pillColor, iconTint, label) = when (booking.paymentMode) {
+                    "pay_later" -> Triple(Color(0xFFFFF9C4), Color(0xFFFF9800), "Pay Later")
+                    "pay_balance" -> Triple(Color(0xFFFFECB3), Color(0xFFFFA000), "Pay Balance Now")
+                    else -> Triple(Color(0xFFE3F2FD), Color(0xFF1976D2), "Pay Every Trip")
+                }
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(
-                            if (booking.paymentMode == "pay_later") Color(0xFFFFF9C4) else Color(0xFFE3F2FD),
-                            RoundedCornerShape(8.dp)
-                        )
+                        .background(pillColor, RoundedCornerShape(8.dp))
                         .padding(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         Icons.Default.Payment,
                         contentDescription = null,
-                        tint = if (booking.paymentMode == "pay_later") Color(0xFFFF9800) else Color(0xFF1976D2),
+                        tint = iconTint,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (booking.paymentMode == "pay_later") "Pay Later" else "Pay Every Trip",
+                        text = label,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
-                        color = if (booking.paymentMode == "pay_later") Color(0xFFFF9800) else Color(0xFF1976D2)
+                        color = iconTint
                     )
                 }
                 Spacer(modifier = Modifier.height(12.dp))
@@ -1526,28 +1566,31 @@ fun HistoryBookingCard(booking: Booking) {
 
             // Payment mode indicator
             if (booking.paymentMode.isNotEmpty()) {
+                val (pillColor, iconTint, label) = when (booking.paymentMode) {
+                    "pay_later" -> Triple(Color(0xFFFFF9C4), Color(0xFFFF9800), "Pay Later")
+                    "pay_balance" -> Triple(Color(0xFFFFECB3), Color(0xFFFFA000), "Pay Balance Now")
+                    else -> Triple(Color(0xFFE3F2FD), Color(0xFF1976D2), "Pay Every Trip")
+                }
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(
-                            if (booking.paymentMode == "pay_later") Color(0xFFFFF9C4) else Color(0xFFE3F2FD),
-                            RoundedCornerShape(8.dp)
-                        )
+                        .background(pillColor, RoundedCornerShape(8.dp))
                         .padding(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         Icons.Default.Payment,
                         contentDescription = null,
-                        tint = if (booking.paymentMode == "pay_later") Color(0xFFFF9800) else Color(0xFF1976D2),
+                        tint = iconTint,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = if (booking.paymentMode == "pay_later") "Pay Later" else "Pay Every Trip",
+                        text = label,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium,
-                        color = if (booking.paymentMode == "pay_later") Color(0xFFFF9800) else Color(0xFF1976D2)
+                        color = iconTint
                     )
                 }
                 Spacer(modifier = Modifier.height(12.dp))
