@@ -41,9 +41,40 @@ fun CustomerDashboardScreen(
 
     var showDiscountCategoryDialog by remember { mutableStateOf(false) }
     var showPendingApplicationDialog by remember { mutableStateOf(false) }
+    var showHelpDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(userId) {
         viewModel.loadUserData(userId)
+    }
+
+    if (showHelpDialog) {
+        AlertDialog(
+            onDismissRequest = { showHelpDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Help, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("How to use TODA")
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "- Tap Book a Ride to request a driver.\n" +
+                            "- Review Passenger Details to confirm your contact info.\n" +
+                            "- Apply for Discount if you qualify for special fares.\n" +
+                            "- Check Ride Summary for your recent trips.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showHelpDialog = false }) {
+                    Text("Got it")
+                }
+            }
+        )
     }
 
     // Pending Application Dialog
@@ -150,7 +181,8 @@ fun CustomerDashboardScreen(
             item {
                 DashboardHeader(
                     profile = userProfile,
-                    onBookRide = onBookRide
+                    onBookRide = onBookRide,
+                    onShowHelp = { showHelpDialog = true }
                 )
             }
 
@@ -219,7 +251,8 @@ private fun DashboardMessageCard(
 @Composable
 private fun DashboardHeader(
     profile: UserProfile?,
-    onBookRide: () -> Unit
+    onBookRide: () -> Unit,
+    onShowHelp: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -281,6 +314,17 @@ private fun DashboardHeader(
                     fontWeight = FontWeight.Bold
                 )
             }
+        }
+
+        IconButton(
+            onClick = onShowHelp,
+            modifier = Modifier.align(Alignment.TopEnd)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Help,
+                contentDescription = "How to use the app",
+                tint = MaterialTheme.colorScheme.onPrimary
+            )
         }
     }
 }
