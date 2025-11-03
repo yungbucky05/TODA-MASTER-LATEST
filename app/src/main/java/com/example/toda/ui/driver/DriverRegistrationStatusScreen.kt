@@ -44,8 +44,10 @@ fun DriverRegistrationStatusScreen(
     var error by remember { mutableStateOf<String?>(null) }
 
     // Photo upload states
-    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
-    var isUploadingPhoto by remember { mutableStateOf(false) }
+    var selectedLicenseUri by remember { mutableStateOf<Uri?>(null) }
+    var isUploadingLicensePhoto by remember { mutableStateOf(false) }
+    var selectedSelfieUri by remember { mutableStateOf<Uri?>(null) }
+    var isUploadingSelfie by remember { mutableStateOf(false) }
 
     // Edit profile states
     var showEditDialog by remember { mutableStateOf(false) }
@@ -58,53 +60,119 @@ fun DriverRegistrationStatusScreen(
     val context = LocalContext.current
     val scrollState = rememberScrollState()
 
-    // Image picker launcher
-    val imagePickerLauncher = rememberLauncherForActivityResult(
+    // Image pickers for document uploads
+    val licenseImagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
-            selectedImageUri = it
-            isUploadingPhoto = true
+            selectedLicenseUri = it
+            isUploadingLicensePhoto = true
 
-            // Upload to Firebase Storage
             val storageRef = FirebaseStorage.getInstance().reference
             val photoRef = storageRef.child("driver_licenses/${driverId}_${System.currentTimeMillis()}.jpg")
 
             photoRef.putFile(it)
-                .addOnSuccessListener { taskSnapshot ->
-                    photoRef.downloadUrl.addOnSuccessListener { downloadUri ->
-                        // Update driver's license photo URL in database with timestamp
-                        val updates = hashMapOf<String, Any>(
-                            "licensePhotoURL" to downloadUri.toString(),
-                            "licensePhotoUploadedAt" to System.currentTimeMillis() // ADD TIMESTAMP
-                        )
+                .addOnSuccessListener {
+                    photoRef.downloadUrl
+                        .addOnSuccessListener { downloadUri ->
+                            val updates = hashMapOf<String, Any>(
+                                "licensePhotoURL" to downloadUri.toString(),
+                                "licensePhotoUploadedAt" to System.currentTimeMillis()
+                            )
 
-                        FirebaseDatabase.getInstance()
-                            .getReference("drivers/$driverId")
-                            .updateChildren(updates)
-                            .addOnSuccessListener {
-                                isUploadingPhoto = false
-                                Toast.makeText(
-                                    context,
-                                    "License photo uploaded successfully",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                            .addOnFailureListener { error ->
-                                isUploadingPhoto = false
-                                Toast.makeText(
-                                    context,
-                                    "Failed to update photo: ${error.message}",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                    }
+                            FirebaseDatabase.getInstance()
+                                .getReference("drivers/$driverId")
+                                .updateChildren(updates)
+                                .addOnSuccessListener {
+                                    isUploadingLicensePhoto = false
+                                    Toast.makeText(
+                                        context,
+                                        "License photo uploaded successfully",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                                .addOnFailureListener { error ->
+                                    isUploadingLicensePhoto = false
+                                    Toast.makeText(
+                                        context,
+                                        "Failed to update photo: ${error.message}",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                        }
+                        .addOnFailureListener { error ->
+                            isUploadingLicensePhoto = false
+                            Toast.makeText(
+                                context,
+                                "Failed to retrieve license photo URL: ${error.message}",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
                 }
                 .addOnFailureListener { error ->
-                    isUploadingPhoto = false
+                    isUploadingLicensePhoto = false
                     Toast.makeText(
                         context,
                         "Failed to upload photo: ${error.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+        }
+    }
+
+    val selfieImagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            selectedSelfieUri = it
+            isUploadingSelfie = true
+
+            val storageRef = FirebaseStorage.getInstance().reference
+            val photoRef = storageRef.child("driver_selfies/${driverId}_${System.currentTimeMillis()}.jpg")
+
+            photoRef.putFile(it)
+                .addOnSuccessListener {
+                    photoRef.downloadUrl
+                        .addOnSuccessListener { downloadUri ->
+                            val updates = hashMapOf<String, Any>(
+                                "selfiePhotoURL" to downloadUri.toString(),
+                                "selfiePhotoUploadedAt" to System.currentTimeMillis()
+                            )
+
+                            FirebaseDatabase.getInstance()
+                                .getReference("drivers/$driverId")
+                                .updateChildren(updates)
+                                .addOnSuccessListener {
+                                    isUploadingSelfie = false
+                                    Toast.makeText(
+                                        context,
+                                        "Selfie uploaded successfully",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                                .addOnFailureListener { error ->
+                                    isUploadingSelfie = false
+                                    Toast.makeText(
+                                        context,
+                                        "Failed to update selfie: ${error.message}",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                        }
+                        .addOnFailureListener { error ->
+                            isUploadingSelfie = false
+                            Toast.makeText(
+                                context,
+                                "Failed to retrieve selfie URL: ${error.message}",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                }
+                .addOnFailureListener { error ->
+                    isUploadingSelfie = false
+                    Toast.makeText(
+                        context,
+                        "Failed to upload selfie: ${error.message}",
                         Toast.LENGTH_SHORT
                     ).show()
                 }
@@ -140,6 +208,7 @@ fun DriverRegistrationStatusScreen(
                             licenseNumber = snapshot.child("licenseNumber").value as? String ?: "",
                             tricyclePlateNumber = snapshot.child("tricyclePlateNumber").value as? String ?: "",
                             licensePhotoURL = snapshot.child("licensePhotoURL").value as? String ?: "",
+                            selfiePhotoURL = snapshot.child("selfiePhotoURL").value as? String ?: "",
                             verificationStatus = snapshot.child("verificationStatus").value as? String ?: "pending",
                             rejectionReason = snapshot.child("rejectionReason").value as? String ?: "",
                             rfidUID = rfidNumber, // Store rfidNumber in rfidUID field for display
@@ -282,9 +351,16 @@ fun DriverRegistrationStatusScreen(
                         if (driver!!.verificationStatus != "verified") {
                             DocumentUploadCard(
                                 driver = driver!!,
-                                selectedImageUri = selectedImageUri,
-                                isUploadingPhoto = isUploadingPhoto,
-                                onUploadClick = { imagePickerLauncher.launch("image/*") }
+                                selectedLicenseUri = selectedLicenseUri,
+                                isUploadingLicensePhoto = isUploadingLicensePhoto,
+                                onUploadClick = { licenseImagePickerLauncher.launch("image/*") }
+                            )
+
+                            SelfieUploadCard(
+                                driver = driver!!,
+                                selectedSelfieUri = selectedSelfieUri,
+                                isUploadingSelfie = isUploadingSelfie,
+                                onUploadClick = { selfieImagePickerLauncher.launch("image/*") }
                             )
                         }
 
@@ -737,8 +813,8 @@ fun VerificationStatusCard(driver: Driver) {
 @Composable
 fun DocumentUploadCard(
     driver: Driver,
-    selectedImageUri: Uri?,
-    isUploadingPhoto: Boolean,
+    selectedLicenseUri: Uri?,
+    isUploadingLicensePhoto: Boolean,
     onUploadClick: () -> Unit
 ) {
     Card(
@@ -781,10 +857,10 @@ fun DocumentUploadCard(
                                 contentScale = ContentScale.Fit
                             )
                         }
-                        selectedImageUri != null -> {
+                        selectedLicenseUri != null -> {
                             AsyncImage(
                                 model = ImageRequest.Builder(LocalContext.current)
-                                    .data(selectedImageUri)
+                                    .data(selectedLicenseUri)
                                     .crossfade(true)
                                     .build(),
                                 contentDescription = "Selected License",
@@ -812,7 +888,7 @@ fun DocumentUploadCard(
                         }
                     }
 
-                    if (isUploadingPhoto) {
+                    if (isUploadingLicensePhoto) {
                         CircularProgressIndicator()
                     }
                 }
@@ -822,7 +898,7 @@ fun DocumentUploadCard(
             Button(
                 onClick = onUploadClick,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !isUploadingPhoto,
+                enabled = !isUploadingLicensePhoto,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF667EEA)
                 )
@@ -834,7 +910,7 @@ fun DocumentUploadCard(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = if (isUploadingPhoto) "Uploading..."
+                    text = if (isUploadingLicensePhoto) "Uploading..."
                            else if (driver.licensePhotoURL.isNotEmpty()) "Replace License Photo"
                            else "Upload License Photo",
                     fontSize = 16.sp
@@ -844,6 +920,124 @@ fun DocumentUploadCard(
             if (driver.licensePhotoURL.isEmpty()) {
                 Text(
                     text = "⚠️ License photo is required for verification",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = Color(0xFFD97706)
+                    )
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun SelfieUploadCard(
+    driver: Driver,
+    selectedSelfieUri: Uri?,
+    isUploadingSelfie: Boolean,
+    onUploadClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = "🤳 Driver Selfie",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+            )
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFFF8F9FA)
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    when {
+                        driver.selfiePhotoURL.isNotEmpty() -> {
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(driver.selfiePhotoURL)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = "Driver Selfie",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+                        selectedSelfieUri != null -> {
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(selectedSelfieUri)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = "Selected Selfie",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+                        else -> {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Face,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(48.dp),
+                                    tint = Color.Gray
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "No selfie uploaded",
+                                    color = Color.Gray
+                                )
+                            }
+                        }
+                    }
+
+                    if (isUploadingSelfie) {
+                        CircularProgressIndicator()
+                    }
+                }
+            }
+
+            // Upload button
+            Button(
+                onClick = onUploadClick,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isUploadingSelfie,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF4C51BF)
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Upload,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = if (isUploadingSelfie) "Uploading..."
+                           else if (driver.selfiePhotoURL.isNotEmpty()) "Replace Selfie"
+                           else "Upload Selfie",
+                    fontSize = 16.sp
+                )
+            }
+
+            if (driver.selfiePhotoURL.isEmpty()) {
+                Text(
+                    text = "⚠️ A recent selfie is required for verification",
                     style = MaterialTheme.typography.bodySmall.copy(
                         color = Color(0xFFD97706)
                     )

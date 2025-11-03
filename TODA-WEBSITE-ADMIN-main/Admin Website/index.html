@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TODA Admin Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" type="image/png" href="moto_logo.png">
+</head>
+<body>
+  <div class="dashboard-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="logo">
+        <div class="logo-icon">
+          <img src="moto_logo.png" alt="TODA Logo">
+        </div>
+        <div class="logo-text">
+          <h2>TODA</h2>
+          <p>Admin Panel</p>
+        </div>
+      </div>
+      
+      <nav class="nav-menu">
+        <a href="#" class="nav-item active" onclick="showSection('dashboard')">
+          <span class="nav-icon">📊</span>
+          <span class="nav-label">Dashboard</span>
+        </a>
+        <a href="DriverManagement/DriverManagement.html" class="nav-item">
+          <span class="nav-icon">👥</span>
+          <span class="nav-label">Drivers</span>
+        </a>
+        <a href="BookingHistory/BookingHistory.html" class="nav-item">
+          <span class="nav-icon">📋</span>
+          <span class="nav-label">Bookings</span>
+        </a>
+        <a href="ContributionsHistory/ContributionsHistory.html" class="nav-item">
+          <span class="nav-icon">💰</span>
+          <span class="nav-label">Contributions</span>
+        </a>
+        <a href="QueueManagement/QueueManagement.html" class="nav-item">
+          <span class="nav-icon">📝</span>
+          <span class="nav-label">Queue</span>
+        </a>
+        <a href="DiscountApplications/DiscountApplications.html" class="nav-item">
+          <span class="nav-icon">🎫</span>
+          <span class="nav-label">Discounts</span>
+          <span class="nav-badge" id="discountBadge">0</span>
+        </a>
+        <a href="FlaggedAccounts/FlaggedAccounts.html" class="nav-item">
+          <span class="nav-icon">🚩</span>
+          <span class="nav-label">Flagged Accounts</span>
+          <span class="nav-badge" id="flaggedBadge">0</span>
+        </a>
+        <a href="FareMatrix/FareMatrix.html" class="nav-item">
+          <span class="nav-icon">💵</span>
+          <span class="nav-label">Fare Matrix</span>
+        </a>
+        <a href="RoleManagement/RoleManagement.html" class="nav-item">
+          <span class="nav-icon">🛡️</span>
+          <span class="nav-label">Roles</span>
+        </a>
+        <a href="AuditLogs/AuditLogs.html" class="nav-item">
+          <span class="nav-icon">📜</span>
+          <span class="nav-label">Audit Logs</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button id="logoutBtn" class="logout-btn">
+          <span class="nav-icon">🚪</span>
+          <span class="nav-label">Logout</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Top Bar -->
+      <header class="top-bar">
+        <button class="menu-toggle" id="menuToggle">☰</button>
+        <div class="breadcrumb">
+          <span>Home</span>
+          <span class="separator">/</span>
+          <span class="current">Dashboard</span>
+        </div>
+        
+        <div class="top-bar-actions">
+          <div class="notification-container">
+            <button class="notification-bell" id="notificationBell" onclick="toggleNotifications()">
+              🔔
+              <span class="notification-count" id="notificationCount">0</span>
+            </button>
+            
+            <div class="notification-dropdown" id="notificationDropdown">
+              <div class="notification-header">
+                <h3>Notifications</h3>
+                <div class="notification-header-actions">
+                  <button class="mark-all-read" onclick="markAllAsRead()">Mark all read</button>
+                  <button class="clear-all-btn" onclick="clearAllNotifications()">Clear all</button>
+                </div>
+              </div>
+              <div class="notification-list" id="notificationList">
+                <div class="no-notifications">
+                  <span class="no-notif-icon">🔔</span>
+                  <p>No notifications yet</p>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="admin-profile">
+            <div class="profile-info">
+              <span class="profile-name">Admin</span>
+              <span class="profile-role">Administrator</span>
+            </div>
+            <div class="profile-avatar">👤</div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Page Content -->
+      <div class="page-content">
+        <!-- Stats Header with Timeframe Selector -->
+        <div class="stats-header">
+          <h2 class="stats-title">📊 Statistics Overview</h2>
+          <div class="timeframe-selector">
+            <label for="timeframeSelect" class="timeframe-label">📅 Timeframe:</label>
+            <select id="timeframeSelect" class="timeframe-dropdown">
+              <option value="today">Today</option>
+              <option value="week">This Week</option>
+              <option value="month">This Month</option>
+              <option value="all" selected>All Time</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+          <div class="stat-card blue">
+            <div class="stat-icon">👥</div>
+            <div class="stat-details">
+              <div class="stat-value" id="totalDrivers">0</div>
+              <div class="stat-label">Total Drivers</div>
+            </div>
+          </div>
+          
+          <div class="stat-card purple">
+            <div class="stat-icon">📋</div>
+            <div class="stat-details">
+              <div class="stat-value" id="totalBookings">0</div>
+              <div class="stat-label">Total Bookings</div>
+            </div>
+          </div>
+          
+          <div class="stat-card green">
+            <div class="stat-icon">💰</div>
+            <div class="stat-details">
+              <div class="stat-value" id="totalContributions">₱0</div>
+              <div class="stat-label">Total Contributions</div>
+            </div>
+          </div>
+          
+          <div class="stat-card orange">
+            <div class="stat-icon">⏱️</div>
+            <div class="stat-details">
+              <div class="stat-value" id="queueCount">0</div>
+              <div class="stat-label">Queue Today</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="quick-actions">
+          <h3>Quick Actions</h3>
+          <div class="action-grid">
+            <div class="action-card" onclick="navigateTo('DriverManagement/DriverManagement.html')">
+              <div class="action-icon blue">�</div>
+              <div class="action-text">
+                <h4>Manage Drivers</h4>
+                <p>Verify Drivers and Assign RFID</p>
+              </div>
+            </div>
+            
+            <div class="action-card" onclick="navigateTo('BookingHistory/BookingHistory.html')">
+              <div class="action-icon purple">📋</div>
+              <div class="action-text">
+                <h4>View Bookings</h4>
+                <p>Check booking history and status</p>
+              </div>
+            </div>
+            
+            <div class="action-card" onclick="navigateTo('ContributionsHistory/ContributionsHistory.html')">
+              <div class="action-icon green">💰</div>
+              <div class="action-text">
+                <h4>Track Contributions</h4>
+                <p>Monitor driver contributions</p>
+              </div>
+            </div>
+            
+            <div class="action-card" onclick="navigateTo('QueueManagement/QueueManagement.html')">
+              <div class="action-icon orange">📝</div>
+              <div class="action-text">
+                <h4>Manage Queue</h4>
+                <p>View and organize driver queue</p>
+              </div>
+            </div>
+            
+            <div class="action-card" onclick="navigateTo('DiscountApplications/DiscountApplications.html')">
+              <div class="action-icon red">🎫</div>
+              <div class="action-text">
+                <h4>Discount Applications</h4>
+                <p>Review and approve discounts</p>
+              </div>
+            </div>
+            
+            <div class="action-card" onclick="navigateTo('FlaggedAccounts/FlaggedAccounts.html')">
+              <div class="action-icon red">🚩</div>
+              <div class="action-text">
+                <h4>Flagged Accounts</h4>
+                <p>Monitor problematic accounts</p>
+              </div>
+            </div>
+            
+            <div class="action-card" onclick="navigateTo('FareMatrix/FareMatrix.html')">
+              <div class="action-icon teal">💵</div>
+              <div class="action-text">
+                <h4>Fare Matrix</h4>
+                <p>Configure base fare rates</p>
+              </div>
+            </div>
+            
+            <div class="action-card" onclick="navigateTo('AuditLogs/AuditLogs.html')">
+              <div class="action-icon indigo">📜</div>
+              <div class="action-text">
+                <h4>Audit Logs</h4>
+                <p>Track all admin actions</p>
+              </div>
+            </div>
+
+            <div class="action-card" onclick="navigateTo('RoleManagement/RoleManagement.html')">
+              <div class="action-icon slate">🛡️</div>
+              <div class="action-text">
+                <h4>Role Management</h4>
+                <p>Create admin and barker accounts</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Message Container for Notifications -->
+  <div id="messageContainer" class="message-container"></div>
+
+  <!-- Confirmation Modal -->
+  <div id="confirmModal" class="modal">
+    <div class="modal-content confirm-modal-content">
+      <div class="modal-header">
+        <h2 id="confirmTitle">⚠️ Confirm Action</h2>
+        <button class="close-btn" onclick="closeConfirmModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="confirmMessage" style="white-space: pre-wrap; font-size: 15px; line-height: 1.6; color: #495057;"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeConfirmModal()">Cancel</button>
+        <button class="btn-primary" id="confirmButton" onclick="handleConfirm()">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="dashboard.js"></script>
+</body>
+</html>

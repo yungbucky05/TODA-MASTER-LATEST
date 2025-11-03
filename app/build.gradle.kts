@@ -21,7 +21,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    // Add flavor dimension and product flavors for passenger/driver/admin
+    // Add flavor dimension and product flavors for passenger/driver/barker
     flavorDimensions += "role"
     productFlavors {
         create("passenger") {
@@ -35,12 +35,6 @@ android {
             applicationIdSuffix = ".driver"
             versionNameSuffix = "-driver"
             resValue("string", "app_name", "TODA Driver")
-        }
-        create("admin") {
-            dimension = "role"
-            applicationIdSuffix = ".admin"
-            versionNameSuffix = "-admin"
-            resValue("string", "app_name", "TODA Admin")
         }
         create("barker") {
             dimension = "role"

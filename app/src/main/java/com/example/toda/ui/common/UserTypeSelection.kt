@@ -54,18 +54,9 @@ fun UserTypeSelection(
 
         Button(
             onClick = { onUserTypeSelected("driver_login") },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp)
-        ) {
-            Text("Driver Portal")
-        }
-
-        Button(
-            onClick = { onUserTypeSelected("admin") },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Administrator Portal")
+            Text("Driver Portal")
         }
     }
 }

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TODA Admin - Register</title>
+  <link rel="stylesheet" href="login.css">
+</head>
+<body>
+  <div class="login-container">
+    <div class="login-wrapper">
+      <!-- Left Side - Branding -->
+      <div class="login-branding">
+        <div class="brand-content">
+          <div class="brand-logo">
+            <div class="logo-icon-large">🚖</div>
+            <h1>TODA</h1>
+            <p class="brand-subtitle">Admin Registration</p>
+          </div>
+          <div class="brand-features">
+            <div class="feature-item">
+              <span class="feature-icon">👥</span>
+              <div class="feature-text">
+                <h3>Create Account</h3>
+                <p>Register as admin user</p>
+              </div>
+            </div>
+            <div class="feature-item">
+              <span class="feature-icon">🔒</span>
+              <div class="feature-text">
+                <h3>Secure Access</h3>
+                <p>Protected authentication</p>
+              </div>
+            </div>
+            <div class="feature-item">
+              <span class="feature-icon">✅</span>
+              <div class="feature-text">
+                <h3>Quick Setup</h3>
+                <p>Get started in minutes</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Side - Registration Form -->
+      <div class="login-form-container">
+        <div class="login-form-wrapper">
+          <div class="login-header">
+            <h2>Create Account</h2>
+            <p>Register a new admin account</p>
+          </div>
+
+          <form id="registerForm" class="login-form">
+            <div class="form-group">
+              <label for="fullName">Full Name</label>
+              <div class="input-wrapper">
+                <span class="input-icon">👤</span>
+                <input 
+                  type="text" 
+                  id="fullName" 
+                  name="fullName" 
+                  placeholder="Enter your full name"
+                  required
+                  autocomplete="name"
+                >
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="phoneNumber">Phone Number</label>
+              <div class="input-wrapper">
+                <span class="input-icon">📱</span>
+                <input 
+                  type="tel" 
+                  id="phoneNumber" 
+                  name="phoneNumber" 
+                  placeholder="Enter your phone number"
+                  required
+                  autocomplete="tel"
+                  pattern="[0-9+\-\s()]+"
+                  inputmode="numeric"
+                >
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="email">Email Address (Optional)</label>
+              <div class="input-wrapper">
+                <span class="input-icon">✉️</span>
+                <input 
+                  type="email" 
+                  id="email" 
+                  name="email" 
+                  placeholder="Enter your email (optional)"
+                  autocomplete="email"
+                >
+              </div>
+              <small style="color: #64748b; font-size: 12px; margin-top: 4px; display: block;">
+                Email is optional but recommended for password recovery
+              </small>
+            </div>
+
+            <div class="form-group">
+              <label for="password">Password</label>
+              <div class="input-wrapper">
+                <span class="input-icon">🔒</span>
+                <input 
+                  type="password" 
+                  id="password" 
+                  name="password" 
+                  placeholder="Create a password"
+                  required
+                  autocomplete="new-password"
+                  minlength="6"
+                >
+                <button 
+                  type="button" 
+                  class="toggle-password" 
+                  id="togglePassword"
+                  aria-label="Toggle password visibility"
+                >
+                  👁️
+                </button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="confirmPassword">Confirm Password</label>
+              <div class="input-wrapper">
+                <span class="input-icon">🔒</span>
+                <input 
+                  type="password" 
+                  id="confirmPassword" 
+                  name="confirmPassword" 
+                  placeholder="Confirm your password"
+                  required
+                  autocomplete="new-password"
+                  minlength="6"
+                >
+                <button 
+                  type="button" 
+                  class="toggle-password" 
+                  id="toggleConfirmPassword"
+                  aria-label="Toggle password visibility"
+                >
+                  👁️
+                </button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="position">Position (Optional)</label>
+              <div class="input-wrapper">
+                <span class="input-icon">💼</span>
+                <input 
+                  type="text" 
+                  id="position" 
+                  name="position" 
+                  placeholder="e.g., Administrator, Secretary"
+                  autocomplete="organization-title"
+                >
+              </div>
+            </div>
+
+            <button type="submit" class="login-btn" id="registerBtn">
+              <span class="btn-text">Create Account</span>
+              <span class="btn-loader" id="btnLoader"></span>
+            </button>
+          </form>
+
+          <div class="login-footer">
+            <p>Already have an account? <a href="login.html" style="color: #667eea; text-decoration: none; font-weight: 500;">Sign in</a></p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Error Message -->
+    <div id="errorMessage" class="error-message"></div>
+  </div>
+
+  <script type="module" src="register.js"></script>
+</body>
+</html>
+

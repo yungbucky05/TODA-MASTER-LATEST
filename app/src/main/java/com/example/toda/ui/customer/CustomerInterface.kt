@@ -364,7 +364,8 @@ fun CustomerInterface(
                 pickupGeoPoint = pickupGeoPoint!!,
                 dropoffGeoPoint = dropoffGeoPoint!!,
                 estimatedFare = fareBreakdown!!.totalFare,
-                verificationCode = generateVerificationCode()
+                verificationCode = generateVerificationCode(),
+                bookingApp = "passengerApp"
             )
 
             println("Submitting booking: $booking")

@@ -87,6 +87,7 @@ data class FirebaseBooking(
     val todaNumber: String = "",
     // New field to classify trip creation source
     val tripType: String = "",
+    val bookingApp: String = "",
     // Pickup arrival and no-show tracking
     val arrivedAtPickup: Boolean = false,
     val arrivedAtPickupTime: Long = 0L,

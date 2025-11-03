@@ -1,7 +1,10 @@
 package com.example.toda.ui.driver
 
 import android.app.Activity
+import android.net.Uri
 import androidx.compose.foundation.background
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -14,7 +17,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -33,6 +38,9 @@ import com.google.firebase.auth.PhoneAuthOptions
 import com.google.firebase.auth.PhoneAuthProvider
 import java.util.concurrent.TimeUnit
 import android.util.Patterns
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.google.firebase.storage.FirebaseStorage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,6 +89,93 @@ fun DriverLoginScreen(
     var verificationId by remember { mutableStateOf<String?>(null) }
     var resendToken by remember { mutableStateOf<PhoneAuthProvider.ForceResendingToken?>(null) }
 
+    // Document upload states
+    val storage = remember { FirebaseStorage.getInstance() }
+    val storageRef = remember { storage.reference }
+
+    var licensePreviewUri by remember { mutableStateOf<Uri?>(null) }
+    var licensePhotoUrl by remember { mutableStateOf("") }
+    var licenseUploadInProgress by remember { mutableStateOf(false) }
+    var licenseUploadError by remember { mutableStateOf<String?>(null) }
+
+    var selfiePreviewUri by remember { mutableStateOf<Uri?>(null) }
+    var selfiePhotoUrl by remember { mutableStateOf("") }
+    var selfieUploadInProgress by remember { mutableStateOf(false) }
+    var selfieUploadError by remember { mutableStateOf<String?>(null) }
+
+    fun uploadImageToStorage(
+        uri: Uri,
+        folder: String,
+        onStart: () -> Unit,
+        onSuccess: (String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        val sanitizedPhone = phoneNumber.filter { it.isDigit() }.ifBlank { "pending" }
+        val fileName = "${sanitizedPhone}_${System.currentTimeMillis()}.jpg"
+        val photoRef = storageRef.child("$folder/$fileName")
+
+        onStart()
+        photoRef.putFile(uri)
+            .addOnSuccessListener {
+                photoRef.downloadUrl
+                    .addOnSuccessListener { downloadUri ->
+                        onSuccess(downloadUri.toString())
+                    }
+                    .addOnFailureListener { error ->
+                        onError(error.localizedMessage ?: "Failed to fetch uploaded file URL")
+                    }
+            }
+            .addOnFailureListener { error ->
+                onError(error.localizedMessage ?: "Failed to upload image")
+            }
+    }
+
+    val licensePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            licensePreviewUri = it
+            licenseUploadError = null
+            uploadImageToStorage(
+                uri = it,
+                folder = "driver_licenses",
+                onStart = { licenseUploadInProgress = true },
+                onSuccess = { url ->
+                    licenseUploadInProgress = false
+                    licensePhotoUrl = url
+                },
+                onError = { message ->
+                    licenseUploadInProgress = false
+                    licenseUploadError = message
+                    licensePhotoUrl = ""
+                }
+            )
+        }
+    }
+
+    val selfiePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            selfiePreviewUri = it
+            selfieUploadError = null
+            uploadImageToStorage(
+                uri = it,
+                folder = "driver_selfies",
+                onStart = { selfieUploadInProgress = true },
+                onSuccess = { url ->
+                    selfieUploadInProgress = false
+                    selfiePhotoUrl = url
+                },
+                onError = { message ->
+                    selfieUploadInProgress = false
+                    selfieUploadError = message
+                    selfiePhotoUrl = ""
+                }
+            )
+        }
+    }
+
     // Convert PH local number to E.164 +63 format
     fun toE164(input: String): String? {
         val clean = input.filter { it.isDigit() }
@@ -126,7 +221,9 @@ fun DriverLoginScreen(
                                     tricyclePlateNumber = tricyclePlateNumber,
                                     phoneNumber = phoneNumber,
                                     email = email,
-                                    password = password
+                                    password = password,
+                                    licensePhotoURL = licensePhotoUrl,
+                                    selfiePhotoURL = selfiePhotoUrl
                                 )
                                 registrationViewModel.submitRegistration(driver)
                             } else {
@@ -193,7 +290,9 @@ fun DriverLoginScreen(
                                     tricyclePlateNumber = tricyclePlateNumber,
                                     phoneNumber = phoneNumber,
                                     email = email,
-                                    password = password
+                                    password = password,
+                                    licensePhotoURL = licensePhotoUrl,
+                                    selfiePhotoURL = selfiePhotoUrl
                                 )
                                 registrationViewModel.submitRegistration(driver)
                             } else {
@@ -253,7 +352,9 @@ fun DriverLoginScreen(
                         tricyclePlateNumber = tricyclePlateNumber,
                         phoneNumber = phoneNumber,
                         email = email,
-                        password = password
+                        password = password,
+                        licensePhotoURL = licensePhotoUrl,
+                        selfiePhotoURL = selfiePhotoUrl
                     )
                     registrationViewModel.submitRegistration(driver)
                 } else {
@@ -1095,6 +1196,67 @@ fun DriverLoginScreen(
                             singleLine = true
                         )
 
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                text = "Driver's License Photo",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "Upload a clear photo of the front of your driver's license.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (licenseUploadInProgress) {
+                                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                            }
+                            if (licenseUploadError != null) {
+                                Text(
+                                    text = licenseUploadError!!,
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                            val previewModifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 140.dp)
+                            when {
+                                licensePreviewUri != null -> {
+                                    AsyncImage(
+                                        model = ImageRequest.Builder(LocalContext.current)
+                                            .data(licensePreviewUri)
+                                            .crossfade(true)
+                                            .build(),
+                                        contentDescription = "Driver's license preview",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = previewModifier
+                                    )
+                                }
+                                licensePhotoUrl.isNotBlank() -> {
+                                    AsyncImage(
+                                        model = ImageRequest.Builder(LocalContext.current)
+                                            .data(licensePhotoUrl)
+                                            .crossfade(true)
+                                            .build(),
+                                        contentDescription = "Driver's license preview",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = previewModifier
+                                    )
+                                }
+                            }
+                            OutlinedButton(
+                                onClick = { licensePickerLauncher.launch("image/*") },
+                                enabled = !licenseUploadInProgress,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Default.Upload, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(if (licensePhotoUrl.isBlank()) "Upload License Photo" else "Replace License Photo")
+                            }
+                        }
+
+                        Divider()
+
                         // Tricycle Plate Number
                         OutlinedTextField(
                             value = tricyclePlateNumber,
@@ -1118,6 +1280,67 @@ fun DriverLoginScreen(
                             },
                             singleLine = true
                         )
+
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                text = "Driver Selfie",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "Upload a recent selfie without helmet or sunglasses.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (selfieUploadInProgress) {
+                                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                            }
+                            if (selfieUploadError != null) {
+                                Text(
+                                    text = selfieUploadError!!,
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                            val selfiePreviewModifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 140.dp)
+                            when {
+                                selfiePreviewUri != null -> {
+                                    AsyncImage(
+                                        model = ImageRequest.Builder(LocalContext.current)
+                                            .data(selfiePreviewUri)
+                                            .crossfade(true)
+                                            .build(),
+                                        contentDescription = "Driver selfie preview",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = selfiePreviewModifier
+                                    )
+                                }
+                                selfiePhotoUrl.isNotBlank() -> {
+                                    AsyncImage(
+                                        model = ImageRequest.Builder(LocalContext.current)
+                                            .data(selfiePhotoUrl)
+                                            .crossfade(true)
+                                            .build(),
+                                        contentDescription = "Driver selfie preview",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = selfiePreviewModifier
+                                    )
+                                }
+                            }
+                            OutlinedButton(
+                                onClick = { selfiePickerLauncher.launch("image/*") },
+                                enabled = !selfieUploadInProgress,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Default.CameraAlt, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(if (selfiePhotoUrl.isBlank()) "Upload Selfie" else "Replace Selfie")
+                            }
+                        }
+
+                        Divider()
 
                         // Phone Number Field
                         OutlinedTextField(
@@ -1237,7 +1460,23 @@ fun DriverLoginScreen(
                                 startPhoneVerification()
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            enabled = isFormValid(firstName, lastName, sex, address, licenseNumber, tricyclePlateNumber, phoneNumber, email, password, confirmPassword, privacyConsentGiven) && !registrationState.isLoading
+                            enabled = isFormValid(
+                                firstName = firstName,
+                                lastName = lastName,
+                                sex = sex,
+                                address = address,
+                                license = licenseNumber,
+                                plateNumber = tricyclePlateNumber,
+                                phone = phoneNumber,
+                                email = email,
+                                password = password,
+                                confirmPassword = confirmPassword,
+                                licensePhotoUrl = licensePhotoUrl,
+                                selfiePhotoUrl = selfiePhotoUrl,
+                                licenseUploadInProgress = licenseUploadInProgress,
+                                selfieUploadInProgress = selfieUploadInProgress,
+                                privacyConsent = privacyConsentGiven
+                            ) && !registrationState.isLoading
                         ) {
                             if (registrationState.isLoading || isSendingOtp || isVerifyingOtp) {
                                 CircularProgressIndicator(
@@ -1389,6 +1628,10 @@ private fun isFormValid(
     email: String,
     password: String,
     confirmPassword: String,
+    licensePhotoUrl: String,
+    selfiePhotoUrl: String,
+    licenseUploadInProgress: Boolean,
+    selfieUploadInProgress: Boolean,
     privacyConsent: Boolean = false
 ): Boolean {
     return firstName.isNotBlank() &&
@@ -1403,6 +1646,10 @@ private fun isFormValid(
             password.isNotBlank() &&
             password.length >= 6 &&
             password == confirmPassword &&
+            licensePhotoUrl.isNotBlank() &&
+            selfiePhotoUrl.isNotBlank() &&
+            !licenseUploadInProgress &&
+            !selfieUploadInProgress &&
             privacyConsent
 }
 

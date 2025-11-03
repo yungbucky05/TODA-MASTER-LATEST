@@ -423,6 +423,10 @@ class TODARepository @Inject constructor(
         }
     }
 
+    fun observeRegularFareMatrix(): Flow<FareMatrix> {
+        return firebaseService.observeRegularFareMatrix().map { it ?: FareMatrix() }
+    }
+
     // Booking Management
     suspend fun createBooking(booking: Booking): Result<String> {
         return try {
@@ -455,7 +459,8 @@ class TODARepository @Inject constructor(
                 paymentMethod = "CASH", // Default payment method
                 duration = 0, // Will be calculated during trip
                 // New key to indicate origin of booking
-                tripType = "App Booking"
+                tripType = "App Booking",
+                bookingApp = booking.bookingApp.ifBlank { "passengerApp" }
             )
 
             println("Converted Firebase booking: $firebaseBooking")
@@ -553,7 +558,8 @@ class TODARepository @Inject constructor(
                         arrivedAtPickup = firebaseBooking.arrivedAtPickup,
                         arrivedAtPickupTime = firebaseBooking.arrivedAtPickupTime,
                         isNoShow = firebaseBooking.isNoShow,
-                        noShowReportedTime = firebaseBooking.noShowReportedTime
+                        noShowReportedTime = firebaseBooking.noShowReportedTime,
+                        bookingApp = firebaseBooking.bookingApp
                     )
 
                     println("Successfully converted booking: ${booking.id} with status: ${booking.status}")
@@ -697,7 +703,8 @@ class TODARepository @Inject constructor(
                 arrivedAtPickup = firebaseBooking.arrivedAtPickup,
                 arrivedAtPickupTime = firebaseBooking.arrivedAtPickupTime,
                 isNoShow = firebaseBooking.isNoShow,
-                noShowReportedTime = firebaseBooking.noShowReportedTime
+                noShowReportedTime = firebaseBooking.noShowReportedTime,
+                bookingApp = firebaseBooking.bookingApp
             )
         } catch (e: Exception) {
             println("Error getting booking by ID: ${e.message}")
@@ -828,7 +835,9 @@ class TODARepository @Inject constructor(
                         licenseNumber = driver.licenseNumber,
                         licenseExpiry = 0, // Not in registration form anymore
                         yearsOfExperience = 0, // Not in registration form anymore
-                        tricyclePlateNumber = driver.tricyclePlateNumber // Add tricycle plate number
+                        tricyclePlateNumber = driver.tricyclePlateNumber, // Add tricycle plate number
+                        licensePhotoURL = driver.licensePhotoURL,
+                        selfiePhotoURL = driver.selfiePhotoURL
                     )
 
                     if (driverId != null) {

@@ -1,0 +1,11 @@
+{
+  "rules": {
+    ".read": "auth != null",
+    ".write": "auth != null",
+    "adminUsers": {
+      ".indexOn": ["email"],
+      ".read": "auth != null",
+      ".write": "auth != null"
+    }
+  }
+}

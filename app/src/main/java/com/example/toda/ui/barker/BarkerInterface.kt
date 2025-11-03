@@ -1,34 +1,63 @@
 package com.example.toda.ui.barker
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Place
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.toda.data.Booking
-import com.example.toda.data.User
-import com.example.toda.service.GeocodingService
-import com.example.toda.ui.components.OSMMapView
-import com.example.toda.utils.FeeCalculator
+import com.example.toda.data.BookingStatus
 import com.example.toda.viewmodel.EnhancedBookingViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.Locale
 import org.osmdroid.util.GeoPoint
-import java.text.SimpleDateFormat
-import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,49 +65,74 @@ fun BarkerInterface(
     onLogout: () -> Unit,
     viewModel: EnhancedBookingViewModel = hiltViewModel()
 ) {
-    val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    val geocodingService = remember { GeocodingService() }
     val snackbarHostState = remember { SnackbarHostState() }
+    
+    // Observe active bookings to detect driver assignment
+    val activeBookings by viewModel.activeBookings.collectAsStateWithLifecycle()
+    
+    // Observe fare matrix from database
+    val fareMatrix by viewModel.regularFareMatrix.collectAsStateWithLifecycle()
+    
+    // Track the last submitted booking and driver info
+    var lastSubmittedBookingId by remember { mutableStateOf<String?>(null) }
+    var lastDriverInfo by remember { mutableStateOf<Triple<String, String, String>?>(null) } // Name, TODA, RFID
 
-    // Form state
-    var customerName by remember { mutableStateOf("") }
-    var customerPhone by remember { mutableStateOf("") }
-    var pickupLocation by remember { mutableStateOf("") }
-    var destination by remember { mutableStateOf("") }
-    var pickupGeoPoint by remember { mutableStateOf<GeoPoint?>(null) }
+    val terminalGeoPoint = remember {
+        GeoPoint(14.746010978688304, 121.0513973236084)
+    }
+    val pickupLocationLabel = "TODA Barker Terminal"
+
+    val destinationOptions = remember {
+        listOf(
+            DestinationOption("Cielito", null),
+            DestinationOption("Cristina", null),
+            DestinationOption("Castlespring Heights", null)
+        )
+    } // TODO: Update destination coordinates when they are finalized.
+
+    var selectedDestination by remember { mutableStateOf<DestinationOption?>(null) }
     var dropoffGeoPoint by remember { mutableStateOf<GeoPoint?>(null) }
-    var isSelectingPickup by remember { mutableStateOf(false) }
-    var isSelectingDropoff by remember { mutableStateOf(false) }
-    var isLoadingLocation by remember { mutableStateOf(false) }
+    var passengerCount by remember { mutableStateOf(3) }
     var estimatedFare by remember { mutableStateOf(0.0) }
     var isSubmitting by remember { mutableStateOf(false) }
 
-    // Calculate fare when both locations are selected
-    LaunchedEffect(pickupGeoPoint, dropoffGeoPoint) {
-        if (pickupGeoPoint != null && dropoffGeoPoint != null) {
-            val driverLocation = GeoPoint(14.746, 121.048) // Default TODA location
-            // Use the same fare calculation logic as CustomerInterface
-            val passengerDistance = calculateDistance(pickupGeoPoint!!, dropoffGeoPoint!!)
-            val driverToPickupDistance = calculateDistance(driverLocation, pickupGeoPoint!!)
-
-            // Base fare calculation
-            val baseFare = calculateFare(passengerDistance)
-
-            // Driver travel fee
-            val driverTravelFee = if (driverToPickupDistance <= 1.0) {
-                0.0
-            } else {
-                (driverToPickupDistance - 1.0) * 5.0
-            }
-
-            // Convenience fee (no discount for walk-in customers)
-            val convenienceFee = FeeCalculator.convenienceFee(null)
-
-            // Total fare
-            estimatedFare = baseFare + driverTravelFee + convenienceFee
+    // Calculate fare: (baseFare * 3) / number of passengers
+    LaunchedEffect(passengerCount, selectedDestination, fareMatrix) {
+        estimatedFare = if (selectedDestination != null) {
+            (fareMatrix.baseFare * 3) / passengerCount
         } else {
-            estimatedFare = 0.0
+            0.0
+        }
+    }
+    
+    // Watch for driver assignment on the last submitted booking
+    LaunchedEffect(lastSubmittedBookingId, activeBookings) {
+        val bookingId = lastSubmittedBookingId
+        if (bookingId != null) {
+            val booking = activeBookings.find { it.id == bookingId }
+            if (booking != null && booking.status == BookingStatus.ACCEPTED && 
+                booking.driverName.isNotBlank()) {
+                // Driver assigned! Show the info
+                lastDriverInfo = Triple(
+                    booking.driverName,
+                    booking.todaNumber.ifBlank { "N/A" },
+                    booking.driverRFID.ifBlank { "N/A" }
+                )
+                // Auto-clear after 10 seconds
+                delay(10000)
+                lastDriverInfo = null
+                lastSubmittedBookingId = null
+            }
+        }
+    }
+    
+    // Listen for booking state to capture the booking ID
+    val bookingState by viewModel.bookingState.collectAsStateWithLifecycle()
+    LaunchedEffect(bookingState.currentBookingId) {
+        bookingState.currentBookingId?.let { bookingId ->
+            // This is our new booking - watch for driver assignment
+            lastSubmittedBookingId = bookingId
         }
     }
 
@@ -124,7 +178,6 @@ fun BarkerInterface(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Customer Information Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -137,44 +190,21 @@ fun BarkerInterface(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "Customer Information",
+                        text = "Pickup Point",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF1976D2)
                     )
 
-                    OutlinedTextField(
-                        value = customerName,
-                        onValueChange = { customerName = it },
-                        label = { Text("Customer Name") },
-                        placeholder = { Text("Enter full name") },
-                        leadingIcon = {
-                            Icon(Icons.Default.Person, contentDescription = null)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-
-                    OutlinedTextField(
-                        value = customerPhone,
-                        onValueChange = {
-                            // Only allow numbers and limit to 11 digits
-                            if (it.length <= 11 && it.all { char -> char.isDigit() }) {
-                                customerPhone = it
-                            }
-                        },
-                        label = { Text("Phone Number") },
-                        placeholder = { Text("09123456789") },
-                        leadingIcon = {
-                            Icon(Icons.Default.Phone, contentDescription = null)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
+                    Text(
+                        text = pickupLocationLabel,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.Black
                     )
                 }
             }
 
-            // Location Selection Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -187,106 +217,93 @@ fun BarkerInterface(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text(
-                        text = "Trip Details",
+                        text = "Select Destination",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF1976D2)
                     )
 
-                    // Pickup Location
-                    OutlinedTextField(
-                        value = pickupLocation,
-                        onValueChange = { },
-                        label = { Text("Pickup Location") },
-                        placeholder = { Text("Tap map to select") },
-                        leadingIcon = {
-                            Icon(
-                                Icons.Default.LocationOn,
-                                contentDescription = null,
-                                tint = Color(0xFF4CAF50)
+                    destinationOptions.forEach { option ->
+                        val isSelected = selectedDestination?.label == option.label
+                        Card(
+                            onClick = {
+                                selectedDestination = option
+                                dropoffGeoPoint = option.location ?: terminalGeoPoint
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, Color(0xFF1976D2)),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (isSelected) Color(0xFF1976D2) else Color.White,
+                                contentColor = if (isSelected) Color.White else Color(0xFF1976D2)
                             )
-                        },
-                        readOnly = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        trailingIcon = {
-                            TextButton(onClick = { isSelectingPickup = true }) {
-                                Text("Select on Map")
-                            }
-                        },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            disabledTextColor = MaterialTheme.colorScheme.onSurface,
-                            disabledBorderColor = MaterialTheme.colorScheme.outline,
-                            disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            disabledPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        ),
-                        enabled = false
-                    )
-
-                    // Destination
-                    OutlinedTextField(
-                        value = destination,
-                        onValueChange = { },
-                        label = { Text("Destination") },
-                        placeholder = { Text("Tap map to select") },
-                        leadingIcon = {
-                            Icon(
-                                Icons.Default.Place,
-                                contentDescription = null,
-                                tint = Color(0xFFD32F2F)
-                            )
-                        },
-                        readOnly = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        trailingIcon = {
-                            TextButton(onClick = { isSelectingDropoff = true }) {
-                                Text("Select on Map")
-                            }
-                        },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            disabledTextColor = MaterialTheme.colorScheme.onSurface,
-                            disabledBorderColor = MaterialTheme.colorScheme.outline,
-                            disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            disabledPlaceholderColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        ),
-                        enabled = false
-                    )
-
-                    // Map selection status
-                    if (isSelectingPickup || isSelectingDropoff) {
-                        Surface(
-                            color = Color(0xFFE3F2FD),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
-                                modifier = Modifier.padding(12.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
-                                    Icons.Default.TouchApp,
+                                    Icons.Default.Place,
                                     contentDescription = null,
-                                    tint = Color(0xFF1976D2),
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(24.dp)
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = if (isSelectingPickup)
-                                        "Tap the map to select pickup location"
-                                    else
-                                        "Tap the map to select destination",
-                                    fontSize = 14.sp,
-                                    color = Color(0xFF1976D2),
-                                    fontWeight = FontWeight.Medium
-                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = option.label,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
                             }
                         }
                     }
 
-                    // Estimated Fare Display
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Passengers",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.Black
+                        )
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = { if (passengerCount > 1) passengerCount -= 1 },
+                                enabled = passengerCount > 1,
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text(text = "-")
+                            }
+
+                            Text(
+                                text = passengerCount.toString(),
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            )
+
+                            OutlinedButton(
+                                onClick = { if (passengerCount < 3) passengerCount += 1 },
+                                enabled = passengerCount < 3,
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text(text = "+")
+                            }
+                        }
+                    }
+
                     if (estimatedFare > 0) {
                         Surface(
                             color = Color(0xFFE8F5E9),
@@ -308,122 +325,72 @@ fun BarkerInterface(
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF4CAF50)
                                 )
+                                Text(
+                                    text = "per passenger",
+                                    fontSize = 12.sp,
+                                    color = Color.Gray
+                                )
                             }
                         }
                     }
-                }
-            }
 
-            // Map View
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(400.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-            ) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    OSMMapView(
-                        modifier = Modifier.fillMaxSize(),
-                        pickupLocation = pickupGeoPoint,
-                        dropoffLocation = dropoffGeoPoint,
-                        onMapClick = { geoPoint ->
-                            when {
-                                isSelectingPickup -> {
-                                    pickupGeoPoint = geoPoint
-                                    coroutineScope.launch {
-                                        isLoadingLocation = true
-                                        val locationName = geocodingService.reverseGeocode(
-                                            geoPoint.latitude,
-                                            geoPoint.longitude
-                                        ) ?: "Selected Location"
-                                        pickupLocation = locationName
-                                        isLoadingLocation = false
-                                        isSelectingPickup = false
-                                    }
-                                }
-                                isSelectingDropoff -> {
-                                    dropoffGeoPoint = geoPoint
-                                    coroutineScope.launch {
-                                        isLoadingLocation = true
-                                        val locationName = geocodingService.reverseGeocode(
-                                            geoPoint.latitude,
-                                            geoPoint.longitude
-                                        ) ?: "Selected Location"
-                                        destination = locationName
-                                        isLoadingLocation = false
-                                        isSelectingDropoff = false
-                                    }
-                                }
-                            }
-                        }
-                    )
-
-                    // Loading overlay
-                    if (isLoadingLocation) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color.Black.copy(alpha = 0.3f)),
-                            contentAlignment = Alignment.Center
+                    selectedDestination?.let { option ->
+                        Surface(
+                            color = Color(0xFFE3F2FD),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            CircularProgressIndicator(color = Color.White)
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = "Selected Destination",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF1976D2)
+                                )
+                                Text(
+                                    text = option.label,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.Black
+                                )
+                            }
                         }
                     }
                 }
             }
-
             // Submit Button
             Button(
                 onClick = {
-                    // Validate form
                     when {
-                        customerName.isBlank() -> {
+                        selectedDestination == null -> {
                             coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Please enter customer name")
-                            }
-                        }
-                        customerPhone.length != 11 -> {
-                            coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Please enter valid 11-digit phone number")
-                            }
-                        }
-                        pickupGeoPoint == null -> {
-                            coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Please select pickup location")
-                            }
-                        }
-                        dropoffGeoPoint == null -> {
-                            coroutineScope.launch {
-                                snackbarHostState.showSnackbar("Please select destination")
+                                snackbarHostState.showSnackbar("Please choose a destination")
                             }
                         }
                         else -> {
-                            // Submit booking
                             isSubmitting = true
 
-                            // Use ViewModel's createBooking method
                             viewModel.createBooking(
                                 customerId = "walkin_${System.currentTimeMillis()}",
-                                customerName = customerName,
-                                phoneNumber = customerPhone,
-                                pickupLocation = pickupLocation,
-                                destination = destination,
-                                pickupGeoPoint = pickupGeoPoint!!,
+                                customerName = "Walk-in Customer",
+                                phoneNumber = "00000000000",
+                                pickupLocation = pickupLocationLabel,
+                                destination = selectedDestination!!.label,
+                                pickupGeoPoint = terminalGeoPoint,
                                 dropoffGeoPoint = dropoffGeoPoint!!,
                                 estimatedFare = estimatedFare
                             )
 
-                            // Clear form and show success
                             coroutineScope.launch {
                                 kotlinx.coroutines.delay(1000) // Wait for submission
 
-                                customerName = ""
-                                customerPhone = ""
-                                pickupLocation = ""
-                                destination = ""
-                                pickupGeoPoint = null
+                                selectedDestination = null
                                 dropoffGeoPoint = null
                                 estimatedFare = 0.0
+                                passengerCount = 3
 
                                 snackbarHostState.showSnackbar(
                                     "Booking submitted successfully!",
@@ -463,6 +430,77 @@ fun BarkerInterface(
                 }
             }
 
+            // Driver info card (shown when driver is assigned)
+            lastDriverInfo?.let { (name, toda, rfid) ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color(0xFF4CAF50)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                text = "Driver Assigned!",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                        
+                        Surface(
+                            color = Color.White,
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = "Driver Name: $name",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.Black
+                                )
+                                Text(
+                                    text = "TODA Number: $toda",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.Black
+                                )
+                                Text(
+                                    text = "RFID: $rfid",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.Black
+                                )
+                            }
+                        }
+                        
+                        Text(
+                            text = "Driver info will disappear in a few seconds...",
+                            fontSize = 11.sp,
+                            color = Color.White.copy(alpha = 0.8f)
+                        )
+                    }
+                }
+            }
+
             // Info card
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -494,30 +532,7 @@ fun BarkerInterface(
     }
 }
 
-// Generate a 4-digit verification code
-private fun generateVerificationCode(): String {
-    return (1000..9999).random().toString()
-}
-
-// Calculate distance between two GeoPoints in kilometers
-private fun calculateDistance(from: GeoPoint, to: GeoPoint): Double {
-    val earthRadius = 6371.0 // Earth radius in kilometers
-    val dLat = Math.toRadians(to.latitude - from.latitude)
-    val dLon = Math.toRadians(to.longitude - from.longitude)
-    val a = kotlin.math.sin(dLat / 2) * kotlin.math.sin(dLat / 2) +
-            kotlin.math.cos(Math.toRadians(from.latitude)) *
-            kotlin.math.cos(Math.toRadians(to.latitude)) *
-            kotlin.math.sin(dLon / 2) * kotlin.math.sin(dLon / 2)
-    val c = 2 * kotlin.math.atan2(kotlin.math.sqrt(a), kotlin.math.sqrt(1 - a))
-    return earthRadius * c
-}
-
-// Calculate fare based on distance
-private fun calculateFare(distance: Double): Double {
-    // Base fare structure from CustomerInterface
-    return when {
-        distance <= 1.0 -> 15.0 // ₱15 for first km
-        distance <= 2.0 -> 15.0 + ((distance - 1.0) * 5.0) // +₱5/km for 2nd km
-        else -> 20.0 + ((distance - 2.0) * 10.0) // ₱20 base + ₱10/km after 2km
-    }
-}
+private data class DestinationOption(
+    val label: String,
+    val location: GeoPoint?
+)

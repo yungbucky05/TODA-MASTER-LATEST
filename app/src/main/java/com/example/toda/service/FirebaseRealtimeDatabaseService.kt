@@ -154,6 +154,46 @@ class FirebaseRealtimeDatabaseService {
         awaitClose { usersRef.child(userId).removeEventListener(listener) }
     }
 
+    // Observe FareMatrix for regular trips
+    fun observeRegularFareMatrix(): Flow<FareMatrix?> = callbackFlow {
+        val fareMatrixRef = database.child("fareMatrix").child("regular")
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val baseFare = when (val value = snapshot.child("baseFare").value) {
+                    is Number -> value.toDouble()
+                    is String -> value.toDoubleOrNull() ?: 8.0
+                    else -> 8.0
+                }
+                val perKmRate = when (val value = snapshot.child("perKmRate").value) {
+                    is Number -> value.toDouble()
+                    is String -> value.toDoubleOrNull() ?: 2.0
+                    else -> 2.0
+                }
+                val lastUpdated = when (val value = snapshot.child("lastUpdated").value) {
+                    is Number -> value.toLong()
+                    is String -> value.toLongOrNull() ?: 0L
+                    else -> 0L
+                }
+                val updatedBy = snapshot.child("updatedBy").getValue(String::class.java) ?: ""
+
+                val fareMatrix = FareMatrix(
+                    baseFare = baseFare,
+                    perKmRate = perKmRate,
+                    lastUpdated = lastUpdated,
+                    updatedBy = updatedBy
+                )
+                trySend(fareMatrix)
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                trySend(null)
+            }
+        }
+
+        fareMatrixRef.addValueEventListener(listener)
+        awaitClose { fareMatrixRef.removeEventListener(listener) }
+    }
+
     // Booking Management
     suspend fun createBooking(booking: FirebaseBooking): String? {
         return try {
@@ -396,7 +436,7 @@ class FirebaseRealtimeDatabaseService {
                 },
                 todaNumber = data["todaNumber"] as? String ?: "",
                 tripType = data["tripType"] as? String ?: "",
-                // Add arrival and no-show tracking fields
+                bookingApp = data["bookingApp"] as? String ?: "",
                 arrivedAtPickup = data["arrivedAtPickup"] as? Boolean ?: false,
                 arrivedAtPickupTime = when (val value = data["arrivedAtPickupTime"]) {
                     is Number -> value.toLong()
@@ -753,13 +793,15 @@ class FirebaseRealtimeDatabaseService {
         driverName: String,
         todaNumber: String,
         phoneNumber: String,
-        email: String,
-        address: String,
-        emergencyContact: String,
-        licenseNumber: String,
-        licenseExpiry: Long,
-        yearsOfExperience: Int,
-        tricyclePlateNumber: String
+    email: String,
+    address: String,
+    emergencyContact: String,
+    licenseNumber: String,
+    licenseExpiry: Long,
+    yearsOfExperience: Int,
+    tricyclePlateNumber: String,
+    licensePhotoURL: String,
+    selfiePhotoURL: String
     ): String? {
         return try {
             // Use the provided userId instead of generating a new push key
@@ -778,6 +820,8 @@ class FirebaseRealtimeDatabaseService {
                 "licenseExpiry" to licenseExpiry,
                 "yearsOfExperience" to yearsOfExperience,
                 "tricyclePlateNumber" to tricyclePlateNumber,
+                "licensePhotoURL" to licensePhotoURL,
+                "selfiePhotoURL" to selfiePhotoURL,
                 "rfidUID" to "",
                 "isActive" to false,
                 "registrationDate" to System.currentTimeMillis(),

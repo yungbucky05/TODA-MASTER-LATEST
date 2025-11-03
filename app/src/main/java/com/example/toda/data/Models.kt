@@ -30,7 +30,15 @@ data class Booking(
     // Walk-in booking flag (bookings made at physical terminal)
     val isWalkIn: Boolean = false,
     // Payment mode tracking
-    val paymentMode: String = ""
+    val paymentMode: String = "",
+    val bookingApp: String = ""
+)
+
+data class FareMatrix(
+    val baseFare: Double = 8.0,
+    val perKmRate: Double = 2.0,
+    val lastUpdated: Long = 0L,
+    val updatedBy: String = ""
 )
 
 enum class BookingStatus {
@@ -161,6 +169,7 @@ data class Driver(
     val hasTodaMembershipAssigned: Boolean = false, // true when admin assigns TODA Membership ID
     // Document verification fields
     val licensePhotoURL: String = "", // URL to uploaded driver's license photo
+    val selfiePhotoURL: String = "", // URL to driver's latest selfie for identity verification
     val verificationStatus: String = "pending", // pending, verified, rejected
     val rejectionReason: String = "", // Reason if rejected by admin
     val rejectionReasons: List<String> = emptyList(), // Multiple reasons if applicable

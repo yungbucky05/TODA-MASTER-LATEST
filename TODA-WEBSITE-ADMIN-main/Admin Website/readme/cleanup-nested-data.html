@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cleanup Nested Data</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 700px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+
+    .info-box {
+      background: #d1ecf1;
+      border: 2px solid #17a2b8;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 30px;
+    }
+
+    .info-title {
+      color: #0c5460;
+      font-weight: bold;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+
+    .info-text {
+      color: #0c5460;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .warning-box {
+      background: #fff3cd;
+      border: 2px solid #ffc107;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 30px;
+    }
+
+    .warning-title {
+      color: #856404;
+      font-weight: bold;
+      margin-bottom: 10px;
+      font-size: 16px;
+    }
+
+    .warning-text {
+      color: #856404;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s;
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-secondary {
+      background: #6c757d;
+    }
+
+    .btn-danger {
+      background: #dc3545;
+    }
+
+    .section {
+      margin-bottom: 30px;
+    }
+
+    .section-title {
+      font-size: 18px;
+      color: #333;
+      margin-bottom: 15px;
+      font-weight: 600;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .stat-card {
+      background: #f8f9fa;
+      border: 2px solid #dee2e6;
+      border-radius: 10px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: bold;
+      color: #667eea;
+      margin-bottom: 5px;
+    }
+
+    .stat-label {
+      font-size: 13px;
+      color: #666;
+    }
+
+    .log {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 10px;
+      padding: 15px;
+      max-height: 300px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      margin-top: 20px;
+    }
+
+    .log-item {
+      padding: 5px 0;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .log-item:last-child {
+      border-bottom: none;
+    }
+
+    .log-success {
+      color: #28a745;
+    }
+
+    .log-error {
+      color: #dc3545;
+    }
+
+    .log-info {
+      color: #007bff;
+    }
+
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 15px 0;
+      padding: 15px;
+      background: #fff3cd;
+      border-radius: 10px;
+    }
+
+    .checkbox-container input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+    }
+
+    .checkbox-container label {
+      color: #856404;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🧹 Cleanup Nested Data</h1>
+    <p class="subtitle">Remove old nested flags and rfidHistory from driver/user objects</p>
+
+    <div class="info-box">
+      <div class="info-title">ℹ️ What This Does</div>
+      <div class="info-text">
+        This tool removes old nested <code>flags</code> and <code>rfidHistory</code> arrays from driver and user objects.
+        Use this AFTER migrating data to separate collections.
+        <br><br>
+        <strong>This will NOT delete your data!</strong> It only removes the nested copies that are now stored in separate collections.
+      </div>
+    </div>
+
+    <!-- Step 1: Scan -->
+    <div class="section">
+      <div class="section-title">Step 1: Scan Database</div>
+      <button class="btn btn-secondary" onclick="scanDatabase()">🔍 Scan for Nested Data</button>
+      
+      <div id="scanResults" class="hidden">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-value" id="driversWithFlags">0</div>
+            <div class="stat-label">Drivers with nested flags</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="driversWithHistory">0</div>
+            <div class="stat-label">Drivers with nested rfidHistory</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="usersWithFlags">0</div>
+            <div class="stat-label">Users with nested flags</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="totalToClean">0</div>
+            <div class="stat-label">Total items to clean</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Cleanup -->
+    <div class="section" id="cleanupSection" class="hidden">
+      <div class="section-title">Step 2: Cleanup</div>
+      
+      <div class="warning-box">
+        <div class="warning-title">⚠️ Important</div>
+        <div class="warning-text">
+          Make sure you have migrated your data to separate collections BEFORE running cleanup.
+          This action cannot be undone!
+        </div>
+      </div>
+
+      <div class="checkbox-container">
+        <input type="checkbox" id="confirmCleanup">
+        <label for="confirmCleanup">I have migrated data to separate collections and want to remove nested data</label>
+      </div>
+
+      <button class="btn btn-danger" id="cleanupBtn" disabled onclick="startCleanup()">
+        🧹 Remove Nested Data
+      </button>
+
+      <div id="cleanupLog" class="log hidden"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+    import { getDatabase, ref, get, update } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyA9ADVig4CiO2Y3ELl3unzXajdzxCgRxHI",
+      authDomain: "toda-contribution-system.firebaseapp.com",
+      databaseURL: "https://toda-contribution-system-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "toda-contribution-system",
+      storageBucket: "toda-contribution-system.firebasestorage.app",
+      messagingSenderId: "536068566619",
+      appId: "1:536068566619:web:ff7cc576e59b76ae58997e"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    window.db = getDatabase(app);
+
+    let scanData = {
+      driversWithFlags: [],
+      driversWithHistory: [],
+      usersWithFlags: []
+    };
+
+    // Enable cleanup button when confirmed
+    document.getElementById('confirmCleanup').addEventListener('change', (e) => {
+      document.getElementById('cleanupBtn').disabled = !e.target.checked;
+    });
+
+    window.scanDatabase = async function() {
+      logMessage('info', '🔍 Scanning database for nested data...');
+      
+      try {
+        const driversRef = ref(window.db, 'drivers');
+        const usersRef = ref(window.db, 'users');
+
+        const [driversSnap, usersSnap] = await Promise.all([
+          get(driversRef),
+          get(usersRef)
+        ]);
+
+        // Reset scan data
+        scanData = {
+          driversWithFlags: [],
+          driversWithHistory: [],
+          usersWithFlags: []
+        };
+
+        // Scan drivers
+        if (driversSnap.exists()) {
+          const drivers = driversSnap.val();
+          Object.keys(drivers).forEach(driverId => {
+            const driver = drivers[driverId];
+            if (driver.flags && Object.keys(driver.flags).length > 0) {
+              scanData.driversWithFlags.push(driverId);
+            }
+            if (driver.rfidHistory && Array.isArray(driver.rfidHistory) && driver.rfidHistory.length > 0) {
+              scanData.driversWithHistory.push(driverId);
+            }
+          });
+        }
+
+        // Scan users
+        if (usersSnap.exists()) {
+          const users = usersSnap.val();
+          Object.keys(users).forEach(userId => {
+            const user = users[userId];
+            if (user.flags && Object.keys(user.flags).length > 0) {
+              scanData.usersWithFlags.push(userId);
+            }
+          });
+        }
+
+        // Update UI
+        document.getElementById('driversWithFlags').textContent = scanData.driversWithFlags.length;
+        document.getElementById('driversWithHistory').textContent = scanData.driversWithHistory.length;
+        document.getElementById('usersWithFlags').textContent = scanData.usersWithFlags.length;
+        document.getElementById('totalToClean').textContent = 
+          scanData.driversWithFlags.length + 
+          scanData.driversWithHistory.length + 
+          scanData.usersWithFlags.length;
+
+        document.getElementById('scanResults').classList.remove('hidden');
+        document.getElementById('cleanupSection').classList.remove('hidden');
+
+        const total = scanData.driversWithFlags.length + scanData.driversWithHistory.length + scanData.usersWithFlags.length;
+        
+        if (total === 0) {
+          logMessage('success', '✅ No nested data found! Your database is clean.');
+        } else {
+          logMessage('info', `📊 Found ${total} items with nested data`);
+          logMessage('info', `   - ${scanData.driversWithFlags.length} drivers with nested flags`);
+          logMessage('info', `   - ${scanData.driversWithHistory.length} drivers with nested rfidHistory`);
+          logMessage('info', `   - ${scanData.usersWithFlags.length} users with nested flags`);
+        }
+
+      } catch (error) {
+        logMessage('error', `❌ Error scanning: ${error.message}`);
+        console.error(error);
+      }
+    };
+
+    window.startCleanup = async function() {
+      const total = scanData.driversWithFlags.length + scanData.driversWithHistory.length + scanData.usersWithFlags.length;
+      
+      if (total === 0) {
+        alert('No nested data found to clean!');
+        return;
+      }
+
+      if (!confirm(`This will remove nested data from ${total} items. Are you sure?`)) {
+        return;
+      }
+
+      document.getElementById('cleanupBtn').disabled = true;
+      document.getElementById('cleanupLog').classList.remove('hidden');
+      
+      let cleaned = 0;
+      let errors = 0;
+
+      try {
+        // Clean driver flags
+        for (const driverId of scanData.driversWithFlags) {
+          try {
+            const driverRef = ref(window.db, `drivers/${driverId}`);
+            await update(driverRef, { flags: null });
+            cleaned++;
+            logMessage('success', `✓ Removed nested flags from driver ${driverId}`);
+          } catch (error) {
+            errors++;
+            logMessage('error', `✗ Error cleaning driver ${driverId}: ${error.message}`);
+          }
+        }
+
+        // Clean driver rfidHistory
+        for (const driverId of scanData.driversWithHistory) {
+          try {
+            const driverRef = ref(window.db, `drivers/${driverId}`);
+            await update(driverRef, { rfidHistory: null });
+            cleaned++;
+            logMessage('success', `✓ Removed nested rfidHistory from driver ${driverId}`);
+          } catch (error) {
+            errors++;
+            logMessage('error', `✗ Error cleaning driver ${driverId}: ${error.message}`);
+          }
+        }
+
+        // Clean user flags
+        for (const userId of scanData.usersWithFlags) {
+          try {
+            const userRef = ref(window.db, `users/${userId}`);
+            await update(userRef, { flags: null });
+            cleaned++;
+            logMessage('success', `✓ Removed nested flags from user ${userId}`);
+          } catch (error) {
+            errors++;
+            logMessage('error', `✗ Error cleaning user ${userId}: ${error.message}`);
+          }
+        }
+
+        logMessage('success', `\n✅ Cleanup complete!`);
+        logMessage('info', `   - ${cleaned} items cleaned`);
+        if (errors > 0) {
+          logMessage('error', `   - ${errors} errors`);
+        }
+
+        // Rescan to verify
+        setTimeout(() => {
+          logMessage('info', '\n🔄 Rescanning to verify...');
+          window.scanDatabase();
+        }, 2000);
+
+      } catch (error) {
+        logMessage('error', `❌ Cleanup failed: ${error.message}`);
+        console.error(error);
+      }
+    };
+
+    function logMessage(type, message) {
+      const log = document.getElementById('cleanupLog');
+      const item = document.createElement('div');
+      item.className = `log-item log-${type}`;
+      item.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      log.appendChild(item);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    window.logMessage = logMessage;
+  </script>
+</body>
+</html>

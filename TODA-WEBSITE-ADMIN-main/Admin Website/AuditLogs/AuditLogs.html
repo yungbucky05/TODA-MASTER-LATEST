@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audit Logs - TODA Admin</title>
+  <link rel="stylesheet" href="AuditLogs.css">
+  <link rel="icon" type="image/png" href="../moto_logo.png">
+
+</head>
+<body>
+  <div class="page-container">
+    <!-- Top Bar -->
+    <header class="top-bar">
+      <button class="back-btn" onclick="window.location.href='../index.html'">
+        <span class="icon">←</span> 
+      </button>
+      <div class="page-title">
+        <h1>Audit Logs</h1>
+        <p>Track all administrative actions and changes</p>
+      </div>
+    </header>
+
+    <!-- Summary Cards -->
+    <div class="stats-grid">
+      <div class="stat-card blue">
+        <div class="stat-icon">📊</div>
+        <div class="stat-details">
+          <div class="stat-value" id="todayLogs">0</div>
+          <div class="stat-label">Today's Actions</div>
+        </div>
+      </div>
+      <div class="stat-card purple">
+        <div class="stat-icon">👤</div>
+        <div class="stat-details">
+          <div class="stat-value" id="activeAdmins">0</div>
+          <div class="stat-label">Active Admins</div>
+        </div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-icon">📅</div>
+        <div class="stat-details">
+          <div class="stat-value" id="weekLogs">0</div>
+          <div class="stat-label">This Week</div>
+        </div>
+      </div>
+      <div class="stat-card orange">
+        <div class="stat-icon">📈</div>
+        <div class="stat-details">
+          <div class="stat-value" id="totalLogs">0</div>
+          <div class="stat-label">Total Logs</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Controls Section -->
+    <div class="controls-section">
+      <input type="text" id="searchInput" placeholder="🔍 Search logs..." class="search-input">
+      <select id="moduleFilter" class="filter-select">
+        <option value="all">All Modules</option>
+        <option value="driver_management">Driver Management</option>
+        <option value="queue_management">Queue Management</option>
+        <option value="discount_applications">Discount Applications</option>
+        <option value="contributions_export">Contributions Export</option>
+        <option value="bookings_export">Bookings Export</option>
+        <option value="fare_matrix">Fare Matrix</option>
+      </select>
+      <select id="actionFilter" class="filter-select">
+        <option value="all">All Actions</option>
+        <option value="create">Create</option>
+        <option value="update">Update</option>
+        <option value="delete">Delete</option>
+        <option value="approve">Approve</option>
+        <option value="reject">Reject</option>
+        <option value="export">Export</option>
+      </select>
+      <input type="date" id="dateFilter" class="date-input">
+      <button class="btn-export" onclick="exportLogs()">📥 Export Logs</button>
+      <button class="btn-clear" onclick="clearFilters()">Clear Filters</button>
+    </div>
+
+    <!-- Active Filters Display -->
+    <div id="activeFilters" class="active-filters"></div>
+
+    <!-- Audit Logs List -->
+    <div class="content-card">
+      <div class="card-header">
+        <h2>Audit Trail</h2>
+      </div>
+      <div id="auditLogsList" class="logs-list">
+        <div class="loading">Loading audit logs...</div>
+      </div>
+      
+      <!-- Pagination Controls -->
+      <div id="paginationControls" class="pagination-controls" style="display: none;">
+        <div class="pagination-info">
+          <span id="paginationInfo">Showing 0-0 of 0</span>
+        </div>
+        <div class="pagination-buttons">
+          <button id="firstPageBtn" class="pagination-btn" onclick="goToPage(1)">
+            <span>««</span>
+          </button>
+          <button id="prevPageBtn" class="pagination-btn" onclick="previousPage()">
+            <span>‹</span>
+          </button>
+          <div id="pageNumbers" class="page-numbers"></div>
+          <button id="nextPageBtn" class="pagination-btn" onclick="nextPage()">
+            <span>›</span>
+          </button>
+          <button id="lastPageBtn" class="pagination-btn" onclick="goToPage('last')">
+            <span>»»</span>
+          </button>
+        </div>
+        <div class="items-per-page">
+          <label for="itemsPerPage">Items per page:</label>
+          <select id="itemsPerPage" onchange="changeItemsPerPage()">
+            <option value="10">10</option>
+            <option value="25" selected>25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Log Details Modal -->
+  <div id="logModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Audit Log Details</h2>
+        <button class="close-btn" onclick="closeLogModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="modalBody">
+        <!-- Log details will be injected here -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeLogModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Message Container for Notifications -->
+  <div id="messageContainer" class="message-container"></div>
+
+  <script type="module" src="AuditLogs.js"></script>
+</body>
+</html>

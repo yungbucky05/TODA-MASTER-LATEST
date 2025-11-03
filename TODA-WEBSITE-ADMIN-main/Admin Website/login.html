@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TODA Admin - Login</title>
+  <link rel="stylesheet" href="login.css">
+</head>
+<body>
+  <div class="login-container">
+    <div class="login-wrapper">
+      <!-- Left Side - Branding -->
+      <div class="login-branding">
+        <div class="brand-content">
+          <div class="brand-logo">
+            <div class="logo-icon-large">
+              <img src="moto_logo.png" alt="TODA logo">
+            </div>
+            <div class="brand-identity">
+              <h1>TODA Admin</h1>
+              <p class="brand-subtitle">Operations Command Center</p>
+            </div>
+          </div>
+          <p class="brand-description">
+            Monitor dispatching, contributions, compliance, and alerts in one modern console built for transport cooperatives.
+          </p>
+          <div class="module-grid">
+            <div class="module-card drivers">
+              <div class="module-icon">👥</div>
+              <div>
+                <h3>Driver Management</h3>
+                <p>Verify registrations, assign RFID tags, and keep compliance up to date.</p>
+              </div>
+            </div>
+            <div class="module-card bookings">
+              <div class="module-icon">📋</div>
+              <div>
+                <h3>Booking History</h3>
+                <p>Stay on top of requests, approvals, and completed trips in real time.</p>
+              </div>
+            </div>
+            <div class="module-card contributions">
+              <div class="module-icon">💰</div>
+              <div>
+                <h3>Contributions Ledger</h3>
+                <p>Track cooperative contributions and flag gaps before they escalate.</p>
+              </div>
+            </div>
+            <div class="module-card queue">
+              <div class="module-icon">📝</div>
+              <div>
+                <h3>Queue Control</h3>
+                <p>Balance the dispatch queue and keep routes running smoothly.</p>
+              </div>
+            </div>
+          </div>
+          
+        </div>
+      </div>
+
+      <!-- Right Side - Login Form -->
+      <div class="login-form-container">
+        <div class="login-form-wrapper">
+          <div class="login-header">
+            <h2>Sign in to your console</h2>
+            <p>Use the phone number and password issued to your administrative account.</p>
+          </div>
+
+          <form id="loginForm" class="login-form">
+            <div class="form-group">
+              <label for="phoneNumber">Phone Number</label>
+              <div class="input-wrapper">
+                <span class="input-icon">📱</span>
+                <input
+                  type="tel"
+                  id="phoneNumber"
+                  name="phoneNumber"
+                  placeholder="Enter your phone number"
+                  required
+                  autocomplete="tel"
+                  pattern="[0-9+\-\s()]+"
+                  inputmode="numeric"
+                >
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="password">Password</label>
+              <div class="input-wrapper">
+                <span class="input-icon">🔒</span>
+                <input
+                  type="password"
+                  id="password"
+                  name="password"
+                  placeholder="Enter your password"
+                  required
+                  autocomplete="current-password"
+                >
+                <button
+                  type="button"
+                  class="toggle-password"
+                  id="togglePassword"
+                  aria-label="Toggle password visibility"
+                >
+                  👁️
+                </button>
+              </div>
+            </div>
+
+            <div class="form-options">
+              <label class="remember-me">
+                <input type="checkbox" id="rememberMe" name="rememberMe">
+                <span>Remember me</span>
+              </label>
+              <a href="forgot-password.html" class="forgot-password">Forgot password?</a>
+            </div>
+
+            <button type="submit" class="login-btn" id="loginBtn">
+              <span class="btn-text">Sign In</span>
+              <span class="btn-loader" id="btnLoader"></span>
+            </button>
+          </form>
+
+          
+        </div>
+      </div>
+    </div>
+
+    <!-- Error Message -->
+    <div id="errorMessage" class="error-message"></div>
+  </div>
+
+  <script type="module" src="login.js"></script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+{
+  "actualFare": 20,
+  "arrivedAtPickup": false,
+  "arrivedAtPickupTime": 0,
+  "assignedDriverId": "2A8B5505",
+  "assignedTricycleId": "395",
+  "completionTime": "0",
+  "completionTimeLong": 0,
+  "customerId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+  "customerName": "Ken Zamodio",
+  "destination": "Apitong Street, Barangay 177, Caloocan City",
+  "distance": 0.18896832491726262,
+  "driverName": "Lucas Abad",
+  "driverRFID": "2A8B5505",
+  "dropoffCoordinates": {
+    "lat": 14.74926391047552,
+    "lng": 121.05013438633512
+  },
+  "duration": 0,
+  "estimatedFare": 20,
+  "feedback": "",
+  "id": "-Od8hMiUv5OQNLYcdXb0",
+  "noShow": false,
+  "noShowReportedTime": 0,
+  "paymentMethod": "CASH",
+  "paymentMode": "pay_every_trip",
+  "phoneActuallyVerified": true,
+  "phoneNumber": "09123123123",
+  "phoneVerified": true,
+  "pickupCoordinates": {
+    "lat": 14.747967486622741,
+    "lng": 121.0512706211635
+  },
+  "pickupLocation": "Narra Street, Barangay 177, Caloocan City",
+  "rating": 0,
+  "status": "ACCEPTED",
+  "timestamp": 1762173211890,
+  "todaNumber": "395",
+  "tripType": "App Booking",
+  "verificationCode": "745411"
+}

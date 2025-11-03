@@ -32,11 +32,52 @@ class AdminLoginViewModel @Inject constructor(
             try {
                 _loginState.value = _loginState.value.copy(isLoading = true, error = null)
 
-                // Create email from phone number for Firebase Auth
-                val email = "${phoneNumber}@toda-admin.com"
+                // Try to find the user's actual Firebase Auth email by phone number
+                var authEmail = "${phoneNumber}@toda-admin.com" // Default format
+                var authResult: com.google.firebase.auth.AuthResult? = null
+                
+                // First, try the standard phone format
+                try {
+                    authResult = auth.signInWithEmailAndPassword(authEmail, password).await()
+                } catch (firstAttemptError: Exception) {
+                    // If that fails, search the database for the actual firebaseAuthEmail
+                    try {
+                        val usersRef = database.getReference("users")
+                        val usersSnapshot = usersRef.get().await()
+                        
+                        if (usersSnapshot.exists()) {
+                            // Find user by phone number
+                            for (userSnapshot in usersSnapshot.children) {
+                                val userData = userSnapshot.getValue(object : GenericTypeIndicator<Map<String, Any>>() {})
+                                val userPhone = userData?.get("phoneNumber") as? String 
+                                    ?: userData?.get("phone") as? String
+                                
+                                if (userPhone == phoneNumber) {
+                                    // Found user, get their Firebase Auth email
+                                    val foundAuthEmail = userData?.get("firebaseAuthEmail") as? String
+                                        ?: userData?.get("email") as? String
+                                    
+                                    if (foundAuthEmail != null && foundAuthEmail.isNotBlank()) {
+                                        // Try logging in with the found email
+                                        authEmail = foundAuthEmail
+                                        authResult = auth.signInWithEmailAndPassword(foundAuthEmail, password).await()
+                                        break
+                                    }
+                                }
+                            }
+                        }
+                    } catch (searchError: Exception) {
+                        // If search fails, throw the original error
+                        throw firstAttemptError
+                    }
+                    
+                    // If we still don't have a result, throw the original error
+                    if (authResult == null) {
+                        throw firstAttemptError
+                    }
+                }
 
-                val result = auth.signInWithEmailAndPassword(email, password).await()
-                val user = result.user
+                val user = authResult?.user
 
                 if (user != null) {
                     // Fetch admin profile from database
@@ -49,12 +90,13 @@ class AdminLoginViewModel @Inject constructor(
                         val userData = snapshot.getValue(typeIndicator)
                         val userType = userData?.get("userType") as? String
 
-                        if (userType == "ADMIN") {
+                        // Accept both ADMIN and BARKER user types for login
+                        if (userType == "ADMIN" || userType == "BARKER") {
                             val firebaseUser = FirebaseUser(
                                 id = user.uid,
                                 name = userData["name"] as? String ?: "",
                                 phoneNumber = userData["phoneNumber"] as? String ?: phoneNumber,
-                                userType = "ADMIN",
+                                userType = userType ?: "ADMIN",
                                 // Handle both field naming conventions for backward compatibility
                                 isVerified = (userData["isVerified"] as? Boolean)
                                     ?: (userData["verified"] as? Boolean) ?: true,
@@ -78,7 +120,7 @@ class AdminLoginViewModel @Inject constructor(
                                 userId = user.uid
                             )
                         } else {
-                            throw Exception("Access denied: Admin privileges required")
+                            throw Exception("Access denied: Admin or Barker privileges required")
                         }
                     } else {
                         throw Exception("Admin profile not found")
