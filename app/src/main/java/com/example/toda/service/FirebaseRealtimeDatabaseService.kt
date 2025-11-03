@@ -3,6 +3,7 @@ package com.example.toda.service
 import com.google.firebase.database.*
 import com.google.firebase.database.ktx.database
 import com.google.firebase.ktx.Firebase
+import com.google.firebase.auth.FirebaseAuth
 import com.example.toda.data.*
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -51,7 +52,7 @@ class FirebaseRealtimeDatabaseService {
     private val activeTripsRef = database.child("activeTrips")
     private val systemStatusRef = database.child("systemStatus")
     private val ratingsRef = database.child("ratings") // Add ratings reference
-    private val rfidChangeHistoryRef = database.child("rfidChangeHistory") // Add RFID change history reference
+    private val rfidChangeHistoryRef = database.child("rfidHistory") // FIXED: Changed from rfidChangeHistory to rfidHistory
 
     // User Management
     suspend fun createUser(user: FirebaseUser): Boolean {
@@ -408,13 +409,71 @@ class FirebaseRealtimeDatabaseService {
                 "bookings/$bookingId/status" to status
             )
 
-            driverId?.let {
-                updates["bookings/$bookingId/assignedDriverId"] = it
+            driverId?.let { userId ->
+                updates["bookings/$bookingId/assignedDriverId"] = userId
+
+                // Fetch driver details including payment mode
+                try {
+                    val driverSnapshot = hardwareDriversRef.child(userId).get().await()
+                    if (driverSnapshot.exists()) {
+                        val paymentMode = driverSnapshot.child("paymentMode").getValue(String::class.java) ?: "pay_every_trip"
+                        val driverRFID = driverSnapshot.child("rfidUID").getValue(String::class.java) ?: ""
+                        val driverName = driverSnapshot.child("driverName").getValue(String::class.java) ?: ""
+                        val todaNumber = driverSnapshot.child("todaNumber").getValue(String::class.java) ?: ""
+
+                        // Set payment mode
+                        updates["bookings/$bookingId/paymentMode"] = paymentMode
+                        updates["bookingIndex/$bookingId/paymentMode"] = paymentMode
+
+                        // Set other driver details
+                        if (driverRFID.isNotEmpty()) {
+                            updates["bookings/$bookingId/driverRFID"] = driverRFID
+                            updates["bookingIndex/$bookingId/driverRFID"] = driverRFID
+                        }
+                        if (driverName.isNotEmpty()) {
+                            updates["bookings/$bookingId/driverName"] = driverName
+                        }
+                        if (todaNumber.isNotEmpty()) {
+                            updates["bookings/$bookingId/assignedTricycleId"] = todaNumber
+                            updates["bookings/$bookingId/todaNumber"] = todaNumber
+                        }
+
+                        println("✓ Driver assignment with payment mode: ID=$userId, PaymentMode=$paymentMode")
+                    } else {
+                        // Fallback: default payment mode
+                        updates["bookings/$bookingId/paymentMode"] = "pay_every_trip"
+                    }
+                } catch (e: Exception) {
+                    println("⚠ Error fetching driver details: ${e.message}")
+                    updates["bookings/$bookingId/paymentMode"] = "pay_every_trip"
+                }
             }
 
             // If completing the trip, record completionTime
             if (status == "COMPLETED") {
                 updates["bookings/$bookingId/completionTime"] = System.currentTimeMillis()
+
+                // Remove driver from queue when trip is COMPLETED
+                // Get the driver RFID from the booking
+                val bookingSnapshot = bookingsRef.child(bookingId).get().await()
+                val driverRFID = bookingSnapshot.child("driverRFID").getValue(String::class.java) ?: ""
+
+                if (driverRFID.isNotEmpty()) {
+                    // Find and remove driver from queue
+                    val queueRef = database.child("queue")
+                    val queueSnapshot = queueRef.get().await()
+
+                    for (child in queueSnapshot.children) {
+                        val queueDriverRFID = child.child("driverRFID").getValue(String::class.java) ?: ""
+                        if (queueDriverRFID == driverRFID) {
+                            child.key?.let { queueKey ->
+                                queueRef.child(queueKey).removeValue().await()
+                                println("✓ Driver $driverRFID removed from queue after completing trip")
+                            }
+                            break
+                        }
+                    }
+                }
             }
 
             // Update bookingIndex status as well
@@ -442,15 +501,28 @@ class FirebaseRealtimeDatabaseService {
                 // Set the assignedDriverId to the actual driver user ID
                 updates["bookings/$bookingId/assignedDriverId"] = userId
 
+                println("=== FETCHING DRIVER PAYMENT MODE ===")
+                println("Driver ID: $userId")
+                println("Booking ID: $bookingId")
+
                 // Fetch the driver's details from the drivers table using the user ID
                 try {
                     val driverSnapshot = hardwareDriversRef.child(userId).get().await()
 
                     if (driverSnapshot.exists()) {
+                        println("✓ Driver found in drivers table")
+
                         // Get driver data from hardware drivers table
                         val driverRFID = driverSnapshot.child("rfidUID").getValue(String::class.java) ?: ""
                         val driverName = driverSnapshot.child("driverName").getValue(String::class.java) ?: ""
                         val todaNumber = driverSnapshot.child("todaNumber").getValue(String::class.java) ?: ""
+                        val paymentMode = driverSnapshot.child("paymentMode").getValue(String::class.java) ?: "pay_every_trip"
+
+                        println("Driver Data Retrieved:")
+                        println("  - RFID: $driverRFID")
+                        println("  - Name: $driverName")
+                        println("  - TODA: $todaNumber")
+                        println("  - Payment Mode: $paymentMode")
 
                         // Set driverRFID to the actual RFID from driver profile
                         if (driverRFID.isNotEmpty()) {
@@ -469,7 +541,13 @@ class FirebaseRealtimeDatabaseService {
                             updates["bookings/$bookingId/todaNumber"] = todaNumber
                         }
 
-                        println("✓ Driver assignment: ID=$userId, RFID=$driverRFID, Name=$driverName, TODA=$todaNumber")
+                        // ALWAYS set payment mode - even if empty, set the default
+                        val finalPaymentMode = if (paymentMode.isNotEmpty()) paymentMode else "pay_every_trip"
+                        updates["bookings/$bookingId/paymentMode"] = finalPaymentMode
+                        updates["bookingIndex/$bookingId/paymentMode"] = finalPaymentMode
+
+                        println("✓ Setting payment mode to: $finalPaymentMode")
+                        println("✓ Driver assignment: ID=$userId, RFID=$driverRFID, Name=$driverName, TODA=$todaNumber, PaymentMode=$finalPaymentMode")
                     } else {
                         println("⚠ Driver profile not found in drivers table for ID: $userId")
                         // Fallback: Try users table
@@ -481,20 +559,36 @@ class FirebaseRealtimeDatabaseService {
                         // Set user ID as driverRFID as fallback (legacy behavior)
                         updates["bookings/$bookingId/driverRFID"] = userId
                         updates["bookingIndex/$bookingId/driverRFID"] = userId
+                        // Default payment mode for fallback
+                        updates["bookings/$bookingId/paymentMode"] = "pay_every_trip"
+                        updates["bookingIndex/$bookingId/paymentMode"] = "pay_every_trip"
+                        println("✓ Using fallback - set payment mode to: pay_every_trip")
                     }
                 } catch (e: Exception) {
                     println("⚠ Error fetching driver profile: ${e.message}")
+                    e.printStackTrace()
                     // Fallback: set user ID as driverRFID
                     updates["bookings/$bookingId/driverRFID"] = userId
                     updates["bookingIndex/$bookingId/driverRFID"] = userId
+                    // Default payment mode for fallback
+                    updates["bookings/$bookingId/paymentMode"] = "pay_every_trip"
+                    updates["bookingIndex/$bookingId/paymentMode"] = "pay_every_trip"
+                    println("✓ Error fallback - set payment mode to: pay_every_trip")
                 }
             }
 
             // Update bookingIndex status
             updates["bookingIndex/$bookingId/status"] = status
 
+            println("=== FINAL UPDATE MAP ===")
+            updates.forEach { (key, value) ->
+                println("  $key: $value")
+            }
+
             // Update the booking
             database.updateChildren(updates).await()
+
+            println("✓ Database updated successfully")
 
             // If status is IN_PROGRESS and we have a driver, create chat room
             if (status == "IN_PROGRESS" && driverId != null) {
@@ -674,7 +768,12 @@ class FirebaseRealtimeDatabaseService {
                 "registrationDate" to System.currentTimeMillis(),
                 "status" to "PENDING_APPROVAL",
                 "hasRfidAssigned" to false,
-                "hasTodaMembershipAssigned" to false
+                "hasTodaMembershipAssigned" to false,
+                // Initialize payment-related fields
+                "balance" to 0.0,
+                "paymentMode" to "",
+                "canGoOnline" to true,
+                "lastPaymentDate" to 0L
             )
 
             driverRef.setValue(driver).await()
@@ -782,11 +881,17 @@ class FirebaseRealtimeDatabaseService {
             println("=== GETTING DRIVER CONTRIBUTIONS ===")
             println("Driver ID: $driverId")
 
-            // First get the driver's RFID
+            // First get the driver's RFID - check both rfidNumber (new) and rfidUID (legacy)
             val driverSnapshot = hardwareDriversRef.child(driverId).get().await()
-            val driverRFID = driverSnapshot.child("rfidUID").getValue(String::class.java) ?: ""
+            val rfidNumber = driverSnapshot.child("rfidNumber").getValue(String::class.java) ?: ""
+            val rfidUID = driverSnapshot.child("rfidUID").getValue(String::class.java) ?: ""
 
-            println("Driver RFID: $driverRFID")
+            // Prioritize rfidNumber if it exists, otherwise use rfidUID
+            val driverRFID = if (rfidNumber.isNotEmpty()) rfidNumber else rfidUID
+
+            println("Driver RFID (rfidNumber): $rfidNumber")
+            println("Driver RFID (rfidUID): $rfidUID")
+            println("Using RFID: $driverRFID")
 
             if (driverRFID.isEmpty()) {
                 println("No RFID found for driver $driverId")
@@ -860,8 +965,13 @@ class FirebaseRealtimeDatabaseService {
             println("=== RECORDING COIN INSERTION ===")
             println("RFID: $rfidUID, Amount: ₱$amount, Device: $deviceId")
 
-            // First, find the driver by RFID
-            val driverSnapshot = hardwareDriversRef.orderByChild("rfidUID").equalTo(rfidUID).get().await()
+            // First, find the driver by RFID - check both rfidNumber and rfidUID
+            var driverSnapshot = hardwareDriversRef.orderByChild("rfidNumber").equalTo(rfidUID).get().await()
+
+            if (!driverSnapshot.exists()) {
+                println("No driver found with rfidNumber: $rfidUID, trying rfidUID...")
+                driverSnapshot = hardwareDriversRef.orderByChild("rfidUID").equalTo(rfidUID).get().await()
+            }
 
             if (!driverSnapshot.exists()) {
                 println("No driver found with RFID: $rfidUID")
@@ -1186,87 +1296,104 @@ class FirebaseRealtimeDatabaseService {
         }
     }
 
+    // Real-time observer for driver RFID changes
+    fun observeDriverRfid(driverId: String): Flow<String> = callbackFlow {
+        println("=== STARTING REAL-TIME RFID OBSERVER ===")
+        println("Observing RFID for driver ID: $driverId")
+
+        if (driverId.isEmpty()) {
+            println("Driver ID is empty, emitting empty string")
+            trySend("").isSuccess
+            close()
+            return@callbackFlow
+        }
+
+        // Watch the entire driver node to detect changes in both rfidUID and rfidNumber
+        val listener = hardwareDriversRef.child(driverId)
+            .addValueEventListener(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    // Check rfidNumber first (newer field), then fall back to rfidUID (legacy)
+                    val rfidNumber = snapshot.child("rfidNumber").getValue(String::class.java) ?: ""
+                    val rfidUID = snapshot.child("rfidUID").getValue(String::class.java) ?: ""
+
+                    // Prioritize rfidNumber if it exists, otherwise use rfidUID
+                    val currentRfid = if (rfidNumber.isNotEmpty()) rfidNumber else rfidUID
+
+                    println("=== RFID UPDATE ===")
+                    println("Driver $driverId RFID changed to: $currentRfid")
+                    println("  rfidNumber: $rfidNumber")
+                    println("  rfidUID: $rfidUID")
+                    trySend(currentRfid).isSuccess
+                }
+
+                override fun onCancelled(error: DatabaseError) {
+                    println("Error observing RFID for driver $driverId: ${error.message}")
+                    trySend("").isSuccess
+                    close(error.toException())
+                }
+            })
+
+        awaitClose {
+            println("Removing RFID observer for driver $driverId")
+            hardwareDriversRef.child(driverId).removeEventListener(listener)
+        }
+    }
+
+    // Queue Management
     fun observeDriverQueue(): Flow<List<QueueEntry>> = callbackFlow {
         println("=== STARTING REAL-TIME QUEUE LIST OBSERVER ===")
 
         val queueRef = database.child("queue")
-        val listener = queueRef.addValueEventListener(object : ValueEventListener {
+
+        val listener = queueRef.orderByChild("timestamp").addValueEventListener(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 println("=== QUEUE LIST DATA CHANGED ===")
-                println("Queue snapshot exists: ${snapshot.exists()}")
-                println("Queue children count: ${snapshot.childrenCount}")
-
                 val queueEntries = mutableListOf<QueueEntry>()
 
-                snapshot.children.forEachIndexed { index, child ->
+                snapshot.children.forEach { child ->
                     try {
-                        println("Processing queue entry: ${child.key}")
-                        val driverRFID = child.child("driverRFID").getValue(String::class.java) ?: ""
+                        val driverId = child.child("driverId").getValue(String::class.java) ?: ""
                         val driverName = child.child("driverName").getValue(String::class.java) ?: ""
-                        val status = child.child("status").getValue(String::class.java) ?: ""
-
-                        // Handle timestamp - try queueTime first (Unix timestamp in seconds as string), then timestamp field
-                        val queueTimeStr = child.child("queueTime").getValue(String::class.java)
-                        val timestampStr = child.child("timestamp").getValue(String::class.java)
-
-                        val timestamp = when {
-                            queueTimeStr != null -> {
-                                try {
-                                    queueTimeStr.toLong() * 1000 // Convert seconds to milliseconds
-                                } catch (e: Exception) {
-                                    System.currentTimeMillis()
-                                }
-                            }
-                            timestampStr != null -> {
-                                // Try parsing the date string "2025-10-06 16:40:44"
-                                try {
-                                    val sdf = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
-                                    sdf.parse(timestampStr)?.time ?: System.currentTimeMillis()
-                                } catch (e: Exception) {
-                                    System.currentTimeMillis()
-                                }
-                            }
-                            else -> {
-                                // Try getting as Long directly
-                                child.child("timestamp").getValue(Long::class.java) ?: System.currentTimeMillis()
-                            }
+                        val driverRFID = when (val rfidValue = child.child("driverRFID").value) {
+                            is String -> rfidValue
+                            is Number -> rfidValue.toString()
+                            else -> ""
                         }
+                        val todaNumber = child.child("todaNumber").getValue(String::class.java) ?: ""
+                        val timestamp = when (val tsValue = child.child("timestamp").value) {
+                            is Number -> tsValue.toLong()
+                            is String -> tsValue.toLongOrNull() ?: 0L
+                            else -> 0L
+                        }
+                        val status = child.child("status").getValue(String::class.java) ?: "waiting"
 
-                        println("  driverRFID: $driverRFID")
-                        println("  driverName: $driverName")
-                        println("  status: $status")
-                        println("  timestamp: $timestamp")
-
-                        if (status == "waiting" && driverRFID.isNotEmpty()) {
-                            val queueEntry = QueueEntry(
-                                driverRFID = driverRFID,
-                                driverName = driverName,
-                                timestamp = timestamp,
-                                position = index + 1
+                        if (status == "waiting") {
+                            queueEntries.add(
+                                QueueEntry(
+                                    driverRFID = driverRFID,
+                                    driverName = driverName,
+                                    timestamp = timestamp,
+                                    position = queueEntries.size + 1
+                                )
                             )
-                            queueEntries.add(queueEntry)
-                            println("✓ Added queue entry: $driverName ($driverRFID) at position ${index + 1}")
-                        } else {
-                            println("✗ Skipped entry - status: $status, RFID empty: ${driverRFID.isEmpty()}")
                         }
                     } catch (e: Exception) {
-                        println("Error parsing queue entry ${child.key}: ${e.message}")
-                        e.printStackTrace()
+                        println("Error parsing queue entry: ${e.message}")
                     }
                 }
 
-                println("Total queue entries found: ${queueEntries.size}")
+                println("Queue entries: ${queueEntries.size}")
                 trySend(queueEntries)
             }
 
             override fun onCancelled(error: DatabaseError) {
-                println("Queue list observer cancelled: ${error.message}")
+                println("Queue observer cancelled: ${error.message}")
                 trySend(emptyList())
             }
         })
 
         awaitClose {
-            println("Removing queue list observer")
+            println("Removing queue observer")
             queueRef.removeEventListener(listener)
         }
     }
@@ -1276,42 +1403,66 @@ class FirebaseRealtimeDatabaseService {
             println("=== LEAVING QUEUE ===")
             println("Driver RFID: $driverRFID")
 
-            if (driverRFID.isEmpty()) {
-                println("Driver RFID is empty, cannot leave queue")
-                return false
-            }
-
-            // Find and delete the queue entry for this driver
             val queueRef = database.child("queue")
             val snapshot = queueRef.get().await()
 
-            println("Found ${snapshot.childrenCount} entries in queue")
-
-            var deleted = false
-            for (child in snapshot.children) {
-                val queueDriverRFID = child.child("driverRFID").getValue(String::class.java) ?: ""
-                println("Checking queue entry: key=${child.key}, driverRFID=$queueDriverRFID")
+            var removed = false
+            snapshot.children.forEach { child ->
+                val queueDriverRFID = when (val rfidValue = child.child("driverRFID").value) {
+                    is String -> rfidValue
+                    is Number -> rfidValue.toString()
+                    else -> ""
+                }
 
                 if (queueDriverRFID == driverRFID) {
-                    val queueKey = child.key
-                    if (queueKey != null) {
-                        println("Found matching entry, deleting key: $queueKey")
-                        queueRef.child(queueKey).removeValue().await()
-                        println("✓ Driver $driverRFID removed from queue (key: $queueKey)")
-                        deleted = true
-                        break
+                    child.key?.let { key ->
+                        queueRef.child(key).removeValue().await()
+                        println("✓ Driver $driverRFID removed from queue")
+                        removed = true
                     }
+                    return@forEach
                 }
             }
 
-            if (!deleted) {
-                println("✗ Driver $driverRFID was not found in queue")
+            if (!removed) {
+                println("⚠ Driver $driverRFID not found in queue")
             }
 
-            deleted
+            removed
         } catch (e: Exception) {
-            println("❌ Error leaving queue: ${e.message}")
-            e.printStackTrace()
+            println("✗ Error leaving queue: ${e.message}")
+            false
+        }
+    }
+
+    suspend fun joinQueue(driverId: String, driverRFID: String, driverName: String): Boolean {
+        return try {
+            println("=== JOINING QUEUE ===")
+            println("Driver ID: $driverId, RFID: $driverRFID, Name: $driverName")
+
+            // Get driver's TODA number
+            val driverSnapshot = hardwareDriversRef.child(driverId).get().await()
+            val todaNumber = driverSnapshot.child("todaNumber").getValue(String::class.java) ?: ""
+
+            val queueRef = database.child("queue")
+            val timestamp = System.currentTimeMillis()
+
+            val queueEntry = mapOf(
+                "driverId" to driverId,
+                "driverName" to driverName,
+                "driverRFID" to driverRFID,
+                "todaNumber" to todaNumber,
+                "timestamp" to timestamp,
+                "status" to "waiting"
+            )
+
+            // Use timestamp as key for automatic sorting
+            queueRef.child(timestamp.toString()).setValue(queueEntry).await()
+
+            println("✓ Driver $driverName joined queue at position based on timestamp $timestamp")
+            true
+        } catch (e: Exception) {
+            println("✗ Error joining queue: ${e.message}")
             false
         }
     }
@@ -1321,12 +1472,7 @@ class FirebaseRealtimeDatabaseService {
             println("=== GETTING DRIVER TODAY STATS ===")
             println("Driver ID: $driverId")
 
-            // First get the driver's RFID
-            val driverSnapshot = hardwareDriversRef.child(driverId).get().await()
-            val driverRFID = driverSnapshot.child("rfidUID").getValue(String::class.java) ?: ""
-
-            println("Driver RFID: $driverRFID")
-
+            // Get today's start timestamp
             val todayStart = java.util.Calendar.getInstance().apply {
                 set(java.util.Calendar.HOUR_OF_DAY, 0)
                 set(java.util.Calendar.MINUTE, 0)
@@ -1334,562 +1480,60 @@ class FirebaseRealtimeDatabaseService {
                 set(java.util.Calendar.MILLISECOND, 0)
             }.timeInMillis
 
-            // Get all bookings
-            val bookingsSnapshot = bookingsRef.get().await()
+            // Get all bookings for this driver
+            val bookingsSnapshot = bookingsRef.orderByChild("assignedDriverId").equalTo(driverId).get().await()
 
             var todayTrips = 0
             var todayEarnings = 0.0
 
             bookingsSnapshot.children.forEach { child ->
                 val status = child.child("status").getValue(String::class.java) ?: ""
-                val bookingDriverRFID = child.child("driverRFID").getValue(String::class.java) ?: ""
-                val assignedDriverId = child.child("assignedDriverId").getValue(String::class.java) ?: ""
-                val timestamp = child.child("timestamp").getValue(Long::class.java) ?: 0L
-
-                // Parse completionTime which may be stored as String or Number
-                val completionTimeAny = child.child("completionTime").value
-                val completionTime: Long = when (completionTimeAny) {
-                    is Number -> completionTimeAny.toLong()
-                    is String -> completionTimeAny.toLongOrNull() ?: 0L
+                val timestamp = when (val tsValue = child.child("timestamp").value) {
+                    is Number -> tsValue.toLong()
+                    is String -> tsValue.toLongOrNull() ?: 0L
                     else -> 0L
                 }
-                val effectiveTime = if (completionTime > 0L) completionTime else timestamp
+                val fare = when (val fareValue = child.child("estimatedFare").value) {
+                    is Number -> fareValue.toDouble()
+                    is String -> fareValue.toDoubleOrNull() ?: 0.0
+                    else -> 0.0
+                }
 
-                // Check if this booking belongs to the driver (by RFID or driver ID)
-                val isMyBooking = (bookingDriverRFID == driverRFID && driverRFID.isNotEmpty()) ||
-                                 (assignedDriverId == driverRFID && driverRFID.isNotEmpty()) ||
-                                 (assignedDriverId == driverId)
-
-                if (isMyBooking && status == "COMPLETED" && effectiveTime >= todayStart) {
+                // Count completed trips from today
+                if (status == "COMPLETED" && timestamp >= todayStart) {
                     todayTrips++
-
-                    // Get fare (prefer actualFare, fallback to estimatedFare)
-                    val actualFare = when (val v = child.child("actualFare").value) {
-                        is Number -> v.toDouble()
-                        is String -> v.toDoubleOrNull() ?: 0.0
-                        else -> 0.0
-                    }
-                    val estimatedFare = when (val v = child.child("estimatedFare").value) {
-                        is Number -> v.toDouble()
-                        is String -> v.toDoubleOrNull() ?: 0.0
-                        else -> 0.0
-                    }
-                    val fare = if (actualFare > 0.0) actualFare else estimatedFare
-
                     todayEarnings += fare
-
-                    println("Found completed trip: fare=₱$fare, effectiveTime=$effectiveTime")
                 }
             }
 
-            // Compute today's average rating for this driver
-            var driverRating = -1.0 // Sentinel for "no ratings today"
-            try {
-                val ratingsSnapshot = ratingsRef.orderByChild("driverId").equalTo(driverId).get().await()
-                var sumStars = 0.0
-                var count = 0
-                ratingsSnapshot.children.forEach { child ->
-                    val tsAny = child.child("timestamp").value
-                    val timestamp = when (tsAny) {
-                        is Number -> tsAny.toLong()
-                        is String -> tsAny.toLongOrNull() ?: 0L
-                        else -> 0L
-                    }
-                    if (timestamp < todayStart) return@forEach
+            // Get driver's rating from ratings table
+            var driverRating = 5.0
+            var totalRatings = 0
+            var sumRatings = 0.0
 
-                    val starsAny = child.child("stars").value
-                    val stars = when (starsAny) {
-                        is Number -> starsAny.toInt()
-                        is String -> starsAny.toIntOrNull() ?: 0
-                        else -> 0
-                    }
-                    val ratedBy = child.child("ratedBy").getValue(String::class.java) ?: ""
+            val ratingsSnapshot = ratingsRef.orderByChild("driverId").equalTo(driverId).get().await()
+            ratingsSnapshot.children.forEach { child ->
+                val stars = when (val starsValue = child.child("stars").value) {
+                    is Number -> starsValue.toInt()
+                    is String -> starsValue.toIntOrNull() ?: 0
+                    else -> 0
+                }
 
-                    // Count only customer-submitted ratings with stars > 0
-                    if (stars > 0 && ratedBy.equals("CUSTOMER", ignoreCase = true)) {
-                        sumStars += stars
-                        count++
-                    }
+                if (stars > 0) {
+                    totalRatings++
+                    sumRatings += stars.toDouble()
                 }
-                if (count > 0) {
-                    driverRating = sumStars / count
-                }
-            } catch (e: Exception) {
-                println("Error computing today's ratings: ${e.message}")
             }
 
-            println("Today's stats: $todayTrips trips, ₱$todayEarnings earnings, rating=${if (driverRating < 0) "--" else driverRating}")
+            if (totalRatings > 0) {
+                driverRating = sumRatings / totalRatings
+            }
 
+            println("Driver stats: $todayTrips trips, ₱$todayEarnings earnings, $driverRating rating")
             Triple(todayTrips, todayEarnings, driverRating)
         } catch (e: Exception) {
-            println("Error getting driver today stats: ${e.message}")
-            e.printStackTrace()
-            Triple(0, 0.0, -1.0)
-        }
-    }
-
-    // Emergency Management
-    suspend fun createEmergencyAlert(alert: FirebaseEmergencyAlert): String? {
-        return try {
-            val alertRef = emergencyAlertsRef.push()
-            val alertId = alertRef.key ?: return null
-            val alertWithId = alert.copy(id = alertId)
-            alertRef.setValue(alertWithId).await()
-            alertId
-        } catch (e: Exception) {
-            println("Error creating emergency alert: ${e.message}")
-            null
-        }
-    }
-
-    // Rating Management
-    suspend fun createRatingEntry(bookingId: String): Boolean {
-        return try {
-            println("=== CREATING RATING ENTRY ===")
-            println("Booking ID: $bookingId")
-
-            // Get booking details
-            val bookingSnapshot = bookingsRef.child(bookingId).get().await()
-            val booking = bookingSnapshot.getValue(FirebaseBooking::class.java)
-
-            if (booking == null) {
-                println("✗ Booking not found: $bookingId")
-                return false
-            }
-
-            // Create rating entry with initial values
-            val ratingRef = ratingsRef.push()
-            val ratingId = ratingRef.key ?: return false
-
-            val rating = FirebaseRating(
-                id = ratingId,
-                bookingId = bookingId,
-                customerId = booking.customerId,
-                customerName = booking.customerName,
-                driverId = booking.assignedDriverId,
-                driverName = booking.driverName,
-                stars = 0, // Default, can be updated later
-                feedback = "", // Default, can be updated later
-                timestamp = System.currentTimeMillis(),
-                ratedBy = "DRIVER"
-            )
-
-            ratingRef.setValue(rating).await()
-            println("✓ Rating entry created: $ratingId for booking $bookingId")
-            true
-        } catch (e: Exception) {
-            println("✗ Error creating rating entry: ${e.message}")
-            e.printStackTrace()
-            false
-        }
-    }
-
-    suspend fun updateRating(bookingId: String, stars: Int, feedback: String): Boolean {
-        return try {
-            println("=== UPDATING RATING ===")
-            println("Booking ID: $bookingId, Stars: $stars")
-
-            // Find the rating entry for this booking
-            val ratingSnapshot = ratingsRef.orderByChild("bookingId").equalTo(bookingId).get().await()
-
-            if (!ratingSnapshot.exists()) {
-                println("✗ No rating entry found for booking: $bookingId")
-                return false
-            }
-
-            // Get the first (and should be only) rating entry
-            val ratingKey = ratingSnapshot.children.firstOrNull()?.key
-
-            if (ratingKey != null) {
-                val updates = mapOf(
-                    "ratings/$ratingKey/stars" to stars,
-                    "ratings/$ratingKey/feedback" to feedback,
-                    "ratings/$ratingKey/timestamp" to System.currentTimeMillis(),
-                    "ratings/$ratingKey/ratedBy" to "CUSTOMER"
-                )
-                database.updateChildren(updates).await()
-                println("✓ Rating updated successfully")
-                true
-            } else {
-                println("✗ Rating key not found")
-                false
-            }
-        } catch (e: Exception) {
-            println("✗ Error updating rating: ${e.message}")
-            e.printStackTrace()
-            false
-        }
-    }
-
-    // Assign the first driver in queue to a booking immediately upon creation
-    suspend fun matchBookingToFirstDriver(bookingId: String): Boolean {
-        return try {
-            // Ensure booking is still PENDING before attempting assignment
-            val currentStatus = bookingsRef.child(bookingId).child("status").get().await().getValue(String::class.java)
-            if (currentStatus != null && currentStatus != "PENDING") {
-                println("Booking $bookingId is $currentStatus; skipping auto-match")
-                return false
-            }
-
-            // Read queue snapshot
-            val queueRef = database.child("queue")
-            val queueSnapshot = queueRef.get().await()
-            if (!queueSnapshot.exists() || !queueSnapshot.hasChildren()) {
-                println("No drivers in queue to match for booking $bookingId")
-                return false
-            }
-
-            // Find all queue entries sorted by timestamp (oldest first)
-            val sortedEntries = queueSnapshot.children
-                .mapNotNull { child ->
-                    val key = child.key ?: return@mapNotNull null
-                    val ts = key.toLongOrNull() ?: return@mapNotNull null
-                    ts to child
-                }
-                .sortedBy { it.first }
-
-            if (sortedEntries.isEmpty()) {
-                println("Queue has no valid timestamp keys; cannot match")
-                return false
-            }
-
-            // Try each queue entry until we find one that's available
-            for ((timestamp, queueEntry) in sortedEntries) {
-                val queueKey = queueEntry.key ?: continue
-
-                // Check if already claimed
-                val alreadyClaimed = queueEntry.child("claimed").getValue(Boolean::class.java) ?: false
-                val queueStatus = queueEntry.child("status").getValue(String::class.java) ?: "waiting"
-
-                println("Checking queue entry $queueKey: claimed=$alreadyClaimed, status=$queueStatus")
-
-                // Skip if claimed and status is not "waiting" (means actively working on a booking)
-                if (alreadyClaimed && queueStatus != "waiting") {
-                    println("Queue entry $queueKey is claimed and busy; skipping")
-                    continue
-                }
-
-                // If claimed but status is "waiting", reset the claim (stale claim from previous booking)
-                if (alreadyClaimed && queueStatus == "waiting") {
-                    println("Queue entry $queueKey has stale claim; resetting")
-                    queueRef.child(queueKey).child("claimed").setValue(false).await()
-                }
-
-                // Try to atomically claim this entry
-                val claimRef = queueRef.child(queueKey).child("claimed")
-                var claimed = false
-                var transactionComplete = false
-
-                claimRef.runTransaction(object : Transaction.Handler {
-                    override fun doTransaction(mutableData: MutableData): Transaction.Result {
-                        val v = mutableData.getValue(Boolean::class.java) ?: false
-                        return if (!v) {
-                            mutableData.value = true
-                            Transaction.success(mutableData)
-                        } else {
-                            Transaction.abort()
-                        }
-                    }
-                    override fun onComplete(error: DatabaseError?, committed: Boolean, currentData: DataSnapshot?) {
-                        claimed = committed && (currentData?.getValue(Boolean::class.java) == true)
-                        transactionComplete = true
-                    }
-                })
-
-                // Wait for transaction to complete
-                var waitCount = 0
-                while (!transactionComplete && waitCount < 20) {
-                    kotlinx.coroutines.delay(10)
-                    waitCount++
-                }
-
-                if (!claimed) {
-                    println("Failed to claim queue entry $queueKey; trying next")
-                    continue
-                }
-
-                // Successfully claimed! Re-check booking still PENDING
-                val statusAfterClaim = bookingsRef.child(bookingId).child("status").get().await().getValue(String::class.java)
-                if (statusAfterClaim != null && statusAfterClaim != "PENDING") {
-                    println("Booking $bookingId changed to $statusAfterClaim after claim; releasing entry")
-                    claimRef.setValue(false).await()
-                    return false
-                }
-
-                // Get driver details from this entry
-                val driverName = queueEntry.child("driverName").getValue(String::class.java) ?: ""
-                val todaNumber = queueEntry.child("todaNumber").getValue(String::class.java) ?: ""
-                val driverRFID = queueEntry.child("driverRFID").getValue(String::class.java) ?: ""
-
-                if (driverRFID.isBlank()) {
-                    println("Queue entry $queueKey missing driverRFID; releasing claim and trying next")
-                    claimRef.setValue(false).await()
-                    continue
-                }
-
-                // Look up the driver's user ID from their RFID
-                var driverUserId = ""
-                try {
-                    // 1) Fast-path: rfidUIDIndex (populated by assignRfidToDriver)
-                    try {
-                        val idx = database.child("rfidUIDIndex").child(driverRFID).get().await()
-                        val fromIndex = idx.getValue(String::class.java) ?: ""
-                        if (fromIndex.isNotEmpty()) {
-                            driverUserId = fromIndex
-                            println("✓ Found driver user ID from rfidUIDIndex: $driverUserId for RFID: $driverRFID")
-                        }
-                    } catch (e: Exception) {
-                        println("⚠ rfidUIDIndex lookup failed: ${e.message}")
-                    }
-
-                    // 2) Drivers table by RFID (if not resolved by index)
-                    if (driverUserId.isEmpty()) {
-                        val driversSnapshot = hardwareDriversRef.orderByChild("rfidUID").equalTo(driverRFID).get().await()
-                        if (driversSnapshot.exists()) {
-                            // The user ID is the key of the driver entry
-                            val driverEntry = driversSnapshot.children.firstOrNull()
-                            driverUserId = driverEntry?.key ?: ""
-                            println("✓ Found driver user ID from drivers table: $driverUserId for RFID: $driverRFID")
-                        }
-                    }
-
-                    // 3) Users table by rfidNumber (legacy schema)
-                    if (driverUserId.isEmpty()) {
-                        val usersSnapshot = usersRef.orderByChild("rfidNumber").equalTo(driverRFID).get().await()
-                        if (usersSnapshot.exists()) {
-                            val userEntry = usersSnapshot.children.firstOrNull()
-                            driverUserId = userEntry?.key ?: ""
-                            println("✓ Found driver user ID from users table (rfidNumber): $driverUserId for RFID: $driverRFID")
-                        }
-                    }
-
-                    // 4) Drivers table by todaNumber (as last-ditch structured hint from queue)
-                    if (driverUserId.isEmpty() && todaNumber.isNotEmpty()) {
-                        try {
-                            val byToda = hardwareDriversRef.orderByChild("todaNumber").equalTo(todaNumber).get().await()
-                            if (byToda.exists()) {
-                                val driverEntry = byToda.children.firstOrNull()
-                                driverUserId = driverEntry?.key ?: ""
-                                println("✓ Found driver user ID from drivers table (todaNumber=$todaNumber): $driverUserId")
-                            }
-                        } catch (e: Exception) {
-                            println("⚠ todaNumber lookup failed: ${e.message}")
-                        }
-                    }
-
-                    if (driverUserId.isNotEmpty()) {
-                        println("✓ Successfully resolved driver user ID: $driverUserId for RFID: $driverRFID")
-                    } else {
-                        println("⚠ Could not find driver user ID for RFID: $driverRFID (todaNumber='$todaNumber', driverName='$driverName')")
-                    }
-                } catch (e: Exception) {
-                    println("⚠ Error looking up driver user ID: ${e.message}")
-                }
-
-                // If we couldn't find the user ID, use the RFID as fallback (legacy behavior)
-                if (driverUserId.isEmpty()) {
-                    println("⚠ Could not find user ID for RFID $driverRFID, using RFID as fallback")
-                    driverUserId = driverRFID
-                }
-
-                // Prepare updates for booking and index
-                val updates = mutableMapOf<String, Any>(
-                    "bookings/$bookingId/assignedDriverId" to driverUserId,  // ✅ Prefer actual user ID; falls back to RFID only if unresolved
-                    "bookings/$bookingId/driverRFID" to driverRFID,
-                    "bookings/$bookingId/driverName" to driverName,
-                    "bookings/$bookingId/assignedTricycleId" to todaNumber,
-                    "bookings/$bookingId/todaNumber" to todaNumber,
-                    "bookings/$bookingId/status" to "ACCEPTED",
-                    "bookingIndex/$bookingId/status" to "ACCEPTED",
-                    "bookingIndex/$bookingId/driverRFID" to driverRFID
-                )
-
-                // Apply updates atomically and remove the queue entry
-                database.updateChildren(updates).await()
-                // Remove the queue entry now that it's assigned
-                queueRef.child(queueKey).removeValue().await()
-
-                println("✅ Matched booking $bookingId with driverUserId=$driverUserId, driverRFID=$driverRFID, driverName=$driverName, todaNumber=$todaNumber")
-                return true
-            }
-
-            println("No available drivers in queue for booking $bookingId (all entries claimed/busy)")
-            false
-        } catch (e: Exception) {
-            println("Error matching booking to first driver: ${e.message}")
-            e.printStackTrace()
-            false
-        }
-    }
-
-    // Get booking by ID (non-streaming, single fetch)
-    suspend fun getBookingById(bookingId: String): FirebaseBooking? {
-        return try {
-            val snapshot = bookingsRef.child(bookingId).get().await()
-            if (snapshot.exists()) {
-                snapshot.getValue(FirebaseBooking::class.java)
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            println("Error getting booking by ID: ${e.message}")
-            null
-        }
-    }
-
-    // Try to match booking to first driver in queue (wrapper for matchBookingToFirstDriver)
-    suspend fun tryMatchBookingToFirstDriver(bookingId: String): Boolean {
-        return matchBookingToFirstDriver(bookingId)
-    }
-
-    // Report missing RFID for a driver
-    suspend fun reportMissingRfid(driverId: String): Boolean {
-        return try {
-            println("=== REPORTING MISSING RFID ===")
-            println("Driver ID: $driverId")
-
-            // Get driver details first
-            val driverSnapshot = hardwareDriversRef.child(driverId).get().await()
-            if (!driverSnapshot.exists()) {
-                println("✗ Driver not found: $driverId")
-                return false
-            }
-
-            val driverName = driverSnapshot.child("driverName").getValue(String::class.java) ?: ""
-            // Support both rfidUID and rfidNumber fields
-            val currentRFID = driverSnapshot.child("rfidUID").getValue(String::class.java)
-                ?: driverSnapshot.child("rfidNumber").getValue(String::class.java)
-                ?: ""
-
-            if (currentRFID.isEmpty()) {
-                println("✗ Driver has no RFID assigned")
-                return false
-            }
-
-            println("Driver: $driverName, Current RFID: $currentRFID")
-
-            // Add a record to the rfidChangeHistory
-            val historyRef = rfidChangeHistoryRef.push()
-            val historyId = historyRef.key ?: return false
-
-            val historyEntry = mapOf(
-                "id" to historyId,
-                "driverId" to driverId,
-                "driverName" to driverName,
-                "oldRfidUID" to currentRFID,
-                "newRfidUID" to "", // Empty because RFID is being unlinked
-                "changeType" to "REPORTED_MISSING",
-                "reason" to "Driver reported RFID as missing/lost",
-                "changedBy" to driverId,
-                "changedByName" to driverName,
-                "timestamp" to System.currentTimeMillis(),
-                "notes" to "Auto-unlinked due to missing report"
-            )
-
-            historyRef.setValue(historyEntry).await()
-
-            // ⚠️ AUTO-UNLINK: Remove RFID from driver
-            val updates = mutableMapOf<String, Any?>(
-                // Clear both RFID fields
-                "drivers/$driverId/rfidUID" to "",
-                "drivers/$driverId/rfidNumber" to "",
-
-                // Set missing flags
-                "drivers/$driverId/rfidMissing" to true,
-                "drivers/$driverId/rfidReported" to true,
-
-                // Save old RFID for reference
-                "drivers/$driverId/oldRfidUID" to currentRFID,
-                "drivers/$driverId/rfidReportedMissingAt" to System.currentTimeMillis(),
-
-                // Update assignment flags
-                "drivers/$driverId/hasRfidAssigned" to false,
-                "drivers/$driverId/needsRfidAssignment" to true,
-                "drivers/$driverId/rfidStatus" to "missing",
-                "drivers/$driverId/lastRfidChange" to System.currentTimeMillis(),
-
-                // Remove from RFID index
-                "rfidUIDIndex/$currentRFID" to null
-            )
-
-            database.updateChildren(updates).await()
-
-            // Create admin notification
-            val notificationRef = notificationsRef.push()
-            val notificationId = notificationRef.key ?: ""
-
-            val notification = mapOf(
-                "id" to notificationId,
-                "type" to "RFID_MISSING",
-                "title" to "RFID Reported Missing",
-                "message" to "$driverName (ID: $driverId) reported RFID $currentRFID as missing. RFID has been auto-unlinked.",
-                "driverId" to driverId,
-                "driverName" to driverName,
-                "oldRfidUID" to currentRFID,
-                "timestamp" to System.currentTimeMillis(),
-                "isRead" to false,
-                "priority" to "high",
-                "actionRequired" to true
-            )
-
-            notificationRef.setValue(notification).await()
-
-            println("✓ RFID reported missing and auto-unlinked successfully")
-            println("✓ Admin notification created")
-            println("✓ History entry created: $historyId")
-            println("✓ Fields updated: rfidMissing=true, rfidReported=true, oldRfidUID=$currentRFID")
-            true
-        } catch (e: Exception) {
-            println("✗ Error reporting missing RFID: ${e.message}")
-            e.printStackTrace()
-            false
-        }
-    }
-
-    // Get RFID change history for a driver
-    fun getRfidChangeHistory(driverId: String): Flow<List<Map<String, Any>>> = callbackFlow {
-        val listener = rfidChangeHistoryRef.orderByChild("driverId").equalTo(driverId)
-            .addValueEventListener(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    val history = snapshot.children.mapNotNull {
-                        @Suppress("UNCHECKED_CAST")
-                        it.value as? Map<String, Any>
-                    }
-                    trySend(history)
-                }
-                override fun onCancelled(error: DatabaseError) {
-                    trySend(emptyList())
-                }
-            })
-        awaitClose { rfidChangeHistoryRef.removeEventListener(listener) }
-    }
-
-    // Get admin notifications
-    fun getAdminNotifications(): Flow<List<Map<String, Any>>> = callbackFlow {
-        val listener = notificationsRef.orderByChild("timestamp")
-            .addValueEventListener(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    val notifications = snapshot.children.mapNotNull {
-                        @Suppress("UNCHECKED_CAST")
-                        it.value as? Map<String, Any>
-                    }.sortedByDescending { it["timestamp"] as? Long ?: 0L }
-                    trySend(notifications)
-                }
-                override fun onCancelled(error: DatabaseError) {
-                    trySend(emptyList())
-                }
-            })
-        awaitClose { notificationsRef.removeEventListener(listener) }
-    }
-
-    // Mark notification as read
-    suspend fun markNotificationAsRead(notificationId: String): Boolean {
-        return try {
-            notificationsRef.child(notificationId).child("isRead").setValue(true).await()
-            true
-        } catch (e: Exception) {
-            println("Error marking notification as read: ${e.message}")
-            false
+            println("✗ Error getting driver stats: ${e.message}")
+            Triple(0, 0.0, 5.0)
         }
     }
 
@@ -2018,6 +1662,551 @@ class FirebaseRealtimeDatabaseService {
                 }
             })
         awaitClose { chatRoomsRef.removeEventListener(customerListener) }
+    }
+
+    // Additional booking management functions
+    suspend fun matchBookingToFirstDriver(bookingId: String): Boolean {
+        return try {
+            // Ensure booking is still PENDING before attempting assignment
+            val currentStatus = bookingsRef.child(bookingId).child("status").get().await().getValue(String::class.java)
+            if (currentStatus != null && currentStatus != "PENDING") {
+                println("Booking $bookingId is $currentStatus; skipping auto-match")
+                return false
+            }
+
+            // Read queue snapshot
+            val queueRef = database.child("queue")
+            val queueSnapshot = queueRef.get().await()
+            if (!queueSnapshot.exists() || !queueSnapshot.hasChildren()) {
+                println("No drivers in queue to match for booking $bookingId")
+                return false
+            }
+
+            // Find all queue entries sorted by timestamp (oldest first)
+            val sortedEntries = queueSnapshot.children
+                .mapNotNull { child ->
+                    val key = child.key ?: return@mapNotNull null
+                    val ts = key.toLongOrNull() ?: return@mapNotNull null
+                    ts to child
+                }
+                .sortedBy { it.first }
+
+            if (sortedEntries.isEmpty()) {
+                println("Queue has no valid timestamp keys; cannot match")
+                return false
+            }
+
+            // Try each queue entry until we find one that's available
+            for ((timestamp, queueEntry) in sortedEntries) {
+                val queueKey = queueEntry.key ?: continue
+
+                println("\n=== CHECKING QUEUE ENTRY: $queueKey ===")
+
+                // Check if already claimed
+                val alreadyClaimed = queueEntry.child("claimed").getValue(Boolean::class.java) ?: false
+                val queueStatus = queueEntry.child("status").getValue(String::class.java) ?: "waiting"
+
+                println("Claimed: $alreadyClaimed, Status: $queueStatus")
+
+                if (alreadyClaimed && queueStatus != "waiting") {
+                    println("✗ Skipping - already claimed")
+                    continue
+                }
+
+                // Get driver details
+                val driverRFID = queueEntry.child("driverRFID").getValue(String::class.java) ?: ""
+                val driverName = queueEntry.child("driverName").getValue(String::class.java) ?: ""
+                val todaNumber = queueEntry.child("todaNumber").getValue(String::class.java) ?: ""
+
+                println("Driver RFID: $driverRFID, Name: $driverName, TODA: $todaNumber")
+
+                if (driverRFID.isBlank()) {
+                    println("✗ Skipping - blank RFID")
+                    continue
+                }
+
+                // Look up driver user ID
+                var driverUserId = ""
+                try {
+                    val driversSnapshot = hardwareDriversRef.orderByChild("rfidUID").equalTo(driverRFID).get().await()
+                    if (driversSnapshot.exists()) {
+                        driverUserId = driversSnapshot.children.firstOrNull()?.key ?: ""
+                        println("✓ Found driver user ID: $driverUserId")
+                    } else {
+                        println("⚠ No driver found with RFID in drivers table")
+                    }
+                } catch (e: Exception) {
+                    println("Error looking up driver: ${e.message}")
+                }
+
+                if (driverUserId.isEmpty()) {
+                    driverUserId = driverRFID
+                    println("Using RFID as driver ID (fallback)")
+                }
+
+                println("\n=== FETCHING PAYMENT MODE (AUTO-MATCH) ===")
+                println("Driver ID: $driverUserId")
+
+                // Get driver's payment mode
+                var paymentMode = "pay_every_trip"
+                try {
+                    val driverSnapshot = hardwareDriversRef.child(driverUserId).get().await()
+                    if (driverSnapshot.exists()) {
+                        val fetchedMode = driverSnapshot.child("paymentMode").getValue(String::class.java)
+                        println("✓ Driver found - Payment Mode in DB: '$fetchedMode'")
+                        paymentMode = if (!fetchedMode.isNullOrBlank()) fetchedMode else "pay_every_trip"
+                        println("✓ Final Payment Mode: '$paymentMode'")
+                    } else {
+                        println("⚠ Driver not found, using default: pay_every_trip")
+                    }
+                } catch (e: Exception) {
+                    println("Error fetching driver payment mode: ${e.message}")
+                }
+
+                // Update booking
+                val updates = mutableMapOf<String, Any>(
+                    "bookings/$bookingId/assignedDriverId" to driverUserId,
+                    "bookings/$bookingId/driverRFID" to driverRFID,
+                    "bookings/$bookingId/driverName" to driverName,
+                    "bookings/$bookingId/assignedTricycleId" to todaNumber,
+                    "bookings/$bookingId/todaNumber" to todaNumber,
+                    "bookings/$bookingId/paymentMode" to paymentMode,
+                    "bookings/$bookingId/status" to "ACCEPTED",
+                    "bookingIndex/$bookingId/status" to "ACCEPTED",
+                    "bookingIndex/$bookingId/driverRFID" to driverRFID,
+                    "bookingIndex/$bookingId/paymentMode" to paymentMode
+                )
+
+                database.updateChildren(updates).await()
+                queueRef.child(queueKey).removeValue().await()
+
+                println("✅ Matched booking $bookingId with driver $driverUserId (PaymentMode: $paymentMode)")
+                return true
+            }
+
+            false
+        } catch (e: Exception) {
+            println("Error matching booking: ${e.message}")
+            false
+        }
+    }
+
+    suspend fun tryMatchBookingToFirstDriver(bookingId: String): Boolean {
+        return matchBookingToFirstDriver(bookingId)
+    }
+
+    suspend fun getBookingById(bookingId: String): FirebaseBooking? {
+        return try {
+            val snapshot = bookingsRef.child(bookingId).get().await()
+            if (snapshot.exists()) {
+                snapshot.getValue(FirebaseBooking::class.java)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            println("Error getting booking by ID: ${e.message}")
+            null
+        }
+    }
+
+    suspend fun createRatingEntry(bookingId: String): Boolean {
+        return try {
+            println("=== CREATING RATING ENTRY ===")
+            println("Booking ID: $bookingId")
+
+            val bookingSnapshot = bookingsRef.child(bookingId).get().await()
+            val booking = bookingSnapshot.getValue(FirebaseBooking::class.java)
+
+            if (booking == null) {
+                println("✗ Booking not found: $bookingId")
+                return false
+            }
+
+            val ratingRef = ratingsRef.push()
+            val ratingId = ratingRef.key ?: return false
+
+            val rating = FirebaseRating(
+                id = ratingId,
+                bookingId = bookingId,
+                customerId = booking.customerId,
+                customerName = booking.customerName,
+                driverId = booking.assignedDriverId,
+                driverName = booking.driverName,
+                stars = 0,
+                feedback = "",
+                timestamp = System.currentTimeMillis(),
+                ratedBy = "DRIVER"
+            )
+
+            ratingRef.setValue(rating).await()
+            println("✓ Rating entry created: $ratingId for booking $bookingId")
+            true
+        } catch (e: Exception) {
+            println("✗ Error creating rating entry: ${e.message}")
+            false
+        }
+    }
+
+    suspend fun updateRating(bookingId: String, stars: Int, feedback: String): Boolean {
+        return try {
+            val ratingSnapshot = ratingsRef.orderByChild("bookingId").equalTo(bookingId).get().await()
+
+            if (!ratingSnapshot.exists()) {
+                println("✗ No rating entry found for booking: $bookingId")
+                return false
+            }
+
+            val ratingKey = ratingSnapshot.children.firstOrNull()?.key
+
+            if (ratingKey != null) {
+                val updates = mapOf(
+                    "ratings/$ratingKey/stars" to stars,
+                    "ratings/$ratingKey/feedback" to feedback,
+                    "ratings/$ratingKey/timestamp" to System.currentTimeMillis(),
+                    "ratings/$ratingKey/ratedBy" to "CUSTOMER"
+                )
+                database.updateChildren(updates).await()
+                println("✓ Rating updated successfully")
+                true
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            println("✗ Error updating rating: ${e.message}")
+            false
+        }
+    }
+
+    suspend fun createEmergencyAlert(alert: FirebaseEmergencyAlert): String? {
+        return try {
+            val alertRef = emergencyAlertsRef.push()
+            val alertId = alertRef.key ?: return null
+            val alertWithId = alert.copy(id = alertId)
+            alertRef.setValue(alertWithId).await()
+            alertId
+        } catch (e: Exception) {
+            println("Error creating emergency alert: ${e.message}")
+            null
+        }
+    }
+
+    fun observeDriverBalance(driverId: String): Flow<Double> = callbackFlow {
+        println("=== STARTING REAL-TIME BALANCE OBSERVER ===")
+        println("Observing balance for driver ID: $driverId")
+
+        if (driverId.isEmpty()) {
+            println("Driver ID is empty, emitting 0.0")
+            trySend(0.0).isSuccess
+            close()
+            return@callbackFlow
+        }
+
+        val driverRef = hardwareDriversRef.child(driverId)
+
+        val listener = driverRef.addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                println("=== BALANCE DATA CHANGED ===")
+                val balance = snapshot.child("balance").getValue(Double::class.java) ?: 0.0
+                println("Driver $driverId balance: ₱$balance")
+
+                val result = trySend(balance)
+                if (result.isFailure) {
+                    println("ERROR: Failed to emit balance: ${result.exceptionOrNull()}")
+                } else {
+                    println("SUCCESS: Emitted balance: ₱$balance")
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                println("Balance observer cancelled: ${error.message}")
+                trySend(0.0).isSuccess
+                close(error.toException())
+            }
+        })
+
+        awaitClose {
+            println("Removing balance observer for driver $driverId")
+            driverRef.removeEventListener(listener)
+        }
+    }
+
+    fun observeDriverPaymentMode(driverId: String): Flow<String?> = callbackFlow {
+        println("=== STARTING REAL-TIME PAYMENT MODE OBSERVER ===")
+        println("Observing payment mode for driver ID: $driverId")
+
+        if (driverId.isEmpty()) {
+            println("Driver ID is empty, emitting null")
+            trySend(null).isSuccess
+            close()
+            return@callbackFlow
+        }
+
+        val driverRef = hardwareDriversRef.child(driverId)
+
+        val listener = driverRef.addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                println("=== PAYMENT MODE DATA CHANGED ===")
+                val paymentMode = snapshot.child("paymentMode").getValue(String::class.java)
+                println("Driver $driverId payment mode: $paymentMode")
+
+                val result = trySend(paymentMode)
+                if (result.isFailure) {
+                    println("ERROR: Failed to emit payment mode: ${result.exceptionOrNull()}")
+                } else {
+                    println("SUCCESS: Emitted payment mode: $paymentMode")
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                println("Payment mode observer cancelled: ${error.message}")
+                trySend(null).isSuccess
+                close(error.toException())
+            }
+        })
+
+        awaitClose {
+            println("Removing payment mode observer for driver $driverId")
+            driverRef.removeEventListener(listener)
+        }
+    }
+
+    fun observePayBalanceStatus(driverId: String): Flow<Boolean> = callbackFlow {
+        println("=== STARTING REAL-TIME PAY_BALANCE OBSERVER ===")
+        println("Observing pay_balance for driver ID: $driverId")
+
+        if (driverId.isEmpty()) {
+            println("Driver ID is empty, emitting false")
+            trySend(false).isSuccess
+            close()
+            return@callbackFlow
+        }
+
+        val driverRef = hardwareDriversRef.child(driverId)
+
+        val listener = driverRef.addValueEventListener(object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                println("=== PAY_BALANCE DATA CHANGED ===")
+                val payBalance = snapshot.child("pay_balance").getValue(Boolean::class.java) ?: false
+                println("Driver $driverId pay_balance: $payBalance")
+
+                val result = trySend(payBalance)
+                if (result.isFailure) {
+                    println("ERROR: Failed to emit pay_balance: ${result.exceptionOrNull()}")
+                } else {
+                    println("SUCCESS: Emitted pay_balance: $payBalance")
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                println("Pay_balance observer cancelled: ${error.message}")
+                trySend(false).isSuccess
+                close(error.toException())
+            }
+        })
+
+        awaitClose {
+            println("Removing pay_balance observer for driver $driverId")
+            driverRef.removeEventListener(listener)
+        }
+    }
+
+    suspend fun markPayBalance(driverId: String, wantsToPay: Boolean): Boolean {
+        return try {
+            println("=== MARKING PAY_BALANCE ===")
+            println("Driver ID: $driverId, Wants to Pay: $wantsToPay")
+
+            val updates = mapOf(
+                "drivers/$driverId/pay_balance" to wantsToPay,
+                "drivers/$driverId/pay_balance_timestamp" to System.currentTimeMillis()
+            )
+
+            database.updateChildren(updates).await()
+            println("✓ Successfully updated pay_balance to $wantsToPay for driver $driverId")
+            true
+        } catch (e: Exception) {
+            println("✗ Error updating pay_balance: ${e.message}")
+            false
+        }
+    }
+
+    fun getRfidChangeHistory(driverId: String): Flow<List<Map<String, Any>>> = callbackFlow {
+        println("=== GETTING RFID CHANGE HISTORY ===")
+        println("Driver ID: $driverId")
+        println("Querying from: rfidHistory/$driverId")
+
+        // Query the nested structure: rfidHistory/{driverId}/{historyId}
+        val driverHistoryRef = rfidChangeHistoryRef.child(driverId)
+
+        val listener = driverHistoryRef.addValueEventListener(object : ValueEventListener {
+                override fun onDataChange(snapshot: DataSnapshot) {
+                    println("=== RFID HISTORY DATA RECEIVED ===")
+                    println("Snapshot exists: ${snapshot.exists()}")
+                    println("Number of history entries: ${snapshot.childrenCount}")
+
+                    val history = mutableListOf<Map<String, Any>>()
+                    snapshot.children.forEach { child ->
+                        println("Processing history entry: ${child.key}")
+                        @Suppress("UNCHECKED_CAST")
+                        val historyMap = child.value as? Map<String, Any>
+                        if (historyMap != null) {
+                            // Add the ID from the key if not present
+                            val enrichedMap = historyMap.toMutableMap()
+                            if (!enrichedMap.containsKey("id")) {
+                                enrichedMap["id"] = child.key ?: ""
+                            }
+                            // Ensure driverId is present
+                            if (!enrichedMap.containsKey("driverId")) {
+                                enrichedMap["driverId"] = driverId
+                            }
+                            history.add(enrichedMap)
+                            println("  Added history entry: $enrichedMap")
+                        } else {
+                            println("  Skipped null history entry")
+                        }
+                    }
+
+                    // Sort by timestamp descending (newest first)
+                    val sortedHistory = history.sortedByDescending {
+                        (it["reassignedAt"] as? String)?.let { dateStr ->
+                            try {
+                                // Try to parse ISO date string
+                                java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).parse(dateStr)?.time
+                            } catch (e: Exception) {
+                                // Fallback to timestamp field if exists
+                                (it["timestamp"] as? Number)?.toLong() ?: 0L
+                            }
+                        } ?: (it["timestamp"] as? Number)?.toLong() ?: 0L
+                    }
+
+                    println("Total history entries found: ${sortedHistory.size}")
+                    trySend(sortedHistory)
+                }
+                override fun onCancelled(error: DatabaseError) {
+                    println("=== RFID HISTORY QUERY CANCELLED ===")
+                    println("Error: ${error.message}")
+                    trySend(emptyList())
+                }
+            })
+        awaitClose {
+            println("Removing RFID history listener for driver $driverId")
+            driverHistoryRef.removeEventListener(listener)
+        }
+    }
+
+    suspend fun reportMissingRfid(driverId: String): Boolean {
+        return try {
+            println("=== REPORTING MISSING RFID ===")
+            println("Driver ID: $driverId")
+
+            val updates = mapOf(
+                "drivers/$driverId/rfidMissing" to true,
+                "drivers/$driverId/rfidMissingReportedAt" to System.currentTimeMillis()
+            )
+
+            database.updateChildren(updates).await()
+            println("✓ Successfully marked RFID as missing for driver $driverId")
+            true
+        } catch (e: Exception) {
+            println("✗ Error reporting missing RFID: ${e.message}")
+            false
+        }
+    }
+
+    // Fix existing booking by adding payment mode from driver's current payment mode
+    suspend fun fixBookingPaymentMode(bookingId: String): Boolean {
+        return try {
+            println("=== FIXING BOOKING PAYMENT MODE ===")
+            println("Booking ID: $bookingId")
+
+            // Get the booking to find the assigned driver
+            val bookingSnapshot = bookingsRef.child(bookingId).get().await()
+            if (!bookingSnapshot.exists()) {
+                println("✗ Booking not found: $bookingId")
+                return false
+            }
+
+            val assignedDriverId = bookingSnapshot.child("assignedDriverId").getValue(String::class.java)
+            if (assignedDriverId.isNullOrEmpty()) {
+                println("✗ No driver assigned to booking: $bookingId")
+                return false
+            }
+
+            println("✓ Found assigned driver: $assignedDriverId")
+
+            // Get the driver's payment mode
+            val driverSnapshot = hardwareDriversRef.child(assignedDriverId).get().await()
+            if (!driverSnapshot.exists()) {
+                println("✗ Driver not found: $assignedDriverId")
+                return false
+            }
+
+            val paymentMode = driverSnapshot.child("paymentMode").getValue(String::class.java) ?: "pay_every_trip"
+            println("✓ Driver payment mode: $paymentMode")
+
+            // Update the booking with payment mode
+            val updates = mapOf(
+                "bookings/$bookingId/paymentMode" to paymentMode,
+                "bookingIndex/$bookingId/paymentMode" to paymentMode
+            )
+
+            database.updateChildren(updates).await()
+            println("✅ Successfully added payment mode '$paymentMode' to booking $bookingId")
+            true
+        } catch (e: Exception) {
+            println("✗ Error fixing booking payment mode: ${e.message}")
+            e.printStackTrace()
+            false
+        }
+    }
+
+    // Fix all bookings for a specific driver that are missing payment mode
+    suspend fun fixAllDriverBookingsPaymentMode(driverId: String): Int {
+        return try {
+            println("=== FIXING ALL BOOKINGS FOR DRIVER ===")
+            println("Driver ID: $driverId")
+
+            // Get driver's payment mode
+            val driverSnapshot = hardwareDriversRef.child(driverId).get().await()
+            if (!driverSnapshot.exists()) {
+                println("✗ Driver not found: $driverId")
+                return 0
+            }
+
+            val paymentMode = driverSnapshot.child("paymentMode").getValue(String::class.java) ?: "pay_every_trip"
+            println("✓ Driver payment mode: $paymentMode")
+
+            // Get all bookings for this driver
+            val bookingsSnapshot = bookingsRef.orderByChild("assignedDriverId").equalTo(driverId).get().await()
+
+            var fixedCount = 0
+            val updates = mutableMapOf<String, Any>()
+
+            bookingsSnapshot.children.forEach { child ->
+                val bookingId = child.key ?: return@forEach
+                val existingPaymentMode = child.child("paymentMode").getValue(String::class.java)
+
+                // Only update if payment mode is missing or empty
+                if (existingPaymentMode.isNullOrEmpty()) {
+                    updates["bookings/$bookingId/paymentMode"] = paymentMode
+                    updates["bookingIndex/$bookingId/paymentMode"] = paymentMode
+                    fixedCount++
+                    println("  Adding payment mode to booking: $bookingId")
+                }
+            }
+
+            if (updates.isNotEmpty()) {
+                database.updateChildren(updates).await()
+                println("✅ Successfully fixed $fixedCount bookings")
+            } else {
+                println("✓ No bookings needed fixing - all have payment mode set")
+            }
+
+            fixedCount
+        } catch (e: Exception) {
+            println("✗ Error fixing driver bookings: ${e.message}")
+            e.printStackTrace()
+            0
+        }
     }
 
 }

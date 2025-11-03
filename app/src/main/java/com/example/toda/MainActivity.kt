@@ -146,8 +146,8 @@ fun BookingApp(
     var currentScreen by remember { mutableStateOf(initialScreen ?: "user_selection") }
 
     // Track the active booking navigation target and pending snapshot
-    var currentActiveBookingId: String? by remember { mutableStateOf<String?>(null) }
-    var pendingBookingSnapshot: Booking? by remember { mutableStateOf<Booking?>(null) }
+    var currentActiveBookingId by remember { mutableStateOf<String?>(null) }
+    var pendingBookingSnapshot by remember { mutableStateOf<Booking?>(null) }
 
     LaunchedEffect(bookingState.currentBookingId) {
         // Once a booking is created and we receive the server ID, navigate to active booking

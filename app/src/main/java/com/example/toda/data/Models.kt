@@ -28,7 +28,9 @@ data class Booking(
     val isNoShow: Boolean = false,
     val noShowReportedTime: Long = 0L,
     // Walk-in booking flag (bookings made at physical terminal)
-    val isWalkIn: Boolean = false
+    val isWalkIn: Boolean = false,
+    // Payment mode tracking
+    val paymentMode: String = ""
 )
 
 enum class BookingStatus {
@@ -162,7 +164,12 @@ data class Driver(
     val rejectionReason: String = "", // Reason if rejected by admin
     val rejectionReasons: List<String> = emptyList(), // Multiple reasons if applicable
     val rejectedAt: Long = 0, // Timestamp when rejected
-    val verifiedAt: Long = 0 // Timestamp when verified
+    val verifiedAt: Long = 0, // Timestamp when verified
+    // Payment mode fields
+    val paymentMode: String = "pay_every_trip", // "pay_every_trip" or "pay_later"
+    val balance: Double = 0.0, // Running balance for pay_later mode
+    val lastPaymentDate: Long = 0L, // Last time driver made a payment
+    val canGoOnline: Boolean = true // Whether driver can go online (based on balance)
 )
 
 // Simplified driver status for your flow

@@ -1030,13 +1030,41 @@ class TODARepository @Inject constructor(
         return firebaseService.observeDriverQueue()
     }
 
-    suspend fun leaveQueue(driverRFID: String): Result<Boolean> {
+    fun observeDriverBalance(driverId: String): Flow<Double> {
+        return firebaseService.observeDriverBalance(driverId)
+    }
+
+    fun observeDriverPaymentMode(driverId: String): Flow<String?> {
+        return firebaseService.observeDriverPaymentMode(driverId)
+    }
+
+    fun observeDriverRfid(driverId: String): Flow<String> {
+        return firebaseService.observeDriverRfid(driverId)
+    }
+
+    fun observePayBalanceStatus(driverId: String): Flow<Boolean> {
+        return firebaseService.observePayBalanceStatus(driverId)
+    }
+
+    suspend fun markPayBalance(driverId: String, wantsToPay: Boolean): Result<Unit> {
         return try {
-            val success = firebaseService.leaveQueue(driverRFID)
-            Result.success(success)
+            val success = firebaseService.markPayBalance(driverId, wantsToPay)
+            if (success) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Failed to mark pay_balance"))
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    suspend fun leaveQueue(driverRFID: String): Result<Boolean> {
+        return runCatching { firebaseService.leaveQueue(driverRFID) }
+    }
+
+    suspend fun joinQueue(driverId: String, driverRFID: String, driverName: String): Result<Boolean> {
+        return runCatching { firebaseService.joinQueue(driverId, driverRFID, driverName) }
     }
 
     suspend fun getDriverTodayStats(driverId: String): Result<Triple<Int, Double, Double>> {
@@ -1202,25 +1230,40 @@ class TODARepository @Inject constructor(
             val historyList = historyMaps.map { map ->
                 RfidChangeHistory(
                     id = map["id"] as? String ?: "",
-                    driverId = map["driverId"] as? String ?: "",
+                    driverId = map["driverId"] as? String ?: driverId,
                     driverName = map["driverName"] as? String ?: "",
-                    oldRfidUID = map["oldRfidUID"] as? String ?: "",
-                    newRfidUID = map["newRfidUID"] as? String ?: "",
+                    // Map admin website fields to mobile app fields
+                    oldRfidUID = map["oldRfid"] as? String ?: map["oldRfidUID"] as? String ?: "",
+                    newRfidUID = map["newRfid"] as? String ?: map["newRfidUID"] as? String ?: "",
                     changeType = try {
-                        RfidChangeType.valueOf(map["changeType"] as? String ?: "ASSIGNED")
+                        RfidChangeType.valueOf(map["changeType"] as? String ?: "REASSIGNED")
                     } catch (e: Exception) {
-                        RfidChangeType.ASSIGNED
+                        RfidChangeType.REASSIGNED
                     },
                     reason = map["reason"] as? String ?: "",
-                    changedBy = map["changedBy"] as? String ?: "",
-                    changedByName = map["changedByName"] as? String ?: "",
-                    timestamp = (map["timestamp"] as? Number)?.toLong() ?: System.currentTimeMillis(),
+                    changedBy = map["reassignedBy"] as? String ?: map["changedBy"] as? String ?: "",
+                    changedByName = map["reassignedBy"] as? String ?: map["changedByName"] as? String ?: "",
+                    // Parse reassignedAt (ISO string from admin) or timestamp (Long from mobile)
+                    timestamp = (map["reassignedAt"] as? String)?.let { dateStr ->
+                        try {
+                            java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).parse(dateStr)?.time
+                        } catch (e: Exception) {
+                            // Try without milliseconds
+                            try {
+                                java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).parse(dateStr)?.time
+                            } catch (e2: Exception) {
+                                (map["timestamp"] as? Number)?.toLong() ?: System.currentTimeMillis()
+                            }
+                        }
+                    } ?: (map["timestamp"] as? Number)?.toLong() ?: System.currentTimeMillis(),
                     notes = map["notes"] as? String ?: ""
                 )
             }
 
             Result.success(historyList)
         } catch (e: Exception) {
+            println("Error mapping RFID change history: ${e.message}")
+            e.printStackTrace()
             Result.failure(e)
         }
     }
