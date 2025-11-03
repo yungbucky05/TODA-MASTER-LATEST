@@ -155,7 +155,7 @@ class TODARepository @Inject constructor(
             println("=== CUSTOMER LOGIN DEBUG ===")
             println("Attempting login for phone: $phoneNumber")
 
-            // First authenticate with Firebase Auth
+            // First try the original strategy: phone-based pseudo email
             val authResult = authService.signInWithPhoneNumber(phoneNumber, password)
 
             authResult.fold(
@@ -186,11 +186,10 @@ class TODARepository @Inject constructor(
                         println("User authenticated but no profile found. Creating profile...")
 
                         // If auth is successful but no profile exists, create one
-                        // This handles cases where the profile creation might have failed during registration
                         val newUser = FirebaseUser(
                             id = userId,
                             phoneNumber = phoneNumber,
-                            name = "Customer", // Default name, should be updated in profile
+                            name = "Customer",
                             userType = "PASSENGER",
                             isVerified = true,
                             registrationDate = System.currentTimeMillis()
@@ -206,16 +205,67 @@ class TODARepository @Inject constructor(
                     }
                 },
                 onFailure = { error ->
-                    println("Firebase Auth login failed: ${error.message}")
+                    println("Firebase Auth login failed (phone-based email): ${error.message}")
 
-                    // IMPORTANT: Do NOT allow login on auth failure.
-                    // Instead, provide a helpful error. If the account exists, hint to reset password.
+                    // Fallback: If the user has an email recorded, try signing in with that email
                     return@fold try {
-                        val existingProfile = firebaseService.getUserByPhoneNumber(phoneNumber)
-                        if (existingProfile != null) {
-                            Result.failure(Exception("Account exists but the password is incorrect. Please reset your password."))
+                        val storedEmail = firebaseService.getUserEmailByPhoneNumber(phoneNumber)
+                        if (!storedEmail.isNullOrBlank()) {
+                            println("Attempting fallback login using stored email: $storedEmail")
+                            val emailAuth = authService.signInWithEmail(storedEmail, password)
+                            emailAuth.fold(
+                                onSuccess = { userId ->
+                                    println("Fallback email login successful for userId: $userId")
+
+                                    val userProfile = firebaseService.getUserByPhoneNumber(phoneNumber)
+
+                                    if (userProfile != null) {
+                                        // Prefetch extended profile data
+                                        try {
+                                            val extendedProfile = firebaseService.getUserProfile(userId).first()
+                                            println("Extended profile prefetch result: ${extendedProfile != null}")
+                                        } catch (e: Exception) {
+                                            println("Error fetching extended profile during fallback login: ${e.message}")
+                                        }
+
+                                        Result.success(userProfile)
+                                    } else {
+                                        // Create minimal profile if missing
+                                        val newUser = FirebaseUser(
+                                            id = userId,
+                                            phoneNumber = phoneNumber,
+                                            name = "Customer",
+                                            userType = "PASSENGER",
+                                            isVerified = true,
+                                            registrationDate = System.currentTimeMillis()
+                                        )
+                                        val created = firebaseService.createUser(newUser)
+                                        if (created) Result.success(newUser) else Result.failure(Exception("Auth ok but failed to create profile"))
+                                    }
+                                },
+                                onFailure = { err2 ->
+                                    println("Fallback email login failed: ${err2.message}")
+                                    // If fallback also fails, craft helpful error
+                                    return@fold try {
+                                        val existingProfile = firebaseService.getUserByPhoneNumber(phoneNumber)
+                                        if (existingProfile != null) {
+                                            Result.failure(Exception("Password incorrect. If you reset using your email, please login with that email in the Driver/Admin apps or reset again for your phone login."))
+                                        } else {
+                                            Result.failure(Exception("Invalid credentials. Please check your phone number and password."))
+                                        }
+                                    } catch (e: Exception) {
+                                        Result.failure(Exception("Authentication failed: ${err2.message ?: "Unknown error"}"))
+                                    }
+                                }
+                            )
                         } else {
-                            Result.failure(Exception("Invalid credentials. Please check your phone number and password."))
+                            // No stored email to try; return helpful message
+                            val existingProfile = firebaseService.getUserByPhoneNumber(phoneNumber)
+                            if (existingProfile != null) {
+                                Result.failure(Exception("Account exists but the password is incorrect. Please reset your password."))
+                            } else {
+                                Result.failure(Exception("Invalid credentials. Please check your phone number and password."))
+                            }
                         }
                     } catch (e: Exception) {
                         Result.failure(Exception("Authentication failed: ${error.message ?: "Unknown error"}"))

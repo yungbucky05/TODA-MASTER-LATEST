@@ -15,3 +15,4 @@ echo Copy the SHA-1 fingerprint(s) above and add them to your Firebase project c
 echo Go to: https://console.firebase.google.com/project/toda-contribution-system/settings/general
 pause
 
+

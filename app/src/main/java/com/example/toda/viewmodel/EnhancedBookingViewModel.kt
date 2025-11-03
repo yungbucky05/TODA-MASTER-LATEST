@@ -37,6 +37,9 @@ class EnhancedBookingViewModel @Inject constructor(
     private val _bookingState = MutableStateFlow(BookingState())
     val bookingState = _bookingState.asStateFlow()
 
+    // Tracks booking IDs that already surfaced the "driver found" dialog on the passenger side
+    private val driverFoundDialogAcknowledged: MutableSet<String> = mutableSetOf()
+
     private val _availableDrivers = MutableStateFlow<List<AvailableDriver>>(emptyList())
     val availableDrivers = _availableDrivers.asStateFlow()
 
@@ -155,6 +158,17 @@ class EnhancedBookingViewModel @Inject constructor(
                 }
             )
         }
+    }
+
+    fun hasShownDriverFoundDialog(bookingId: String): Boolean =
+        driverFoundDialogAcknowledged.contains(bookingId)
+
+    fun markDriverFoundDialogShown(bookingId: String) {
+        driverFoundDialogAcknowledged.add(bookingId)
+    }
+
+    fun clearDriverFoundDialog(bookingId: String) {
+        driverFoundDialogAcknowledged.remove(bookingId)
     }
 
     private fun startBookingPolling(bookingId: String, intervalMs: Long = 10_000L, maxAttempts: Int = 12) {

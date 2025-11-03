@@ -6,11 +6,27 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.toda.data.*
@@ -54,10 +70,15 @@ fun ActiveBookingScreen(
 
     // One-time dialog when a driver is found (passenger side only)
     var showDriverFoundDialog by remember(booking.id) { mutableStateOf(false) }
-    var driverFoundDialogShown by remember(booking.id) { mutableStateOf(false) }
+
+    // Trip lifecycle surfacing
+    var showTripCompletedDialog by remember(booking.id) { mutableStateOf(false) }
+    var tripStatusAcknowledged by remember(booking.id) { mutableStateOf(false) }
 
     // State for live countdown timer
     val currentTime = remember { mutableStateOf(System.currentTimeMillis()) }
+
+    val snackbarHostState = remember { SnackbarHostState() }
 
     // Calculate remaining time until auto no-show - for ACCEPTED or AT_PICKUP status
     val remainingSeconds = remember(booking.arrivedAtPickup, booking.arrivedAtPickupTime, booking.status, currentTime.value) {
@@ -147,13 +168,40 @@ fun ActiveBookingScreen(
     // Detect transition to ACCEPTED/assigned and show a one-time dialog for passengers
     LaunchedEffect(booking.status, booking.assignedDriverId) {
         val isAssigned = booking.assignedDriverId.isNotEmpty() || booking.status == BookingStatus.ACCEPTED || booking.status == BookingStatus.IN_PROGRESS
-        if (currentUser.userType == UserType.PASSENGER && isAssigned && !driverFoundDialogShown) {
-            driverFoundDialogShown = true
+        if (
+            booking.id.isNotEmpty() &&
+            currentUser.userType == UserType.PASSENGER &&
+            isAssigned &&
+            !bookingViewModel.hasShownDriverFoundDialog(booking.id)
+        ) {
+            bookingViewModel.markDriverFoundDialogShown(booking.id)
             showDriverFoundDialog = true
         }
     }
 
+    LaunchedEffect(booking.status) {
+        if (booking.id.isNotEmpty()) {
+            when (booking.status) {
+                BookingStatus.IN_PROGRESS -> {
+                    snackbarHostState.showSnackbar("Trip started. Enjoy your ride!")
+                }
+                BookingStatus.COMPLETED -> {
+                    bookingViewModel.clearDriverFoundDialog(booking.id)
+                    if (!tripStatusAcknowledged) {
+                        showTripCompletedDialog = true
+                    }
+                }
+                BookingStatus.CANCELLED -> {
+                    bookingViewModel.clearDriverFoundDialog(booking.id)
+                    snackbarHostState.showSnackbar("Booking was cancelled.")
+                }
+                else -> Unit
+            }
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Active Booking") },
@@ -216,6 +264,69 @@ fun ActiveBookingScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            if (currentUser.userType == UserType.PASSENGER &&
+                (booking.assignedDriverId.isNotEmpty() || booking.driverName.isNotBlank() || driver != null)
+            ) {
+                item {
+                    val driverDisplayName = when {
+                        driver?.name?.isNotBlank() == true -> driver.name
+                        booking.driverName.isNotBlank() -> booking.driverName
+                        else -> "Driver assigned"
+                    }
+
+                    val displayPhone = when {
+                        driverPhone.isNotBlank() -> driverPhone
+                        driver?.phoneNumber?.isNotBlank() == true -> driver.phoneNumber
+                        else -> null
+                    }
+
+                    val sanitizedDial = displayPhone?.filter { it.isDigit() || it == '+' }
+
+                    val tricycleInfo = when {
+                        booking.todaNumber.isNotBlank() -> booking.todaNumber
+                        booking.assignedTricycleId.isNotBlank() -> booking.assignedTricycleId
+                        else -> null
+                    }
+
+                    DriverDetailsCard(
+                        name = driverDisplayName,
+                        phone = displayPhone,
+                        tricycleInfo = tricycleInfo,
+                        onCallDriver = sanitizedDial?.let { dial ->
+                            {
+                                val intent = Intent(Intent.ACTION_DIAL).apply {
+                                    data = "tel:$dial".toUri()
+                                }
+                                context.startActivity(intent)
+                            }
+                        }
+                    )
+                }
+            }
+
+            if (booking.status == BookingStatus.IN_PROGRESS || booking.status == BookingStatus.COMPLETED) {
+                item {
+                    val bannerData = if (booking.status == BookingStatus.IN_PROGRESS) {
+                        TripStatusBannerData(
+                            title = "Trip in progress",
+                            message = "You are on the way to your destination.",
+                            icon = Icons.Default.DirectionsCar,
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                    } else {
+                        TripStatusBannerData(
+                            title = "Trip completed",
+                            message = "Thanks for riding with TODA. Fare collection should be settled now.",
+                            icon = Icons.Default.CheckCircle,
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                    TripStatusBanner(data = bannerData)
+                }
+            }
+
             // Map showing current pickup and destination
             item {
                 Card(
@@ -407,6 +518,35 @@ fun ActiveBookingScreen(
         )
     }
 
+    if (showTripCompletedDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                tripStatusAcknowledged = true
+                showTripCompletedDialog = false
+            },
+            icon = { Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+            title = { Text("Trip finished") },
+            text = { Text("Your ride has been marked as completed. You can return to the bookings screen or stay to review the details.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    tripStatusAcknowledged = true
+                    showTripCompletedDialog = false
+                    onBack()
+                }) {
+                    Text("Back to bookings")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    tripStatusAcknowledged = true
+                    showTripCompletedDialog = false
+                }) {
+                    Text("Stay here")
+                }
+            }
+        )
+    }
+
     // Full chat overlay as a full-screen Dialog to capture all touch input
     if (showFullChat) {
         Dialog(
@@ -427,6 +567,99 @@ fun ActiveBookingScreen(
                     booking = booking,
                     onBack = { showFullChat = false }
                 )
+            }
+        }
+    }
+}
+
+private data class TripStatusBannerData(
+    val title: String,
+    val message: String,
+    val icon: ImageVector,
+    val containerColor: Color,
+    val contentColor: Color
+)
+
+@Composable
+private fun TripStatusBanner(data: TripStatusBannerData) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = data.containerColor,
+            contentColor = data.contentColor
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(data.icon, contentDescription = null)
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = data.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = data.message,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DriverDetailsCard(
+    name: String,
+    phone: String?,
+    tricycleInfo: String?,
+    onCallDriver: (() -> Unit)?
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Driver Details",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            DetailRow(
+                icon = Icons.Default.Person,
+                label = "Driver",
+                value = name
+            )
+
+            phone?.takeIf { it.isNotBlank() }?.let { phoneNumber ->
+                DetailRow(
+                    icon = Icons.Default.Phone,
+                    label = "Contact",
+                    value = phoneNumber
+                )
+            }
+
+            tricycleInfo?.let {
+                DetailRow(
+                    icon = Icons.Default.DirectionsCar,
+                    label = "Tricycle / TODA",
+                    value = it
+                )
+            }
+
+            if (phone != null && onCallDriver != null) {
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedButton(onClick = onCallDriver) {
+                    Icon(Icons.Default.Phone, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Call Driver")
+                }
             }
         }
     }
@@ -460,6 +693,7 @@ private fun BookingDetailsCard(
                     colors = CardDefaults.cardColors(
                         containerColor = when {
                             booking.status == BookingStatus.AT_PICKUP -> Color(0xFF1B5E20) // Dark green when AT_PICKUP
+                            booking.status == BookingStatus.IN_PROGRESS -> MaterialTheme.colorScheme.tertiaryContainer
                             booking.arrivedAtPickup -> Color(0xFFE8F5E9) // Light green when arrived
                             else -> MaterialTheme.colorScheme.primaryContainer
                         }
@@ -481,6 +715,7 @@ private fun BookingDetailsCard(
                             modifier = Modifier.size(24.dp),
                             tint = when {
                                 booking.status == BookingStatus.AT_PICKUP -> Color.White
+                                booking.status == BookingStatus.IN_PROGRESS -> MaterialTheme.colorScheme.onTertiaryContainer
                                 booking.arrivedAtPickup -> Color(0xFF2E7D32)
                                 else -> MaterialTheme.colorScheme.primary
                             }
@@ -490,6 +725,7 @@ private fun BookingDetailsCard(
                             Text(
                                 text = when {
                                     booking.status == BookingStatus.AT_PICKUP -> "🚗 DRIVER HAS ARRIVED!"
+                                    booking.status == BookingStatus.IN_PROGRESS -> "Trip in progress"
                                     booking.arrivedAtPickup -> "Driver is at pickup location!"
                                     else -> "Driver Status"
                                 },
@@ -497,6 +733,7 @@ private fun BookingDetailsCard(
                                 fontWeight = FontWeight.Bold,
                                 color = when {
                                     booking.status == BookingStatus.AT_PICKUP -> Color.White
+                                    booking.status == BookingStatus.IN_PROGRESS -> MaterialTheme.colorScheme.onTertiaryContainer
                                     booking.arrivedAtPickup -> Color(0xFF2E7D32)
                                     else -> MaterialTheme.colorScheme.onPrimaryContainer
                                 }
@@ -504,12 +741,14 @@ private fun BookingDetailsCard(
                             Text(
                                 text = when {
                                     booking.status == BookingStatus.AT_PICKUP -> "Your driver is waiting at the pickup location. Please come out now!"
+                                    booking.status == BookingStatus.IN_PROGRESS -> "Sit tight. We'll notify you once you arrive."
                                     booking.arrivedAtPickup -> "Your driver is waiting for you"
                                     else -> "Driver is on the way to pickup location"
                                 },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = when {
                                     booking.status == BookingStatus.AT_PICKUP -> Color.White.copy(alpha = 0.9f)
+                                    booking.status == BookingStatus.IN_PROGRESS -> MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.9f)
                                     booking.arrivedAtPickup -> Color(0xFF1B5E20)
                                     else -> MaterialTheme.colorScheme.onPrimaryContainer
                                 }
