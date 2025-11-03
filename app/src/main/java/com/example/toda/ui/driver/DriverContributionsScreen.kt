@@ -20,6 +20,7 @@ import com.example.toda.data.*
 import com.example.toda.viewmodel.EnhancedBookingViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.sp
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.launch
@@ -347,6 +348,9 @@ fun DriverContributionsScreen(
 
 @Composable
 private fun ContributionSummaryCard(summary: ContributionSummary) {
+
+    var showContributionsInfo by remember { mutableStateOf(false) }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -355,13 +359,26 @@ private fun ContributionSummaryCard(summary: ContributionSummary) {
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            Text(
-                text = "Contribution Summary",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.Black,
-                modifier = Modifier.padding(bottom = 16.dp)
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Contribution Summary",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+                IconButton(onClick = { showContributionsInfo = true }) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = "Info",
+                        tint = Color.Gray
+                    )
+                }
+            }
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -435,6 +452,25 @@ private fun ContributionSummaryCard(summary: ContributionSummary) {
                 }
             }
         }
+    }
+
+    // Info Dialog
+    if (showContributionsInfo) {
+        AlertDialog(
+            onDismissRequest = { showContributionsInfo = false },
+            confirmButton = {
+                TextButton(onClick = { showContributionsInfo = false }) {
+                    Text("Got it")
+                }
+            },
+            title = { Text("Driver Contributions") },
+            text = {
+                Text(
+                    "This section shows your contribution records for the day, including total butaw payments, payment dates, and confirmation status. " +
+                            "You can monitor your active and completed contributions here to stay updated on your TODA balance."
+                )
+            }
+        )
     }
 }
 

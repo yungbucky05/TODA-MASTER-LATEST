@@ -747,6 +747,10 @@ fun DashboardContent(
     paymentMode: String = "pay_every_trip",
     driverBalance: Double = 0.0
 ) {
+
+    var showStatusInfo by remember { mutableStateOf(false) }
+    var showSummaryInfo by remember { mutableStateOf(false) }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -846,33 +850,49 @@ fun DashboardContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(12.dp)
-                            .background(
-                                color = if (isOnline) Color(0xFF4CAF50) else Color.Gray,
-                                shape = RoundedCornerShape(6.dp)
-                            )
-                    )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = "Driver Status",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color.Black
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(12.dp)
+                                .background(
+                                    color = if (isOnline) Color(0xFF4CAF50) else Color.Gray,
+                                    shape = RoundedCornerShape(6.dp)
+                                )
                         )
-                        Text(
-                            text = if (isOnline) "You are online" else "You are offline",
-                            fontSize = 12.sp,
-                            color = Color.Gray
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text(
+                                text = "Driver Status",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color.Black
+                            )
+                            Text(
+                                text = if (isOnline) "You are online" else "You are offline",
+                                fontSize = 12.sp,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+
+                    // Info Icon on the right side
+                    IconButton(
+                        onClick = { showStatusInfo = true },
+                        modifier = Modifier.size(20.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = "Info",
+                            tint = Color.Gray
                         )
                     }
                 }
             }
         }
+
 
         item {
             // Today's Summary Card
@@ -886,13 +906,28 @@ fun DashboardContent(
                         .fillMaxWidth()
                         .padding(16.dp)
                 ) {
-                    Text(
-                        text = "Today's Summary",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color.Black,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Today's Summary",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color.Black
+                        )
+                        IconButton(
+                            onClick = { showSummaryInfo = true },
+                            modifier = Modifier.size(20.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = "Info",
+                                tint = Color.Gray
+                            )
+                        }
+                    }
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -920,6 +955,44 @@ fun DashboardContent(
                 }
             }
         }
+    }
+
+    // Info Dialogs
+    if (showStatusInfo) {
+        AlertDialog(
+            onDismissRequest = { showStatusInfo = false },
+            confirmButton = {
+                TextButton(onClick = { showStatusInfo = false }) {
+                    Text("Got it")
+                }
+            },
+            title = { Text("Driver Status Info") },
+            text = {
+                Text(
+                    "This section shows your current availability. " +
+                            "Online means you can receive ride requests. " +
+                            "Offline means you're currently unavailable."
+                )
+            }
+        )
+    }
+
+    if (showSummaryInfo) {
+        AlertDialog(
+            onDismissRequest = { showSummaryInfo = false },
+            confirmButton = {
+                TextButton(onClick = { showSummaryInfo = false }) {
+                    Text("Got it")
+                }
+            },
+            title = { Text("Today's Summary Info") },
+            text = {
+                Text(
+                    "This section displays your performance for the day — " +
+                            "total trips completed, earnings generated, and your average rating."
+                )
+            }
+        )
     }
 }
 
@@ -996,6 +1069,10 @@ fun BookingsContent(
 ) {
     val viewModel: EnhancedBookingViewModel = hiltViewModel()
 
+    var showActiveTripsInfo by remember { mutableStateOf(false) }
+    var showAvailableBookingsInfo by remember { mutableStateOf(false) }
+    var showEmptyStateInfo by remember { mutableStateOf(false) }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -1005,13 +1082,25 @@ fun BookingsContent(
         // My Active Bookings
         if (myBookings.isNotEmpty()) {
             item {
-                Text(
-                    text = "Active Trips",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.Black,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Active Trips",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.Black
+                    )
+                    IconButton(onClick = { showActiveTripsInfo = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = "Info",
+                            tint = Color.Gray
+                        )
+                    }
+                }
             }
             items(myBookings) { booking ->
                 BookingMonitoringCard(
@@ -1026,13 +1115,25 @@ fun BookingsContent(
         // Available Bookings (only show if online)
         if (isOnline && availableBookings.isNotEmpty()) {
             item {
-                Text(
-                    text = "Available Bookings",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.Black,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Available Bookings",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.Black
+                    )
+                    IconButton(onClick = { showAvailableBookingsInfo = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = "Info",
+                            tint = Color.Gray
+                        )
+                    }
+                }
             }
             items(availableBookings) { booking ->
                 AvailableBookingDisplayCard(booking = booking)
@@ -1071,11 +1172,71 @@ fun BookingsContent(
                             color = Color.Gray,
                             textAlign = TextAlign.Center
                         )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        IconButton(onClick = { showEmptyStateInfo = true }) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = "Help",
+                                tint = Color.Gray
+                            )
+                        }
                     }
                 }
             }
         }
     }
+
+    // Info dialog for Active Trips
+    if (showActiveTripsInfo) {
+        AlertDialog(
+            onDismissRequest = { showActiveTripsInfo = false },
+            confirmButton = {
+                TextButton(onClick = { showActiveTripsInfo = false }) { Text("Got it") }
+            },
+            title = { Text("Active Trips") },
+            text = {
+                Text(
+                    "This section shows your ongoing trips. You can track progress, chat with passengers, or mark the trip as completed here."
+                )
+            }
+        )
+    }
+
+    // Info dialog for Available Bookings
+    if (showAvailableBookingsInfo) {
+        AlertDialog(
+            onDismissRequest = { showAvailableBookingsInfo = false },
+            confirmButton = {
+                TextButton(onClick = { showAvailableBookingsInfo = false }) { Text("Got it") }
+            },
+            title = { Text("Available Bookings") },
+            text = {
+                Text(
+                    "These are new ride requests from passengers. You can only see and accept them when your status is set to Online."
+                )
+            }
+        )
+    }
+
+    // Info dialog for Empty State
+    if (showEmptyStateInfo) {
+        AlertDialog(
+            onDismissRequest = { showEmptyStateInfo = false },
+            confirmButton = {
+                TextButton(onClick = { showEmptyStateInfo = false }) { Text("Understood") }
+            },
+            title = { Text("No Active or Available Bookings") },
+            text = {
+                Text(
+                    if (isOnline)
+                        "Currently, there are no new bookings available. Keep this page open — new ride requests will appear automatically once a passenger books."
+                    else
+                        "You’re currently offline. Go online to start receiving new booking requests from passengers."
+                )
+            }
+        )
+    }
+
 }
 
 @Composable
@@ -1458,20 +1619,36 @@ fun StatusChip(status: String) {
 fun HistoryContent(
     completedBookings: List<Booking>
 ) {
+    var showHistoryInfo by remember { mutableStateOf(false) }
+    var showEmptyHistoryInfo by remember { mutableStateOf(false) }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        // Header with Info icon
         item {
-            Text(
-                text = "Booking History",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.Black,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Booking History",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black
+                )
+                IconButton(onClick = { showHistoryInfo = true }) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = "Info",
+                        tint = Color.Gray
+                    )
+                }
+            }
         }
 
         if (completedBookings.isEmpty()) {
@@ -1505,6 +1682,14 @@ fun HistoryContent(
                             color = Color.Gray,
                             textAlign = TextAlign.Center
                         )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        IconButton(onClick = { showEmptyHistoryInfo = true }) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = "Help",
+                                tint = Color(0xFF1976D2)
+                            )
+                        }
                     }
                 }
             }
@@ -1513,6 +1698,38 @@ fun HistoryContent(
                 HistoryBookingCard(booking)
             }
         }
+    }
+
+    // Info dialog for Booking History
+    if (showHistoryInfo) {
+        AlertDialog(
+            onDismissRequest = { showHistoryInfo = false },
+            confirmButton = {
+                TextButton(onClick = { showHistoryInfo = false }) { Text("Got it") }
+            },
+            title = { Text("Booking History") },
+            text = {
+                Text(
+                    "This section shows all your previously completed trips, including details such as pickup and drop-off points, dates, and fare information."
+                )
+            }
+        )
+    }
+
+    // Info dialog for Empty History State
+    if (showEmptyHistoryInfo) {
+        AlertDialog(
+            onDismissRequest = { showEmptyHistoryInfo = false },
+            confirmButton = {
+                TextButton(onClick = { showEmptyHistoryInfo = false }) { Text("Understood") }
+            },
+            title = { Text("No Completed Trips Yet") },
+            text = {
+                Text(
+                    "You haven’t completed any trips yet. Once you finish a ride, it will automatically appear here for your reference."
+                )
+            }
+        )
     }
 }
 
@@ -1680,6 +1897,7 @@ fun ContributionsContent(
     userId: String,
     viewModel: EnhancedBookingViewModel
 ) {
+
     // Simply use the existing DriverContributionsScreen
     DriverContributionsScreen(
         driverId = userId,

@@ -42,6 +42,9 @@ fun CustomerDashboardScreen(
     var showDiscountCategoryDialog by remember { mutableStateOf(false) }
     var showPendingApplicationDialog by remember { mutableStateOf(false) }
 
+    // New dialogs for section info
+    var showRecentBookingsInfo by remember { mutableStateOf(false) }
+
     LaunchedEffect(userId) {
         viewModel.loadUserData(userId)
     }
@@ -348,17 +351,35 @@ private fun StatsSection(rideSummary: RideSummaryCounts) {
 private fun CustomerInformationCard(userProfile: UserProfile?) {
     val phone = userProfile?.phoneNumber?.takeIf { it.isNotBlank() } ?: "Not provided"
     val address = userProfile?.address?.takeIf { it.isNotBlank() }
+    var showCustomerInfo by remember { mutableStateOf(false) }
 
     DashboardSectionCard(
         title = "Passenger Details",
         subtitle = address
     ) {
+        IconButton(onClick = { showCustomerInfo = true }) {
+            Icon(Icons.Default.Info, contentDescription = "Info",
+                tint = Color.Gray)
+        }
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             InfoItem(label = "Mobile Number", value = phone)
             HorizontalDivider()
             DiscountStatusRow(userProfile = userProfile)
             AccountStatusBanner(userProfile = userProfile)
         }
+    }
+
+    if (showCustomerInfo) {
+        AlertDialog(
+            onDismissRequest = { showCustomerInfo = false },
+            confirmButton = {
+                TextButton(onClick = { showCustomerInfo = false }) { Text("Got it") }
+            },
+            title = { Text("Customer Information") },
+            text = {
+                Text("This section displays your registered information such as phone number and address. Keep it updated for smooth bookings.")
+            }
+        )
     }
 }
 
