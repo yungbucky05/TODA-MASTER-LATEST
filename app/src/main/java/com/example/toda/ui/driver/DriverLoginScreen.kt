@@ -32,6 +32,7 @@ import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
 import com.google.firebase.auth.PhoneAuthProvider
 import java.util.concurrent.TimeUnit
+import android.util.Patterns
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,6 +55,7 @@ fun DriverLoginScreen(
     var lastName by remember { mutableStateOf("") }
     var sex by remember { mutableStateOf("") } // required: Male/Female
     var confirmPassword by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
     var licenseNumber by remember { mutableStateOf("") }
     var tricyclePlateNumber by remember { mutableStateOf("") }
@@ -62,6 +64,7 @@ fun DriverLoginScreen(
 
     val loginState by loginViewModel.loginState.collectAsStateWithLifecycle()
     val currentUser by loginViewModel.currentUser.collectAsStateWithLifecycle()
+    val passwordReset by loginViewModel.passwordReset.collectAsStateWithLifecycle()
     val registrationState by registrationViewModel.uiState.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
 
@@ -123,6 +126,7 @@ fun DriverLoginScreen(
                                     licenseNumber = licenseNumber,
                                     tricyclePlateNumber = tricyclePlateNumber,
                                     phoneNumber = phoneNumber,
+                                    email = email,
                                     password = password
                                 )
                                 registrationViewModel.submitRegistration(driver)
@@ -190,6 +194,7 @@ fun DriverLoginScreen(
                                     licenseNumber = licenseNumber,
                                     tricyclePlateNumber = tricyclePlateNumber,
                                     phoneNumber = phoneNumber,
+                                    email = email,
                                     password = password
                                 )
                                 registrationViewModel.submitRegistration(driver)
@@ -250,6 +255,7 @@ fun DriverLoginScreen(
                         licenseNumber = licenseNumber,
                         tricyclePlateNumber = tricyclePlateNumber,
                         phoneNumber = phoneNumber,
+                        email = email,
                         password = password
                     )
                     registrationViewModel.submitRegistration(driver)
@@ -638,6 +644,80 @@ fun DriverLoginScreen(
                             }
                             Text(if (loginState.isLoading) "Signing In..." else "Sign In")
                         }
+
+                        // Forgot password dialog
+                        var showResetDialog by remember { mutableStateOf(false) }
+                        var resetEmail by remember { mutableStateOf("") }
+
+                        TextButton(onClick = { showResetDialog = true }) {
+                            Text("Forgot password?")
+                        }
+
+                        if (showResetDialog) {
+                            AlertDialog(
+                                onDismissRequest = {
+                                    if (!passwordReset.isSending) {
+                                        showResetDialog = false
+                                        loginViewModel.clearPasswordReset()
+                                        resetEmail = ""
+                                    }
+                                },
+                                title = { Text("Reset password") },
+                                text = {
+                                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        Text("Enter the email you used during driver registration.")
+                                        OutlinedTextField(
+                                            value = resetEmail,
+                                            onValueChange = { resetEmail = it.trim() },
+                                            label = { Text("Email") },
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                                            singleLine = true,
+                                            enabled = !passwordReset.isSending,
+                                            isError = resetEmail.isNotEmpty() && !Patterns.EMAIL_ADDRESS.matcher(resetEmail).matches(),
+                                            supportingText = {
+                                                val msg = when {
+                                                    passwordReset.error != null -> passwordReset.error
+                                                    passwordReset.sent -> "If an account exists for this email, a reset link has been sent. Check your inbox and spam folder."
+                                                    else -> null
+                                                }
+                                                if (msg != null) {
+                                                    Text(msg, style = MaterialTheme.typography.bodySmall)
+                                                }
+                                            }
+                                        )
+                                    }
+                                },
+                                confirmButton = {
+                                    TextButton(
+                                        onClick = { loginViewModel.resetPassword(resetEmail) },
+                                        enabled = !passwordReset.isSending && Patterns.EMAIL_ADDRESS.matcher(resetEmail).matches()
+                                    ) {
+                                        if (passwordReset.isSending) {
+                                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                            Spacer(Modifier.width(8.dp))
+                                        }
+                                        Text(
+                                            when {
+                                                passwordReset.isSending -> "Sending..."
+                                                passwordReset.sent -> "Resend"
+                                                else -> "Send link"
+                                            }
+                                        )
+                                    }
+                                },
+                                dismissButton = {
+                                    TextButton(
+                                        onClick = {
+                                            showResetDialog = false
+                                            loginViewModel.clearPasswordReset()
+                                            resetEmail = ""
+                                        }
+                                    ) {
+                                        Text("Close")
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -918,6 +998,35 @@ fun DriverLoginScreen(
                             singleLine = true
                         )
 
+                        // Email (required for password recovery)
+                        OutlinedTextField(
+                            value = email,
+                            onValueChange = { email = it.trim() },
+                            label = { Text("Email") },
+                            leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !registrationState.isLoading,
+                            isError = email.isNotEmpty() && validateEmail(email) != null,
+                            supportingText = {
+                                val emailError = if (email.isNotEmpty()) validateEmail(email) else null
+                                if (emailError != null) {
+                                    Text(
+                                        text = emailError,
+                                        color = MaterialTheme.colorScheme.error,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                } else {
+                                    Text(
+                                        text = "We'll use this for password resets and account notices",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            },
+                            singleLine = true
+                        )
+
                         // Sex selection (Male/Female)
                         var sexExpanded by remember { mutableStateOf(false) }
                         val sexOptions = listOf("Male", "Female")
@@ -1102,9 +1211,15 @@ fun DriverLoginScreen(
                         Button(
                             onClick = {
                                 // Validate registration fields before submitting
+                                val emailValidation = validateEmail(email)
                                 val phoneValidation = validatePhoneNumber(phoneNumber)
                                 val licenseValidation = validateDriverLicense(licenseNumber)
                                 val plateValidation = validateTricyclePlate(tricyclePlateNumber)
+
+                                if (emailValidation != null) {
+                                    registrationViewModel.setValidationError(emailValidation)
+                                    return@Button
+                                }
 
                                 if (phoneValidation != null) {
                                     registrationViewModel.setValidationError(phoneValidation)
@@ -1125,7 +1240,7 @@ fun DriverLoginScreen(
                                 startPhoneVerification()
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            enabled = isFormValid(firstName, lastName, sex, address, licenseNumber, tricyclePlateNumber, phoneNumber, password, confirmPassword, privacyConsentGiven) && !registrationState.isLoading
+                            enabled = isFormValid(firstName, lastName, sex, address, licenseNumber, tricyclePlateNumber, phoneNumber, email, password, confirmPassword, privacyConsentGiven) && !registrationState.isLoading
                         ) {
                             if (registrationState.isLoading || isSendingOtp || isVerifyingOtp) {
                                 CircularProgressIndicator(
@@ -1274,6 +1389,7 @@ private fun isFormValid(
     license: String,
     plateNumber: String,
     phone: String,
+    email: String,
     password: String,
     confirmPassword: String,
     privacyConsent: Boolean = false
@@ -1285,6 +1401,8 @@ private fun isFormValid(
             license.isNotBlank() &&
             plateNumber.isNotBlank() &&
             phone.isNotBlank() &&
+            email.isNotBlank() &&
+            Patterns.EMAIL_ADDRESS.matcher(email).matches() &&
             password.isNotBlank() &&
             password.length >= 6 &&
             password == confirmPassword &&
@@ -1316,6 +1434,14 @@ private fun validateTricyclePlate(plate: String): String? {
     return when {
         plate.isBlank() -> "Tricycle plate number is required"
         !regex.matches(plate.trim()) -> "Please enter a valid Tricycle Plate Number (e.g., ABC-1234)"
+        else -> null
+    }
+}
+
+private fun validateEmail(email: String): String? {
+    return when {
+        email.isBlank() -> "Email is required"
+        !Patterns.EMAIL_ADDRESS.matcher(email).matches() -> "Enter a valid email address"
         else -> null
     }
 }

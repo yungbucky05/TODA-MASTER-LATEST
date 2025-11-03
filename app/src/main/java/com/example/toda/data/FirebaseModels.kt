@@ -7,6 +7,7 @@ import com.google.firebase.database.IgnoreExtraProperties
 data class FirebaseUser(
     val id: String = "",
     val phoneNumber: String = "",
+    val email: String = "",
     val name: String = "",
     val userType: String = "PASSENGER", // PASSENGER, DRIVER, OPERATOR, TODA_ADMIN
     val isVerified: Boolean = false,

@@ -24,7 +24,8 @@ class TODARepository @Inject constructor(
         phoneNumber: String,
         name: String,
         userType: UserType,
-        password: String
+        password: String,
+        email: String = ""
     ): Result<String> {
         return try {
             // First create user in Firebase Auth
@@ -36,6 +37,7 @@ class TODARepository @Inject constructor(
                     val user = FirebaseUser(
                         id = userId,
                         phoneNumber = phoneNumber,
+                        email = email,
                         name = name,
                         userType = userType.name,
                         isVerified = true, // Since we're using Firebase Auth
@@ -773,12 +775,21 @@ class TODARepository @Inject constructor(
                 phoneNumber = driver.phoneNumber,
                 name = driver.name,
                 userType = UserType.DRIVER,
-                password = driver.password
+                password = driver.password,
+                email = driver.email
             )
 
             authResult.fold(
                 onSuccess = { userId ->
                     println("✓ Firebase Auth account created: $userId")
+
+                    // Link the driver's real email for password recovery if provided
+                    if (driver.email.isNotBlank()) {
+                        authService.linkEmailPasswordToCurrentUser(driver.email, driver.password).getOrElse { linkError ->
+                            println("✗ Failed to link driver email ${driver.email}: ${linkError.message}")
+                            throw Exception("Failed to link driver email: ${linkError.message}", linkError)
+                        }
+                    }
 
                     // Step 2: Add additional driver-specific data to drivers table
                     println("Creating driver record in database...")
@@ -787,6 +798,7 @@ class TODARepository @Inject constructor(
                         driverName = driver.name,
                         todaNumber = "", // Empty - admin will assign TODA number later
                         phoneNumber = driver.phoneNumber,
+                        email = driver.email,
                         address = driver.address,
                         emergencyContact = "", // Not in registration form anymore
                         licenseNumber = driver.licenseNumber,
@@ -828,6 +840,7 @@ class TODARepository @Inject constructor(
                     id = driverData["id"] as? String ?: "",
                     name = driverData["driverName"] as? String ?: "",
                     phoneNumber = driverData["phoneNumber"] as? String ?: "",
+                    email = driverData["email"] as? String ?: "",
                     address = driverData["address"] as? String ?: "",
                     licenseNumber = driverData["licenseNumber"] as? String ?: "",
                     tricyclePlateNumber = driverData["tricyclePlateNumber"] as? String ?: "",
@@ -1005,6 +1018,7 @@ class TODARepository @Inject constructor(
                     id = driverId,
                     name = driverData["driverName"] as? String ?: "",
                     phoneNumber = driverData["phoneNumber"] as? String ?: "",
+                    email = driverData["email"] as? String ?: "",
                     address = driverData["address"] as? String ?: "",
                     licenseNumber = driverData["licenseNumber"] as? String ?: "",
                     tricyclePlateNumber = driverData["tricyclePlateNumber"] as? String ?: "",

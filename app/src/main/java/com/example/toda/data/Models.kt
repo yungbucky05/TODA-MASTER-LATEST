@@ -147,6 +147,7 @@ data class Driver(
     val licenseNumber: String = "", // Driver's License Number from UI
     val tricyclePlateNumber: String = "", // Tricycle Plate Number from UI
     val phoneNumber: String = "", // Phone Number from UI (login credential)
+    val email: String = "", // Email used for password recovery
     val password: String = "", // Password from UI (login credential)
     // Admin assigned fields - not in registration form
     val rfidUID: String = "", // RFID assigned by admin

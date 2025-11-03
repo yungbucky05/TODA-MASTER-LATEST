@@ -135,6 +135,7 @@ fun DriverRegistrationStatusScreen(
                             id = driverId,
                             name = driverName,
                             phoneNumber = snapshot.child("phoneNumber").value as? String ?: "",
+                            email = snapshot.child("email").value as? String ?: "",
                             address = snapshot.child("address").value as? String ?: "",
                             licenseNumber = snapshot.child("licenseNumber").value as? String ?: "",
                             tricyclePlateNumber = snapshot.child("tricyclePlateNumber").value as? String ?: "",
