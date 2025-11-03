@@ -120,6 +120,7 @@ class ContributionsViewModel : ViewModel() {
                             val amount = contributionSnapshot.child("amount").getValue(Long::class.java)?.toDouble() ?: 0.0
                             val driverName = contributionSnapshot.child("driverName").getValue(String::class.java) ?: ""
                             val driverRFID = contributionSnapshot.child("driverRFID").getValue(String::class.java) ?: ""
+                            val paidFlag = contributionSnapshot.child("paid").getValue(Boolean::class.java) ?: true
 
                             val contribution = FirebaseContribution(
                                 driverId = driverRFID, // Keep for backward compatibility
@@ -127,7 +128,8 @@ class ContributionsViewModel : ViewModel() {
                                 driverName = driverName,
                                 amount = amount,
                                 timestamp = timestamp.toLongOrNull() ?: 0L,
-                                source = "hardware"
+                                source = "hardware",
+                                paid = paidFlag
                             )
                             contributionsList.add(contribution)
                         } catch (e: Exception) {

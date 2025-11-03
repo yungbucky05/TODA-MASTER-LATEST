@@ -924,6 +924,34 @@ void processCoinContribution() {
             updateLCDDisplay(currentDriver.todaNumber, "Balance Paid!");
             delay(2000);
 
+            // Restore driver's original payment mode after balance is cleared
+            String preferredModePath = "/drivers/" + currentDriver.driverId + "/preferredPaymentMode";
+            String restoredMode = "pay_every_trip";
+
+            if (Firebase.RTDB.getString(&fbdo, preferredModePath)) {
+                String preferred = fbdo.stringData();
+                if (preferred.length() > 0 && preferred != "null") {
+                    restoredMode = preferred;
+                }
+                Serial.println("Preferred payment mode fetched: " + restoredMode);
+            } else {
+                Serial.println("⚠ Failed to read preferred payment mode: " + fbdo.errorReason());
+            }
+
+            String paymentModePath = "/drivers/" + currentDriver.driverId + "/paymentMode";
+            if (Firebase.RTDB.setString(&fbdo, paymentModePath, restoredMode)) {
+                Serial.println("✓ Payment mode restored to: " + restoredMode);
+            } else {
+                Serial.println("✗ Failed to restore payment mode: " + fbdo.errorReason());
+            }
+
+            String payBalancePath = "/drivers/" + currentDriver.driverId + "/pay_balance";
+            if (Firebase.RTDB.setBool(&fbdo, payBalancePath, false)) {
+                Serial.println("✓ pay_balance flag cleared");
+            } else {
+                Serial.println("✗ Failed to clear pay_balance flag: " + fbdo.errorReason());
+            }
+
             // Send command to Arduino to power off coin slot
             Serial2.write((uint8_t)201);
             Serial2.flush();

@@ -3,6 +3,7 @@ package com.example.toda.repository
 import com.example.toda.data.*
 import com.example.toda.service.FirebaseRealtimeDatabaseService
 import com.example.toda.service.FirebaseAuthService
+import com.example.toda.service.DriverPaymentService
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.first
@@ -14,7 +15,8 @@ import kotlinx.coroutines.flow.combine
 @Singleton
 class TODARepository @Inject constructor(
     private val firebaseService: FirebaseRealtimeDatabaseService,
-    private val authService: FirebaseAuthService
+    private val authService: FirebaseAuthService,
+    private val driverPaymentService: DriverPaymentService
 ) {
 
     // User Management
@@ -1107,6 +1109,10 @@ class TODARepository @Inject constructor(
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    suspend fun restorePreferredPaymentMode(driverId: String): Result<String> {
+        return driverPaymentService.restorePreferredPaymentMode(driverId)
     }
 
     suspend fun leaveQueue(driverRFID: String): Result<Boolean> {

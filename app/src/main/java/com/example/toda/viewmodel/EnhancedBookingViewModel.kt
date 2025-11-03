@@ -25,7 +25,8 @@ data class DriverData(
     val paymentMode: String? = null,
     val balance: Double? = null,
     val canGoOnline: Boolean? = null,
-    val lastPaymentDate: Long? = null
+    val lastPaymentDate: Long? = null,
+    val preferredPaymentMode: String? = null
 )
 
 @HiltViewModel
@@ -460,7 +461,8 @@ class EnhancedBookingViewModel @Inject constructor(
                 paymentMode = driverMap["paymentMode"] as? String,
                 balance = (driverMap["balance"] as? Number)?.toDouble(),
                 canGoOnline = driverMap["canGoOnline"] as? Boolean,
-                lastPaymentDate = (driverMap["lastPaymentDate"] as? Number)?.toLong()
+                lastPaymentDate = (driverMap["lastPaymentDate"] as? Number)?.toLong(),
+                preferredPaymentMode = driverMap["preferredPaymentMode"] as? String
             )
             Result.success(driverData)
         } catch (e: Exception) {
@@ -498,6 +500,10 @@ class EnhancedBookingViewModel @Inject constructor(
 
     suspend fun markPayBalance(driverId: String, wantsToPay: Boolean): Result<Unit> {
         return repository.markPayBalance(driverId, wantsToPay)
+    }
+
+    suspend fun restorePreferredPaymentMode(driverId: String): Result<String> {
+        return repository.restorePreferredPaymentMode(driverId)
     }
 
     suspend fun leaveQueue(driverRFID: String): Result<Boolean> {

@@ -63,6 +63,14 @@ fun PaymentModeScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            val paymentModeLabel = when (currentPaymentMode) {
+                "pay_later" -> "Pay Later"
+                "pay_balance" -> "Pay Balance Now"
+                "pay_every_trip" -> "Pay Every Trip"
+                null -> "Not Set"
+                else -> currentPaymentMode.replaceFirstChar { it.uppercase() }
+            }
+
             // Current Balance Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -89,7 +97,7 @@ fun PaymentModeScreen(
                         color = if (currentBalance > 0) Color(0xFFD32F2F) else Color(0xFF4CAF50)
                     )
 
-                    if (currentBalance > 0 && onPayBalance != null) {
+                    if (currentBalance > 0 && onPayBalance != null && currentPaymentMode != "pay_balance") {
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(
                             onClick = onPayBalance,
@@ -129,7 +137,7 @@ fun PaymentModeScreen(
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = if (currentPaymentMode == "pay_later") "Pay Later" else "Pay Every Trip",
+                                text = paymentModeLabel,
                                 fontSize = 14.sp,
                                 color = Color.Gray
                             )
@@ -169,6 +177,7 @@ fun PaymentModeScreen(
                         Text(
                             text = "• Pay Every Trip: Pay ₱5 before each trip\n" +
                                    "• Pay Later: Accumulate ₱5 per trip, pay at end of day\n" +
+                                   "• Pay Balance Now: Temporarily switch to settle outstanding balance at the terminal\n" +
                                    "• You must settle your balance before going online the next day",
                             fontSize = 12.sp,
                             color = Color(0xFF6D4C41)
@@ -205,6 +214,17 @@ fun PaymentModeScreen(
                             showModeDialog = false
                         }
                     )
+
+                    PaymentModeOption(
+                        title = "Pay Balance Now",
+                        description = "Switch kiosk to balance payoff mode (requires outstanding balance)",
+                        isSelected = currentPaymentMode == "pay_balance",
+                        enabled = currentBalance > 0,
+                        onClick = {
+                            onModeSelected("pay_balance")
+                            showModeDialog = false
+                        }
+                    )
                 }
             },
             confirmButton = {
@@ -221,17 +241,19 @@ private fun PaymentModeOption(
     title: String,
     description: String,
     isSelected: Boolean,
+    enabled: Boolean = true,
     onClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected)
-                Color(0xFFE3F2FD)
-            else
-                Color(0xFFF5F5F5)
+            containerColor = when {
+                !enabled -> Color(0xFFF0F0F0)
+                isSelected -> Color(0xFFE3F2FD)
+                else -> Color(0xFFF5F5F5)
+            }
         )
     ) {
         Row(
@@ -242,19 +264,21 @@ private fun PaymentModeOption(
         ) {
             RadioButton(
                 selected = isSelected,
-                onClick = onClick
+                onClick = onClick,
+                enabled = enabled
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
                     text = title,
                     fontWeight = FontWeight.Medium,
-                    fontSize = 16.sp
+                    fontSize = 16.sp,
+                    color = if (enabled) Color.Unspecified else Color.Gray
                 )
                 Text(
                     text = description,
                     fontSize = 12.sp,
-                    color = Color.Gray
+                    color = if (enabled) Color.Gray else Color.LightGray
                 )
             }
         }
