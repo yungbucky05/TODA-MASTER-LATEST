@@ -7,7 +7,6 @@ import com.google.firebase.ktx.Firebase
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
-import com.google.firebase.auth.EmailAuthProvider
 
 @Singleton
 class FirebaseAuthService @Inject constructor() {
@@ -127,15 +126,14 @@ class FirebaseAuthService @Inject constructor() {
         }
     }
 
-    // New: link email/password credential to the currently signed-in user (e.g., after phone OTP)
-    suspend fun linkEmailPasswordToCurrentUser(email: String, password: String): Result<String> {
-        val user = auth.currentUser ?: return Result.failure(Exception("No authenticated user to link to"))
+    // Update the currently authenticated user's email address (used after creating with phone alias)
+    suspend fun updateEmailForCurrentUser(newEmail: String): Result<String> {
+        val user = auth.currentUser ?: return Result.failure(Exception("No authenticated user to update"))
         return try {
-            val cred = EmailAuthProvider.getCredential(email, password)
-            user.linkWithCredential(cred).await()
+            user.updateEmail(newEmail).await()
             Result.success(user.uid)
         } catch (e: Exception) {
-            Result.failure(Exception(e.message ?: "Failed to link email/password"))
+            Result.failure(Exception(e.message ?: "Failed to update user email"))
         }
     }
 

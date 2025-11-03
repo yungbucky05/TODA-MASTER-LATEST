@@ -783,11 +783,12 @@ class TODARepository @Inject constructor(
                 onSuccess = { userId ->
                     println("✓ Firebase Auth account created: $userId")
 
-                    // Link the driver's real email for password recovery if provided
+                    // Update the driver's auth email so password resets go to their inbox
                     if (driver.email.isNotBlank()) {
-                        authService.linkEmailPasswordToCurrentUser(driver.email, driver.password).getOrElse { linkError ->
-                            println("✗ Failed to link driver email ${driver.email}: ${linkError.message}")
-                            throw Exception("Failed to link driver email: ${linkError.message}", linkError)
+                        authService.updateEmailForCurrentUser(driver.email).getOrElse { updateError ->
+                            println("✗ Failed to update driver email ${driver.email}: ${updateError.message}")
+                            val friendly = updateError.message ?: "Unable to assign email to driver account"
+                            throw Exception(friendly, updateError)
                         }
                     }
 
@@ -1338,7 +1339,7 @@ class TODARepository @Inject constructor(
         }
     }
 
-    // Link email/password to the currently authenticated user (after phone OTP) and create profile
+    // Update the currently authenticated user's email (after phone OTP) and create profile
     suspend fun registerUserByLinkingEmailToCurrentUser(
         email: String,
         phoneNumber: String,
@@ -1346,8 +1347,8 @@ class TODARepository @Inject constructor(
         userData: Map<String, Any>
     ): Result<FirebaseUser> {
         return try {
-            val linkResult = authService.linkEmailPasswordToCurrentUser(email, password)
-            linkResult.fold(
+            val updateResult = authService.updateEmailForCurrentUser(email)
+            updateResult.fold(
                 onSuccess = { userId ->
                     val user = FirebaseUser(
                         id = userId,
