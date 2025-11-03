@@ -33,18 +33,20 @@ import java.text.SimpleDateFormat
 import java.util.*
 // Added for Firebase Phone Auth
 import android.app.Activity
+import android.util.Log
+import android.util.Patterns
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.PhoneAuthCredential
 import com.google.firebase.auth.PhoneAuthOptions
 import com.google.firebase.auth.PhoneAuthProvider
 import java.util.concurrent.TimeUnit
-import android.util.Patterns
 import android.content.Context
 import androidx.compose.runtime.key
 import androidx.compose.ui.viewinterop.AndroidView
-import android.webkit.WebView
-import android.webkit.WebViewClient
+import com.google.firebase.auth.FirebaseAuthException
 
 // Add a simple enum to track which policy is shown
 private enum class PolicyDoc { Terms, Privacy }
@@ -183,17 +185,15 @@ fun CustomerLoginScreen(
             .setCallbacks(object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
                 override fun onVerificationCompleted(credential: PhoneAuthCredential) {
                     // Auto-retrieval or instant verification
-                    // Mark as verifying and continue with credential sign-in then proceed to register
                     isSendingOtp = false
                     isVerifyingOtp = true
                     FirebaseAuth.getInstance().signInWithCredential(credential)
                         .addOnCompleteListener { task ->
                             if (task.isSuccessful) {
-                                // Immediately sign out to avoid interfering with email-based registration
-                                FirebaseAuth.getInstance().signOut()
+                                // Do NOT sign out; we need the user to be signed in to link email/password
                                 isVerifyingOtp = false
                                 showOtpDialog = false
-                                // Proceed with registration
+                                // Proceed with registration by linking email/password to current phone-auth user
                                 val notificationPreferences = mapOf(
                                     "smsNotifications" to smsNotifications,
                                     "bookingUpdates" to bookingUpdates,
@@ -205,7 +205,7 @@ fun CustomerLoginScreen(
                                     middleName.trim().ifBlank { null },
                                     lastName.trim()
                                 ).joinToString(" ")
-                                viewModel.register(
+                                viewModel.registerAfterOtpLinking(
                                     combinedName,
                                     phoneNumber,
                                     email,
@@ -225,7 +225,19 @@ fun CustomerLoginScreen(
 
                 override fun onVerificationFailed(e: FirebaseException) {
                     isSendingOtp = false
-                    otpError = e.localizedMessage ?: "Verification failed"
+                    Log.e("PhoneAuth", "onVerificationFailed", e)
+                    val message = when (e) {
+                        is FirebaseAuthException -> when (e.errorCode) {
+                            "ERROR_APP_NOT_AUTHORIZED" -> "App not authorized for phone auth. Please contact support."
+                            "ERROR_INVALID_APP_CREDENTIAL" -> "Invalid app credential for phone verification."
+                            "ERROR_INVALID_PHONE_NUMBER" -> "Invalid phone number format."
+                            "ERROR_QUOTA_EXCEEDED" -> "SMS quota exceeded. Try again later."
+                            "ERROR_TOO_MANY_REQUESTS" -> "Too many attempts. Please try again later."
+                            else -> e.localizedMessage ?: "Verification failed"
+                        }
+                        else -> e.localizedMessage ?: "Verification failed"
+                    }
+                    otpError = message
                 }
 
                 override fun onCodeSent(
@@ -266,7 +278,7 @@ fun CustomerLoginScreen(
                     FirebaseAuth.getInstance().signInWithCredential(credential)
                         .addOnCompleteListener { task ->
                             if (task.isSuccessful) {
-                                FirebaseAuth.getInstance().signOut()
+                                // Keep user signed in for linking
                                 isVerifyingOtp = false
                                 showOtpDialog = false
                                 val notificationPreferences = mapOf(
@@ -280,7 +292,7 @@ fun CustomerLoginScreen(
                                     middleName.trim().ifBlank { null },
                                     lastName.trim()
                                 ).joinToString(" ")
-                                viewModel.register(
+                                viewModel.registerAfterOtpLinking(
                                     combinedName,
                                     phoneNumber,
                                     email,
@@ -300,7 +312,19 @@ fun CustomerLoginScreen(
 
                 override fun onVerificationFailed(e: FirebaseException) {
                     isSendingOtp = false
-                    otpError = e.localizedMessage ?: "Verification failed"
+                    Log.e("PhoneAuth", "onVerificationFailed(resend)", e)
+                    val message = when (e) {
+                        is FirebaseAuthException -> when (e.errorCode) {
+                            "ERROR_APP_NOT_AUTHORIZED" -> "App not authorized for phone auth. Please contact support."
+                            "ERROR_INVALID_APP_CREDENTIAL" -> "Invalid app credential for phone verification."
+                            "ERROR_INVALID_PHONE_NUMBER" -> "Invalid phone number format."
+                            "ERROR_QUOTA_EXCEEDED" -> "SMS quota exceeded. Try again later."
+                            "ERROR_TOO_MANY_REQUESTS" -> "Too many attempts. Please try again later."
+                            else -> e.localizedMessage ?: "Verification failed"
+                        }
+                        else -> e.localizedMessage ?: "Verification failed"
+                    }
+                    otpError = message
                 }
 
                 override fun onCodeSent(
@@ -333,8 +357,7 @@ fun CustomerLoginScreen(
         FirebaseAuth.getInstance().signInWithCredential(credential)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
-                    // Sign out to avoid conflicting with email-based account creation
-                    FirebaseAuth.getInstance().signOut()
+                    // Keep signed in; link email/password to this phone-auth user
                     isVerifyingOtp = false
                     showOtpDialog = false
 
@@ -349,7 +372,7 @@ fun CustomerLoginScreen(
                         middleName.trim().ifBlank { null },
                         lastName.trim()
                     ).joinToString(" ")
-                    viewModel.register(
+                    viewModel.registerAfterOtpLinking(
                         combinedName,
                         phoneNumber,
                         email,
@@ -1195,6 +1218,31 @@ fun CustomerLoginScreen(
                             confirmButton = {},
                             dismissButton = {}
                         )
+                    } else {
+                        // Show OTP error outside the dialog (e.g., verification failed before code was sent)
+                        if (otpError != null) {
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        Icons.Default.Error,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onErrorContainer
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        otpError!!,
+                                        color = MaterialTheme.colorScheme.onErrorContainer,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
+                        }
                     }
                 } else {
                     // Login Mode - Simplified single step

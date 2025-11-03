@@ -602,6 +602,490 @@
       "targetId": "driver_1759325281790_2222",
       "targetName": "Lucas Abad",
       "timestamp": "2025-10-31T11:21:50.538Z"
+    },
+    "-OcxEanatZjrr983j6nn": {
+      "action": "Verify Documents",
+      "adminName": "Admin",
+      "changes": {
+        "notes": "Documents approved",
+        "verificationStatus": "verified"
+      },
+      "description": "Verify Documents for eueu eulan asd",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "jEyWIAxljtRONRHbNGKlbK402iS2",
+      "targetName": "eueu eulan asd",
+      "timestamp": "2025-11-01T02:28:10.897Z"
+    },
+    "-OcxEeHUYlr0TvVymYGU": {
+      "action": "Assign TODA Number",
+      "adminName": "Admin",
+      "changes": {
+        "todaNumber": "TODA-001"
+      },
+      "description": "Assign TODA Number for eueu eulan asd",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "jEyWIAxljtRONRHbNGKlbK402iS2",
+      "targetName": "eueu eulan asd",
+      "timestamp": "2025-11-01T02:28:25.161Z"
+    },
+    "-OcxEjcMhAbi29fTtmSd": {
+      "action": "Assign RFID",
+      "adminName": "Admin",
+      "changes": {
+        "rfidNumber": "0092303987"
+      },
+      "description": "Assign RFID for eueu eulan asd",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "jEyWIAxljtRONRHbNGKlbK402iS2",
+      "targetName": "eueu eulan asd",
+      "timestamp": "2025-11-01T02:28:47.041Z"
+    },
+    "-OczWpvkB9JSlSmyez0R": {
+      "action": "Assign RFID",
+      "adminName": "Admin",
+      "changes": {
+        "rfidNumber": "0089309425"
+      },
+      "description": "Assign RFID for ken",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "driver_1761271549797_3654",
+      "targetName": "ken",
+      "timestamp": "2025-11-01T13:07:06.613Z"
+    },
+    "-OczXFsZMl_zcg5ZXMcR": {
+      "action": "Reassign RFID",
+      "adminName": "Admin",
+      "changes": {
+        "historyCount": 1,
+        "newRfid": "0092311598",
+        "oldRfid": "0089309425",
+        "reason": "RFID card lost/replaced"
+      },
+      "description": "Reassign RFID for ken",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "driver_1761271549797_3654",
+      "targetName": "ken",
+      "timestamp": "2025-11-01T13:08:56.996Z"
+    },
+    "-OczXVb7Lm-QRdc02aFu": {
+      "action": "Verify Documents",
+      "adminName": "Admin",
+      "changes": {
+        "notes": "Documents approved",
+        "verificationStatus": "verified"
+      },
+      "description": "Verify Documents for ron",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "mAWPOwNizhczC6p0w2Cq3094PzH2",
+      "targetName": "ron",
+      "timestamp": "2025-11-01T13:10:01.416Z"
+    },
+    "-OczXYsYJerV5ZYYTUN8": {
+      "action": "Assign TODA Number",
+      "adminName": "Admin",
+      "changes": {
+        "todaNumber": "TODA-777"
+      },
+      "description": "Assign TODA Number for ron",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "mAWPOwNizhczC6p0w2Cq3094PzH2",
+      "targetName": "ron",
+      "timestamp": "2025-11-01T13:10:14.819Z"
+    },
+    "-OczYrBYd_yqehfngvMg": {
+      "action": "Verify Documents",
+      "adminName": "Admin",
+      "changes": {
+        "notes": "Documents approved",
+        "verificationStatus": "verified"
+      },
+      "description": "Verify Documents for Monsi Monsi Monsi",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "B8CXks82JZh2t45ldbFQsEr8WIA3",
+      "targetName": "Monsi Monsi Monsi",
+      "timestamp": "2025-11-01T13:15:56.067Z"
+    },
+    "-OczYuE0AjUumz0iYK5r": {
+      "action": "Assign TODA Number",
+      "adminName": "Admin",
+      "changes": {
+        "todaNumber": "TODA-777"
+      },
+      "description": "Assign TODA Number for Monsi Monsi Monsi",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "B8CXks82JZh2t45ldbFQsEr8WIA3",
+      "targetName": "Monsi Monsi Monsi",
+      "timestamp": "2025-11-01T13:16:08.513Z"
+    },
+    "-OczYy9G-Hjh0cwzbnDg": {
+      "action": "Assign RFID",
+      "adminName": "Admin",
+      "changes": {
+        "rfidNumber": "0089309425"
+      },
+      "description": "Assign RFID for Monsi Monsi Monsi",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "B8CXks82JZh2t45ldbFQsEr8WIA3",
+      "targetName": "Monsi Monsi Monsi",
+      "timestamp": "2025-11-01T13:16:24.593Z"
+    },
+    "-OczbIGkVB4XIlMCPcOT": {
+      "action": "Assign RFID",
+      "adminName": "Admin",
+      "changes": {
+        "rfidNumber": "0092303987"
+      },
+      "description": "Assign RFID for Monsi Monsi Monsi",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "B8CXks82JZh2t45ldbFQsEr8WIA3",
+      "targetName": "Monsi Monsi Monsi",
+      "timestamp": "2025-11-01T13:30:57.495Z"
+    },
+    "-OcznFMjzUj5zn6PmsLQ": {
+      "action": "Reassign RFID",
+      "adminName": "Admin",
+      "changes": {
+        "historyCount": 6,
+        "newRfid": "0089309425",
+        "oldRfid": "0089492266",
+        "reason": "RFID card lost/replaced"
+      },
+      "description": "Reassign RFID for Lucas Abad",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "driver_1759325281790_2222",
+      "targetName": "Lucas Abad",
+      "timestamp": "2025-11-01T14:23:11.266Z"
+    },
+    "-OcznHpehsLgFCT9MHnI": {
+      "action": "Reassign RFID",
+      "adminName": "Admin",
+      "changes": {
+        "historyCount": 7,
+        "newRfid": "0089492266",
+        "oldRfid": "0089309425",
+        "reason": "RFID card lost/replaced"
+      },
+      "description": "Reassign RFID for Lucas Abad",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "driver_1759325281790_2222",
+      "targetName": "Lucas Abad",
+      "timestamp": "2025-11-01T14:23:21.373Z"
+    },
+    "-OczxX8uczglX6YouiAt": {
+      "action": "Verify Documents",
+      "adminName": "Admin",
+      "changes": {
+        "notes": "Documents approved",
+        "verificationStatus": "verified"
+      },
+      "description": "Verify Documents for yo yo yo",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "jtuQYMs9jjhVxZ68ylaPOQP08xl1",
+      "targetName": "yo yo yo",
+      "timestamp": "2025-11-01T15:08:05.499Z"
+    },
+    "-OczxaFGCe1NnaXaFb5b": {
+      "action": "Assign TODA Number",
+      "adminName": "Admin",
+      "changes": {
+        "todaNumber": "TODA-666"
+      },
+      "description": "Assign TODA Number for yo yo yo",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "jtuQYMs9jjhVxZ68ylaPOQP08xl1",
+      "targetName": "yo yo yo",
+      "timestamp": "2025-11-01T15:08:22.290Z"
+    },
+    "-OczxffdIYiiRoxmJF8s": {
+      "action": "Assign RFID",
+      "adminName": "Admin",
+      "changes": {
+        "rfidNumber": "0089309425"
+      },
+      "description": "Assign RFID for yo yo yo",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "jtuQYMs9jjhVxZ68ylaPOQP08xl1",
+      "targetName": "yo yo yo",
+      "timestamp": "2025-11-01T15:08:44.522Z"
+    },
+    "-Od-Vj5zHcUAk9QDaLtl": {
+      "action": "Reassign RFID",
+      "adminName": "Admin",
+      "changes": {
+        "historyCount": 10,
+        "newRfid": "51AA5005",
+        "oldRfid": "2A8B5505",
+        "reason": "RFID card lost/replaced"
+      },
+      "description": "Reassign RFID for Lucas Abad",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "driver_1759325281790_2222",
+      "targetName": "Lucas Abad",
+      "timestamp": "2025-11-01T17:41:53.429Z"
+    },
+    "-Od-VmZjiTkSDAeOAZHV": {
+      "action": "Reassign RFID",
+      "adminName": "Admin",
+      "changes": {
+        "historyCount": 11,
+        "newRfid": "2A8B5505",
+        "oldRfid": "51AA5005",
+        "reason": "RFID card lost/replaced"
+      },
+      "description": "Reassign RFID for Lucas Abad",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "driver_1759325281790_2222",
+      "targetName": "Lucas Abad",
+      "timestamp": "2025-11-01T17:42:07.621Z"
+    },
+    "-Od-eZQmdQ30TZ-hhSMT": {
+      "action": "Reject Documents",
+      "adminName": "Admin",
+      "changes": {
+        "issuesCount": 1,
+        "reason": "📸 Please reupload your license photo. The current photo is blurry, unclear, or incomplete.",
+        "rejectionTypes": "Reupload Photo",
+        "verificationStatus": "rejected"
+      },
+      "description": "Reject Documents for Ken Aixroch Atienza Zamodio",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "9dV61WsRxdhf01KFfsTPKzn2Eku2",
+      "targetName": "Ken Aixroch Atienza Zamodio",
+      "timestamp": "2025-11-01T18:24:51.101Z"
+    },
+    "-Od-fCSrikRQQv13sMJf": {
+      "action": "Reject Documents",
+      "adminName": "Admin",
+      "changes": {
+        "issuesCount": 1,
+        "reason": "📸 Please reupload your license photo. The current photo is blurry, unclear, or incomplete.",
+        "rejectionTypes": "Reupload Photo",
+        "verificationStatus": "rejected"
+      },
+      "description": "Reject Documents for Ken Aixroch Atienza Zamodio",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "9dV61WsRxdhf01KFfsTPKzn2Eku2",
+      "targetName": "Ken Aixroch Atienza Zamodio",
+      "timestamp": "2025-11-01T18:27:39.169Z"
+    },
+    "-Od-fHIg9GEZ7zn7y4vM": {
+      "action": "Verify Documents",
+      "adminName": "Admin",
+      "changes": {
+        "notes": "Documents approved",
+        "verificationStatus": "verified"
+      },
+      "description": "Verify Documents for Ken Aixroch Atienza Zamodio",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "9dV61WsRxdhf01KFfsTPKzn2Eku2",
+      "targetName": "Ken Aixroch Atienza Zamodio",
+      "timestamp": "2025-11-01T18:27:58.998Z"
+    },
+    "-Od-fK6_U0Abz2_ErS94": {
+      "action": "Assign TODA Number",
+      "adminName": "Admin",
+      "changes": {
+        "todaNumber": "TODA-555"
+      },
+      "description": "Assign TODA Number for Ken Aixroch Atienza Zamodio",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "9dV61WsRxdhf01KFfsTPKzn2Eku2",
+      "targetName": "Ken Aixroch Atienza Zamodio",
+      "timestamp": "2025-11-01T18:28:10.511Z"
+    },
+    "-Od-fMwDRcJGrm_VmGZp": {
+      "action": "Assign RFID",
+      "adminName": "Admin",
+      "changes": {
+        "rfidNumber": "2E908005"
+      },
+      "description": "Assign RFID for Ken Aixroch Atienza Zamodio",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "9dV61WsRxdhf01KFfsTPKzn2Eku2",
+      "targetName": "Ken Aixroch Atienza Zamodio",
+      "timestamp": "2025-11-01T18:28:22.072Z"
+    },
+    "-Od-mDJC6ga9xtsMCome": {
+      "action": "Reject Documents",
+      "adminName": "Admin",
+      "changes": {
+        "issuesCount": 1,
+        "reason": "📸 Please reupload your license photo. The current photo is blurry, unclear, or incomplete.",
+        "rejectionTypes": "Reupload Photo",
+        "verificationStatus": "rejected"
+      },
+      "description": "Reject Documents for Ken Aixroch Atienza Zamodio",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "aQAyEHQ6prhOqs7layjLwLvW1g43",
+      "targetName": "Ken Aixroch Atienza Zamodio",
+      "timestamp": "2025-11-01T18:58:17.656Z"
+    },
+    "-Od-mgiH-PzrxLGmOri6": {
+      "action": "Verify Documents",
+      "adminName": "Admin",
+      "changes": {
+        "notes": "Documents approved",
+        "verificationStatus": "verified"
+      },
+      "description": "Verify Documents for Ken Aixroch Atienza Zamodio",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "aQAyEHQ6prhOqs7layjLwLvW1g43",
+      "targetName": "Ken Aixroch Atienza Zamodio",
+      "timestamp": "2025-11-01T19:00:22.204Z"
+    },
+    "-Od-mjDjMae84t_WH_HV": {
+      "action": "Assign TODA Number",
+      "adminName": "Admin",
+      "changes": {
+        "todaNumber": "TODA-555"
+      },
+      "description": "Assign TODA Number for Ken Aixroch Atienza Zamodio",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "aQAyEHQ6prhOqs7layjLwLvW1g43",
+      "targetName": "Ken Aixroch Atienza Zamodio",
+      "timestamp": "2025-11-01T19:00:32.473Z"
+    },
+    "-Od-mlUUPrrK-_OuMFkb": {
+      "action": "Assign RFID",
+      "adminName": "Admin",
+      "changes": {
+        "rfidNumber": "2E908005"
+      },
+      "description": "Assign RFID for Ken Aixroch Atienza Zamodio",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "aQAyEHQ6prhOqs7layjLwLvW1g43",
+      "targetName": "Ken Aixroch Atienza Zamodio",
+      "timestamp": "2025-11-01T19:00:41.737Z"
+    },
+    "-Od4FZvE7HVIBKD7J9JK": {
+      "action": "Verify Documents",
+      "adminName": "Admin",
+      "changes": {
+        "notes": "Documents approved",
+        "verificationStatus": "verified"
+      },
+      "description": "Verify Documents for yo yo yo",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "jtuQYMs9jjhVxZ68ylaPOQP08xl1",
+      "targetName": "yo yo yo",
+      "timestamp": "2025-11-02T15:49:23.672Z"
+    },
+    "-Od4FZvSiOogQt1drMjn": {
+      "action": "Verify Documents",
+      "adminName": "Admin",
+      "changes": {
+        "notes": "Documents approved",
+        "verificationStatus": "verified"
+      },
+      "description": "Verify Documents for yo yo yo",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "jtuQYMs9jjhVxZ68ylaPOQP08xl1",
+      "targetName": "yo yo yo",
+      "timestamp": "2025-11-02T15:49:23.684Z"
+    },
+    "-Od4HX-xfBtb4uc_mX3L": {
+      "action": "Assign TODA Number",
+      "adminName": "Admin",
+      "changes": {
+        "todaNumber": "TODA-717"
+      },
+      "description": "Assign TODA Number for yo yo yo",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "jtuQYMs9jjhVxZ68ylaPOQP08xl1",
+      "targetName": "yo yo yo",
+      "timestamp": "2025-11-02T15:57:56.034Z"
+    },
+    "-Od4HX-yR8uuRQxNZs0r": {
+      "action": "Assign TODA Number",
+      "adminName": "Admin",
+      "changes": {
+        "todaNumber": "TODA-717"
+      },
+      "description": "Assign TODA Number for yo yo yo",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "jtuQYMs9jjhVxZ68ylaPOQP08xl1",
+      "targetName": "yo yo yo",
+      "timestamp": "2025-11-02T15:57:56.035Z"
+    },
+    "-Od4I4M8UwjnofnuQXjB": {
+      "action": "Assign TODA Number",
+      "adminName": "Admin",
+      "changes": {
+        "todaNumber": "087"
+      },
+      "description": "Assign TODA Number for yo yo yo",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "jtuQYMs9jjhVxZ68ylaPOQP08xl1",
+      "targetName": "yo yo yo",
+      "timestamp": "2025-11-02T16:00:20.804Z"
+    },
+    "-Od4I4MBdhpKlYMbJkRx": {
+      "action": "Assign TODA Number",
+      "adminName": "Admin",
+      "changes": {
+        "todaNumber": "087"
+      },
+      "description": "Assign TODA Number for yo yo yo",
+      "ipAddress": "Unknown",
+      "module": "Driver Management",
+      "targetId": "jtuQYMs9jjhVxZ68ylaPOQP08xl1",
+      "targetName": "yo yo yo",
+      "timestamp": "2025-11-02T16:00:20.807Z"
+    }
+  },
+  "auth_phone_mapping": {
+    "HE6GATtJZ5UxgYLqthEuvk76gkA2": {
+      "createdAt": 1762094836930,
+      "email": "jerychoroniel30@gmail.com",
+      "name": "MOTO-ADMIN",
+      "phoneNumber": "09667249477",
+      "uid": "HE6GATtJZ5UxgYLqthEuvk76gkA2"
+    },
+    "P1JGym2WH1hSPU70LrcTNpxi5Rn2": {
+      "createdAt": 1762001999339,
+      "email": "simognf@gmail.com",
+      "name": "Metro Shiner",
+      "phoneNumber": "09183452201",
+      "uid": "P1JGym2WH1hSPU70LrcTNpxi5Rn2"
+    },
+    "jP3agXbHorSo3BNNWEJWF3yeJfd2": {
+      "createdAt": 1762095188330,
+      "email": "princekit04@gmail.com",
+      "name": "MOTO-BARKER",
+      "phoneNumber": "09991986152",
+      "uid": "jP3agXbHorSo3BNNWEJWF3yeJfd2"
     }
   },
   "bookingIndex": {
@@ -826,9 +1310,170 @@
       "timestamp": 1761913718412
     },
     "-OcuHyDGRfn44pUkT3ku": {
+      "arrivedAtPickup": true,
+      "arrivedAtPickupTime": 1761949499340,
       "driverRFID": "89492266",
-      "status": "ACCEPTED",
+      "isNoShow": true,
+      "noShowReportedTime": 1762087707313,
+      "status": "NO_SHOW",
       "timestamp": 1761914640454
+    },
+    "-OcwQb4cqdzguz18nJ_y": {
+      "driverRFID": "",
+      "status": "CANCELLED",
+      "timestamp": 1761950459567
+    },
+    "-OcwTm0FHtnap28bmbUT": {
+      "arrivedAtPickup": true,
+      "arrivedAtPickupTime": 1761955015863,
+      "driverRFID": "2A8B5505",
+      "isNoShow": true,
+      "noShowReportedTime": 1761955554320,
+      "status": "NO_SHOW",
+      "timestamp": 1761951290749
+    },
+    "-OcwjHQeTeBAAZz0uBfx": {
+      "arrivedAtPickup": true,
+      "arrivedAtPickupTime": 1761955805543,
+      "driverRFID": "2A8B5505",
+      "status": "COMPLETED",
+      "timestamp": 1761955617668
+    },
+    "-Ocwl3B1pe2lPc0damTW": {
+      "arrivedAtPickup": true,
+      "arrivedAtPickupTime": 1761956217280,
+      "driverRFID": "2A8B5505",
+      "status": "COMPLETED",
+      "timestamp": 1761956083281
+    },
+    "-OcwtuIQTUrrYeb4Vt_g": {
+      "arrivedAtPickup": true,
+      "arrivedAtPickupTime": 1761958554598,
+      "driverRFID": "2A8B5505",
+      "status": "COMPLETED",
+      "timestamp": 1761958401938
+    },
+    "-Ocx-IpK_iqLgXu283nF": {
+      "arrivedAtPickup": true,
+      "arrivedAtPickupTime": 1761960417290,
+      "driverRFID": "2A8B5505",
+      "status": "COMPLETED",
+      "timestamp": 1761960079761
+    },
+    "-Ocx17D8PJSaZ9tUaTpr": {
+      "driverRFID": "2A8B5505",
+      "status": "ACCEPTED",
+      "timestamp": 1761960555881
+    },
+    "-OczRtfRopsNeqgMPI44": {
+      "arrivedAtPickup": true,
+      "arrivedAtPickupTime": 1762005440263,
+      "driverRFID": "2A8B5505",
+      "isNoShow": true,
+      "noShowReportedTime": 1762005740266,
+      "status": "NO_SHOW",
+      "timestamp": 1762001129546
+    },
+    "-OcztxPzZg1FSjjqgac3": {
+      "driverRFID": "2A8B5505",
+      "status": "ACCEPTED",
+      "timestamp": 1762008746813
+    },
+    "-OczzOMHkvdc8ydbYob9": {
+      "driverRFID": "2A8B5505",
+      "status": "ACCEPTED",
+      "timestamp": 1762010171945
+    },
+    "-Od-3bCDq8dJRompGTrG": {
+      "arrivedAtPickup": true,
+      "arrivedAtPickupTime": 1762011606063,
+      "driverRFID": "2A8B5505",
+      "status": "COMPLETED",
+      "timestamp": 1762011539326
+    },
+    "-Od-n0mc5xSThA6_aZ4n": {
+      "arrivedAtPickup": true,
+      "arrivedAtPickupTime": 1762024243981,
+      "driverRFID": "2E908005",
+      "status": "COMPLETED",
+      "timestamp": 1762023702670
+    },
+    "-Od4yIFBURirXkgyIbOH": {
+      "driverRFID": "",
+      "status": "CANCELLED",
+      "timestamp": 1762110543313
+    },
+    "-Od50bvLj5O8qpouh3fC": {
+      "driverRFID": "",
+      "status": "CANCELLED",
+      "timestamp": 1762111414409
+    },
+    "-Od51HFXq0fvU0k4Dw54": {
+      "driverRFID": "",
+      "status": "CANCELLED",
+      "timestamp": 1762111587642
+    },
+    "-Od54asoTiX72ctqMVy9": {
+      "arrivedAtPickup": true,
+      "arrivedAtPickupTime": 1762112494214,
+      "driverRFID": "2A8B5505",
+      "status": "COMPLETED",
+      "timestamp": 1762112458584
+    },
+    "-Od55WthLx-T0iMtYDul": {
+      "driverRFID": "",
+      "status": "CANCELLED",
+      "timestamp": 1762112700317
+    },
+    "-Od56StLxkBSdrijRruK": {
+      "arrivedAtPickup": true,
+      "arrivedAtPickupTime": 1762112979249,
+      "driverRFID": "2E908005",
+      "status": "COMPLETED",
+      "timestamp": 1762112946014
+    },
+    "-Od56vwm4BMR1EBCyRYm": {
+      "driverRFID": "",
+      "status": "CANCELLED",
+      "timestamp": 1762113069067
+    },
+    "-Od595qUpaeDS3aCUq4z": {
+      "driverRFID": "",
+      "status": "CANCELLED",
+      "timestamp": 1762113638035
+    },
+    "-Od59avn-SHTNQePYKF4": {
+      "driverRFID": "",
+      "status": "CANCELLED",
+      "timestamp": 1762113769464
+    },
+    "-Od5AwKZw06PU0Lm5oTw": {
+      "arrivedAtPickup": true,
+      "arrivedAtPickupTime": 1762114209040,
+      "driverRFID": "2E908005",
+      "status": "COMPLETED",
+      "timestamp": 1762114119273
+    },
+    "-Od5CGokohfWV9P853o4": {
+      "arrivedAtPickup": true,
+      "arrivedAtPickupTime": 1762114484344,
+      "driverRFID": "2E908005",
+      "status": "COMPLETED",
+      "timestamp": 1762114469303
+    },
+    "-Od5DE7S01Q-o4myXtsl": {
+      "arrivedAtPickup": true,
+      "arrivedAtPickupTime": 1762114730541,
+      "driverRFID": "2A8B5505",
+      "status": "COMPLETED",
+      "timestamp": 1762114720427
+    },
+    "-Od5P6newxAtzu1RF9Ew": {
+      "arrivedAtPickup": true,
+      "arrivedAtPickupTime": 1762117861220,
+      "driverRFID": "2A8B5505",
+      "status": "COMPLETED",
+      "timestamp": 1762117836155
     }
   },
   "bookings": {
@@ -2281,6 +2926,8 @@
     },
     "-OcuHyDGRfn44pUkT3ku": {
       "actualFare": 20,
+      "arrivedAtPickup": true,
+      "arrivedAtPickupTime": 1761949499340,
       "assignedDriverId": "",
       "assignedTricycleId": "395",
       "completionTime": "0",
@@ -2299,6 +2946,8 @@
       "estimatedFare": 20,
       "feedback": "",
       "id": "-OcuHyDGRfn44pUkT3ku",
+      "isNoShow": true,
+      "noShowReportedTime": 1762087707313,
       "paymentMethod": "CASH",
       "phoneActuallyVerified": true,
       "phoneNumber": "09123123123",
@@ -2309,11 +2958,1013 @@
       },
       "pickupLocation": "Begonia Street, Barangay 177, Caloocan City",
       "rating": 0,
-      "status": "ACCEPTED",
+      "status": "NO_SHOW",
       "timestamp": 1761914640454,
       "todaNumber": "395",
       "tripType": "App Booking",
       "verificationCode": "9440"
+    },
+    "-OcwQb4cqdzguz18nJ_y": {
+      "actualFare": 20,
+      "arrivedAtPickup": false,
+      "arrivedAtPickupTime": 0,
+      "assignedDriverId": "",
+      "assignedTricycleId": "",
+      "completionTime": "0",
+      "completionTimeLong": 0,
+      "customerId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "customerName": "Ken Zamodio",
+      "destination": "Alma Jose Street, Barangay 177, Caloocan City",
+      "distance": 0.21706247460831138,
+      "driverName": "",
+      "driverRFID": "",
+      "dropoffCoordinates": {
+        "lat": 14.746196748884145,
+        "lng": 121.0467747279576
+      },
+      "duration": 0,
+      "estimatedFare": 20,
+      "feedback": "",
+      "id": "-OcwQb4cqdzguz18nJ_y",
+      "noShow": false,
+      "noShowReportedTime": 0,
+      "paymentMethod": "CASH",
+      "phoneActuallyVerified": true,
+      "phoneNumber": "09123123123",
+      "phoneVerified": true,
+      "pickupCoordinates": {
+        "lat": 14.748125587506024,
+        "lng": 121.04646410260881
+      },
+      "pickupLocation": "Genesis Street, Barangay 177, Caloocan City",
+      "rating": 0,
+      "status": "CANCELLED",
+      "timestamp": 1761950459567,
+      "todaNumber": "",
+      "tripType": "App Booking",
+      "verificationCode": "943290"
+    },
+    "-OcwTm0FHtnap28bmbUT": {
+      "actualFare": 20,
+      "arrivedAtPickup": true,
+      "arrivedAtPickupTime": 1761955015863,
+      "assignedDriverId": 89492266,
+      "assignedTricycleId": "395",
+      "completionTime": "0",
+      "completionTimeLong": 0,
+      "customerId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "customerName": "Ken Zamodio",
+      "destination": "17 Alma Jose Street, Barangay 177, Caloocan City",
+      "distance": 0.20847414468608777,
+      "driverName": "Lucas Abad",
+      "driverRFID": 89492266,
+      "dropoffCoordinates": {
+        "lat": 14.74627579998321,
+        "lng": 121.04693004063199
+      },
+      "duration": 0,
+      "estimatedFare": 20,
+      "feedback": "",
+      "id": "-OcwTm0FHtnap28bmbUT",
+      "isNoShow": true,
+      "noShow": false,
+      "noShowReportedTime": 1761955554320,
+      "paymentMethod": "CASH",
+      "phoneActuallyVerified": true,
+      "phoneNumber": "09123123123",
+      "phoneVerified": true,
+      "pickupCoordinates": {
+        "lat": 14.748149302628633,
+        "lng": 121.04685647147039
+      },
+      "pickupLocation": "Genesis Street, Barangay 177, Caloocan City",
+      "rating": 0,
+      "status": "NO_SHOW",
+      "timestamp": 1761951290749,
+      "todaNumber": "395",
+      "tripType": "App Booking",
+      "verificationCode": "622148"
+    },
+    "-OcwjHQeTeBAAZz0uBfx": {
+      "actualFare": 20,
+      "arrivedAtPickup": true,
+      "arrivedAtPickupTime": 1761955805543,
+      "assignedDriverId": "\"driver_1759325281790_2222\"",
+      "assignedTricycleId": "395",
+      "completionTime": 1761955934614,
+      "completionTimeLong": 0,
+      "customerId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "customerName": "Ken Zamodio",
+      "destination": "Camachile Street, Barangay 177, Caloocan City",
+      "distance": 0.571425079647107,
+      "driverName": "Lucas Abad",
+      "driverRFID": "0089492266",
+      "dropoffCoordinates": {
+        "lat": 14.74679753651715,
+        "lng": 121.05206353323803
+      },
+      "duration": 0,
+      "estimatedFare": 20,
+      "feedback": "",
+      "id": "-OcwjHQeTeBAAZz0uBfx",
+      "noShow": false,
+      "noShowReportedTime": 0,
+      "paymentMethod": "CASH",
+      "phoneActuallyVerified": true,
+      "phoneNumber": "09123123123",
+      "phoneVerified": true,
+      "pickupCoordinates": {
+        "lat": 14.748125587506024,
+        "lng": 121.04693004063199
+      },
+      "pickupLocation": "Genesis Street, Barangay 177, Caloocan City",
+      "rating": 0,
+      "status": "COMPLETED",
+      "timestamp": 1761955617668,
+      "todaNumber": "395",
+      "tripType": "App Booking",
+      "verificationCode": "448888"
+    },
+    "-Ocwl3B1pe2lPc0damTW": {
+      "actualFare": 20,
+      "arrivedAtPickup": true,
+      "arrivedAtPickupTime": 1761956217280,
+      "assignedDriverId": "driver_1759325281790_2222",
+      "assignedTricycleId": "395",
+      "completionTime": 1761958355489,
+      "completionTimeLong": 0,
+      "customerId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "customerName": "Ken Zamodio",
+      "destination": "17 Alma Jose Street, Barangay 177, Caloocan City",
+      "distance": 0.2253150258582072,
+      "driverName": "Lucas Abad",
+      "driverRFID": "0089492266",
+      "dropoffCoordinates": {
+        "lat": 14.746196748884145,
+        "lng": 121.04747772216797
+      },
+      "duration": 0,
+      "estimatedFare": 20,
+      "feedback": "",
+      "id": "-Ocwl3B1pe2lPc0damTW",
+      "noShow": false,
+      "noShowReportedTime": 0,
+      "paymentMethod": "CASH",
+      "phoneActuallyVerified": true,
+      "phoneNumber": "09123123123",
+      "phoneVerified": true,
+      "pickupCoordinates": {
+        "lat": 14.74822044798087,
+        "lng": 121.04737145560125
+      },
+      "pickupLocation": "Genesis Street, Barangay 177, Caloocan City",
+      "rating": 0,
+      "status": "COMPLETED",
+      "timestamp": 1761956083281,
+      "todaNumber": "395",
+      "tripType": "App Booking",
+      "verificationCode": "753169"
+    },
+    "-OcwtuIQTUrrYeb4Vt_g": {
+      "actualFare": 20,
+      "arrivedAtPickup": true,
+      "arrivedAtPickupTime": 1761958554598,
+      "assignedDriverId": "driver_1759325281790_2222",
+      "assignedTricycleId": "395",
+      "completionTime": 1761959043339,
+      "completionTimeLong": 0,
+      "customerId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "customerName": "Ken Zamodio",
+      "destination": "Begonia Street, Barangay 177, Caloocan City",
+      "distance": 0.48413660956610866,
+      "driverName": "Lucas Abad",
+      "driverRFID": "0089492266",
+      "dropoffCoordinates": {
+        "lat": 14.749572205255177,
+        "lng": 121.05234146118164
+      },
+      "duration": 0,
+      "estimatedFare": 20,
+      "feedback": "",
+      "id": "-OcwtuIQTUrrYeb4Vt_g",
+      "noShow": false,
+      "noShowReportedTime": 0,
+      "paymentMethod": "CASH",
+      "phoneActuallyVerified": true,
+      "phoneNumber": "09123123123",
+      "phoneVerified": true,
+      "pickupCoordinates": {
+        "lat": 14.747746145193176,
+        "lng": 121.04825428553988
+      },
+      "pickupLocation": "Isaiah Street, Barangay 177, Caloocan City",
+      "rating": 0,
+      "status": "COMPLETED",
+      "timestamp": 1761958401938,
+      "todaNumber": "395",
+      "tripType": "App Booking",
+      "verificationCode": "329694"
+    },
+    "-Ocx-IpK_iqLgXu283nF": {
+      "actualFare": 20,
+      "arrivedAtPickup": true,
+      "arrivedAtPickupTime": 1761960417290,
+      "assignedDriverId": "driver_1759325281790_2222",
+      "assignedTricycleId": "395",
+      "completionTime": 1761960509536,
+      "completionTimeLong": 0,
+      "customerId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "customerName": "Ken Zamodio",
+      "destination": "17 Alma Jose Street, Barangay 177, Caloocan City",
+      "distance": 0.239652422257974,
+      "driverName": "Lucas Abad",
+      "driverRFID": "2A8B5505",
+      "dropoffCoordinates": {
+        "lat": 14.746244179547034,
+        "lng": 121.04693004063199
+      },
+      "duration": 0,
+      "estimatedFare": 20,
+      "feedback": "",
+      "id": "-Ocx-IpK_iqLgXu283nF",
+      "noShow": false,
+      "noShowReportedTime": 0,
+      "paymentMethod": "CASH",
+      "phoneActuallyVerified": true,
+      "phoneNumber": "09123123123",
+      "phoneVerified": true,
+      "pickupCoordinates": {
+        "lat": 14.748125587506024,
+        "lng": 121.0480172293527
+      },
+      "pickupLocation": "Genesis Street, Barangay 177, Caloocan City",
+      "rating": 0,
+      "status": "COMPLETED",
+      "timestamp": 1761960079761,
+      "todaNumber": "395",
+      "tripType": "App Booking",
+      "verificationCode": "327750"
+    },
+    "-Ocx17D8PJSaZ9tUaTpr": {
+      "actualFare": 20,
+      "arrivedAtPickup": false,
+      "arrivedAtPickupTime": 0,
+      "assignedDriverId": "2A8B5505",
+      "assignedTricycleId": "395",
+      "completionTime": "0",
+      "completionTimeLong": 0,
+      "customerId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "customerName": "Ken Zamodio",
+      "destination": "Genesis Street, Barangay 177, Caloocan City",
+      "distance": 0.4193582005660395,
+      "driverName": "Lucas Abad",
+      "driverRFID": "2A8B5505",
+      "dropoffCoordinates": {
+        "lat": 14.748149302628633,
+        "lng": 121.04676655360629
+      },
+      "duration": 0,
+      "estimatedFare": 20,
+      "feedback": "",
+      "id": "-Ocx17D8PJSaZ9tUaTpr",
+      "noShow": false,
+      "noShowReportedTime": 0,
+      "paymentMethod": "CASH",
+      "phoneActuallyVerified": true,
+      "phoneNumber": 9123123123,
+      "phoneVerified": true,
+      "pickupCoordinates": {
+        "lat": 14.746789631427475,
+        "lng": 121.05040413992748
+      },
+      "pickupLocation": "Amos Street, Barangay 177, Caloocan City",
+      "rating": 0,
+      "status": "COMPLETED",
+      "timestamp": 1761960555881,
+      "todaNumber": "395",
+      "tripType": "App Booking",
+      "verificationCode": "261563"
+    },
+    "-OczRtfRopsNeqgMPI44": {
+      "actualFare": 20,
+      "arrivedAtPickup": true,
+      "arrivedAtPickupTime": 1762005440263,
+      "assignedDriverId": "driver_1759325281790_2222",
+      "assignedTricycleId": "395",
+      "completionTime": "0",
+      "completionTimeLong": 0,
+      "customerId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "customerName": "Ken Zamodio",
+      "destination": "Apitong Street, Barangay 177, Caloocan City",
+      "distance": 0.16212591393285009,
+      "driverName": "Lucas Abad",
+      "driverRFID": "2A8B5505",
+      "dropoffCoordinates": {
+        "lat": 14.749319245468143,
+        "lng": 121.05106626238143
+      },
+      "duration": 0,
+      "estimatedFare": 20,
+      "feedback": "",
+      "id": "-OczRtfRopsNeqgMPI44",
+      "isNoShow": true,
+      "noShow": false,
+      "noShowReportedTime": 1762005740266,
+      "paymentMethod": "CASH",
+      "phoneActuallyVerified": true,
+      "phoneNumber": "09123123123",
+      "phoneVerified": true,
+      "pickupCoordinates": {
+        "lat": 14.7482,
+        "lng": 121.0501
+      },
+      "pickupLocation": "Barangay 177 Health Center",
+      "rating": 0,
+      "status": "NO_SHOW",
+      "timestamp": 1762001129546,
+      "todaNumber": "395",
+      "tripType": "App Booking",
+      "verificationCode": "859948"
+    },
+    "-OcztxPzZg1FSjjqgac3": {
+      "actualFare": 20,
+      "arrivedAtPickup": false,
+      "arrivedAtPickupTime": 0,
+      "assignedDriverId": "2A8B5505",
+      "assignedTricycleId": "395",
+      "completionTime": "0",
+      "completionTimeLong": 0,
+      "customerId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "customerName": "Ken Zamodio",
+      "destination": "Exequiel Street, Barangay 177, Caloocan City",
+      "distance": 0.36023658342801734,
+      "driverName": "Lucas Abad",
+      "driverRFID": "2A8B5505",
+      "dropoffCoordinates": {
+        "lat": 14.74668686523566,
+        "lng": 121.04973384312223
+      },
+      "duration": 0,
+      "estimatedFare": 20,
+      "feedback": "",
+      "id": "-OcztxPzZg1FSjjqgac3",
+      "noShow": false,
+      "noShowReportedTime": 0,
+      "paymentMethod": "CASH",
+      "phoneActuallyVerified": true,
+      "phoneNumber": "09123123123",
+      "phoneVerified": true,
+      "pickupCoordinates": {
+        "lat": 14.749920024482279,
+        "lng": 121.04994637625555
+      },
+      "pickupLocation": "16th Lane, Barangay 177, Caloocan City",
+      "rating": 0,
+      "status": "COMPLETED",
+      "timestamp": 1762008746813,
+      "todaNumber": "395",
+      "tripType": "App Booking",
+      "verificationCode": "213494"
+    },
+    "-OczzOMHkvdc8ydbYob9": {
+      "actualFare": 20,
+      "arrivedAtPickup": false,
+      "arrivedAtPickupTime": 0,
+      "assignedDriverId": "2A8B5505",
+      "assignedTricycleId": "395",
+      "completionTime": "0",
+      "completionTimeLong": 0,
+      "customerId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "customerName": "Ken Zamodio",
+      "destination": "Genesis Street, Barangay 177, Caloocan City",
+      "distance": 0.24692228875106811,
+      "driverName": "Lucas Abad",
+      "driverRFID": "2A8B5505",
+      "dropoffCoordinates": {
+        "lat": 14.747920056335346,
+        "lng": 121.04924338204523
+      },
+      "duration": 0,
+      "estimatedFare": 20,
+      "feedback": "",
+      "id": "-OczzOMHkvdc8ydbYob9",
+      "noShow": false,
+      "noShowReportedTime": 0,
+      "paymentMethod": "CASH",
+      "phoneActuallyVerified": true,
+      "phoneNumber": "09123123123",
+      "phoneVerified": true,
+      "pickupCoordinates": {
+        "lat": 14.748678939693164,
+        "lng": 121.05140141078402
+      },
+      "pickupLocation": "Narra Street, Barangay 177, Caloocan City",
+      "rating": 0,
+      "status": "COMPLETED",
+      "timestamp": 1762010171945,
+      "todaNumber": "395",
+      "tripType": "App Booking",
+      "verificationCode": "886690"
+    },
+    "-Od-3bCDq8dJRompGTrG": {
+      "actualFare": 20,
+      "arrivedAtPickup": true,
+      "arrivedAtPickupTime": 1762011606063,
+      "assignedDriverId": "driver_1759325281790_2222",
+      "assignedTricycleId": "395",
+      "completionTime": 1762011850951,
+      "completionTimeLong": 0,
+      "customerId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "customerName": "Ken Zamodio",
+      "destination": "Ebony Street, Barangay 177, Caloocan City",
+      "distance": 0.3206528338053267,
+      "driverName": "Lucas Abad",
+      "driverRFID": "2A8B5505",
+      "dropoffCoordinates": {
+        "lat": 14.748149302628633,
+        "lng": 121.04883466448103
+      },
+      "duration": 0,
+      "estimatedFare": 20,
+      "feedback": "",
+      "id": "-Od-3bCDq8dJRompGTrG",
+      "noShow": false,
+      "noShowReportedTime": 0,
+      "paymentMethod": "CASH",
+      "phoneActuallyVerified": true,
+      "phoneNumber": "09123123123",
+      "phoneVerified": true,
+      "pickupCoordinates": {
+        "lat": 14.748742179853537,
+        "lng": 121.05175290788924
+      },
+      "pickupLocation": "Barangay 177, Barangay 177, Caloocan City",
+      "rating": 0,
+      "status": "COMPLETED",
+      "timestamp": 1762011539326,
+      "todaNumber": "395",
+      "tripType": "App Booking",
+      "verificationCode": "765669"
+    },
+    "-Od-n0mc5xSThA6_aZ4n": {
+      "actualFare": 27,
+      "arrivedAtPickup": true,
+      "arrivedAtPickupTime": 1762024243981,
+      "assignedDriverId": "aQAyEHQ6prhOqs7layjLwLvW1g43",
+      "assignedTricycleId": "TODA-555",
+      "completionTime": 1762024353381,
+      "completionTimeLong": 0,
+      "customerId": "PaSDuzP1Ola1UvHLmhDw6DGoVZ23",
+      "customerName": "Kimm Kimmy",
+      "destination": "Jonah Street, Barangay 177, Caloocan City",
+      "distance": 0.5326004209286319,
+      "driverName": "Ken Aixroch Atienza Zamodio",
+      "driverRFID": "2E908005",
+      "dropoffCoordinates": {
+        "lat": 14.745714536558083,
+        "lng": 121.05107443673268
+      },
+      "duration": 0,
+      "estimatedFare": 27,
+      "feedback": "",
+      "id": "-Od-n0mc5xSThA6_aZ4n",
+      "noShow": false,
+      "noShowReportedTime": 0,
+      "paymentMethod": "CASH",
+      "phoneActuallyVerified": true,
+      "phoneNumber": "09544444444",
+      "phoneVerified": true,
+      "pickupCoordinates": {
+        "lat": 14.74807815725309,
+        "lng": 121.04676655360629
+      },
+      "pickupLocation": "Genesis Street, Barangay 177, Caloocan City",
+      "rating": 0,
+      "status": "COMPLETED",
+      "timestamp": 1762023702670,
+      "todaNumber": "TODA-555",
+      "tripType": "App Booking",
+      "verificationCode": "555099"
+    },
+    "-Od4yIFBURirXkgyIbOH": {
+      "actualFare": 27,
+      "arrivedAtPickup": false,
+      "arrivedAtPickupTime": 0,
+      "assignedDriverId": "",
+      "assignedTricycleId": "",
+      "completionTime": "0",
+      "completionTimeLong": 0,
+      "customerId": "u8MyQQaMaMME1keyKKsEHs9IxL53",
+      "customerName": "ken gkt ieie",
+      "destination": "Barangay 177, Barangay 177, Caloocan City",
+      "distance": 0.08966204248757428,
+      "driverName": "",
+      "driverRFID": "",
+      "dropoffCoordinates": {
+        "lat": 14.74848921910177,
+        "lng": 121.05162211826871
+      },
+      "duration": 0,
+      "estimatedFare": 27,
+      "feedback": "",
+      "id": "-Od4yIFBURirXkgyIbOH",
+      "noShow": false,
+      "noShowReportedTime": 0,
+      "paymentMethod": "CASH",
+      "phoneActuallyVerified": true,
+      "phoneNumber": "09763823860",
+      "phoneVerified": true,
+      "pickupCoordinates": {
+        "lat": 14.749295530473034,
+        "lng": 121.0516139439174
+      },
+      "pickupLocation": "Barangay 177, Barangay 177, Caloocan City",
+      "rating": 0,
+      "status": "CANCELLED",
+      "timestamp": 1762110543313,
+      "todaNumber": "",
+      "tripType": "App Booking",
+      "verificationCode": "802511"
+    },
+    "-Od50bvLj5O8qpouh3fC": {
+      "actualFare": 20,
+      "arrivedAtPickup": false,
+      "arrivedAtPickupTime": 0,
+      "assignedDriverId": "",
+      "assignedTricycleId": "",
+      "completionTime": "0",
+      "completionTimeLong": 0,
+      "customerId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "customerName": "Ken Zamodio",
+      "destination": "Molave Street, Barangay 177, Caloocan City",
+      "distance": 0.3011886237253623,
+      "driverName": "",
+      "driverRFID": "",
+      "dropoffCoordinates": {
+        "lat": 14.748117682464596,
+        "lng": 121.04916163853238
+      },
+      "duration": 0,
+      "estimatedFare": 20,
+      "feedback": "",
+      "id": "-Od50bvLj5O8qpouh3fC",
+      "noShow": false,
+      "noShowReportedTime": 0,
+      "paymentMethod": "CASH",
+      "phoneActuallyVerified": true,
+      "phoneNumber": "09123123123",
+      "phoneVerified": true,
+      "pickupCoordinates": {
+        "lat": 14.749382485442453,
+        "lng": 121.05163846697127
+      },
+      "pickupLocation": "Barangay 177, Barangay 177, Caloocan City",
+      "rating": 0,
+      "status": "CANCELLED",
+      "timestamp": 1762111414409,
+      "todaNumber": "",
+      "tripType": "App Booking",
+      "verificationCode": "764183"
+    },
+    "-Od51HFXq0fvU0k4Dw54": {
+      "actualFare": 20,
+      "arrivedAtPickup": false,
+      "arrivedAtPickupTime": 0,
+      "assignedDriverId": "",
+      "assignedTricycleId": "",
+      "completionTime": "0",
+      "completionTimeLong": 0,
+      "customerId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "customerName": "Ken Zamodio",
+      "destination": "Exequiel Street, Barangay 177, Caloocan City",
+      "distance": 0.13541219682911002,
+      "driverName": "",
+      "driverRFID": "",
+      "dropoffCoordinates": {
+        "lat": 14.747074214474708,
+        "lng": 121.05001994541715
+      },
+      "duration": 0,
+      "estimatedFare": 20,
+      "feedback": "",
+      "id": "-Od51HFXq0fvU0k4Dw54",
+      "noShow": false,
+      "noShowReportedTime": 0,
+      "paymentMethod": "CASH",
+      "phoneActuallyVerified": true,
+      "phoneNumber": "09123123123",
+      "phoneVerified": true,
+      "pickupCoordinates": {
+        "lat": 14.747674999685884,
+        "lng": 121.0511153084891
+      },
+      "pickupLocation": "Narra Street, Barangay 177, Caloocan City",
+      "rating": 0,
+      "status": "CANCELLED",
+      "timestamp": 1762111587642,
+      "todaNumber": "",
+      "tripType": "App Booking",
+      "verificationCode": "605440"
+    },
+    "-Od54asoTiX72ctqMVy9": {
+      "actualFare": 20,
+      "arrivedAtPickup": true,
+      "arrivedAtPickupTime": 1762112494214,
+      "assignedDriverId": "driver_1759325281790_2222",
+      "assignedTricycleId": "395",
+      "completionTime": 1762112503010,
+      "completionTimeLong": 0,
+      "customerId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "customerName": "Ken Zamodio",
+      "destination": "Genesis Street, Barangay 177, Caloocan City",
+      "distance": 0.3046787996121266,
+      "driverName": "Lucas Abad",
+      "driverRFID": "2A8B5505",
+      "dropoffCoordinates": {
+        "lat": 14.748062347166481,
+        "lng": 121.04979106358121
+      },
+      "duration": 0,
+      "estimatedFare": 20,
+      "feedback": "",
+      "id": "-Od54asoTiX72ctqMVy9",
+      "noShow": false,
+      "noShowReportedTime": 0,
+      "paymentMethod": "CASH",
+      "phoneActuallyVerified": true,
+      "phoneNumber": "09123123123",
+      "phoneVerified": true,
+      "pickupCoordinates": {
+        "lat": 14.749730304972786,
+        "lng": 121.05203901018416
+      },
+      "pickupLocation": "Begonia Street, Barangay 177, Caloocan City",
+      "rating": 0,
+      "status": "COMPLETED",
+      "timestamp": 1762112458584,
+      "todaNumber": "395",
+      "tripType": "App Booking",
+      "verificationCode": "721085"
+    },
+    "-Od55WthLx-T0iMtYDul": {
+      "actualFare": 20,
+      "arrivedAtPickup": false,
+      "arrivedAtPickupTime": 0,
+      "assignedDriverId": "",
+      "assignedTricycleId": "",
+      "completionTime": "0",
+      "completionTimeLong": 0,
+      "customerId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "customerName": "Ken Zamodio",
+      "destination": "Genesis Street, Barangay 177, Caloocan City",
+      "distance": 0.273301037149058,
+      "driverName": "",
+      "driverRFID": "",
+      "dropoffCoordinates": {
+        "lat": 14.747524803538568,
+        "lng": 121.0501916067941
+      },
+      "duration": 0,
+      "estimatedFare": 20,
+      "feedback": "",
+      "id": "-Od55WthLx-T0iMtYDul",
+      "noShow": false,
+      "noShowReportedTime": 0,
+      "paymentMethod": "CASH",
+      "phoneActuallyVerified": true,
+      "phoneNumber": "09123123123",
+      "phoneVerified": true,
+      "pickupCoordinates": {
+        "lat": 14.749161145451922,
+        "lng": 121.05208805629184
+      },
+      "pickupLocation": "Barangay 177, Barangay 177, Caloocan City",
+      "rating": 0,
+      "status": "CANCELLED",
+      "timestamp": 1762112700317,
+      "todaNumber": "",
+      "tripType": "App Booking",
+      "verificationCode": "659837"
+    },
+    "-Od56StLxkBSdrijRruK": {
+      "actualFare": 20,
+      "arrivedAtPickup": true,
+      "arrivedAtPickupTime": 1762112979249,
+      "assignedDriverId": "aQAyEHQ6prhOqs7layjLwLvW1g43",
+      "assignedTricycleId": "TODA-555",
+      "completionTime": 1762112981075,
+      "completionTimeLong": 0,
+      "customerId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "customerName": "Ken Zamodio",
+      "destination": "Genesis Street, Barangay 177, Caloocan City",
+      "distance": 0.2769568361850104,
+      "driverName": "Ken Aixroch Atienza Zamodio",
+      "driverRFID": "2E908005",
+      "dropoffCoordinates": {
+        "lat": 14.747967486622741,
+        "lng": 121.04951313563754
+      },
+      "duration": 0,
+      "estimatedFare": 20,
+      "feedback": "",
+      "id": "-Od56StLxkBSdrijRruK",
+      "noShow": false,
+      "noShowReportedTime": 0,
+      "paymentMethod": "CASH",
+      "phoneActuallyVerified": true,
+      "phoneNumber": "09123123123",
+      "phoneVerified": true,
+      "pickupCoordinates": {
+        "lat": 14.749635445155988,
+        "lng": 121.05142593383789
+      },
+      "pickupLocation": "Begonia Street, Barangay 177, Caloocan City",
+      "rating": 0,
+      "status": "COMPLETED",
+      "timestamp": 1762112946014,
+      "todaNumber": "TODA-555",
+      "tripType": "App Booking",
+      "verificationCode": "286656"
+    },
+    "-Od56vwm4BMR1EBCyRYm": {
+      "actualFare": 20,
+      "arrivedAtPickup": false,
+      "arrivedAtPickupTime": 0,
+      "assignedDriverId": "",
+      "assignedTricycleId": "",
+      "completionTime": "0",
+      "completionTimeLong": 0,
+      "customerId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "customerName": "Ken Zamodio",
+      "destination": "Molave Street, Barangay 177, Caloocan City",
+      "distance": 0.25473972669309813,
+      "driverName": "",
+      "driverRFID": "",
+      "dropoffCoordinates": {
+        "lat": 14.748133492547183,
+        "lng": 121.0491943359375
+      },
+      "duration": 0,
+      "estimatedFare": 20,
+      "feedback": "",
+      "id": "-Od56vwm4BMR1EBCyRYm",
+      "noShow": false,
+      "noShowReportedTime": 0,
+      "paymentMethod": "CASH",
+      "phoneActuallyVerified": true,
+      "phoneNumber": "09123123123",
+      "phoneVerified": true,
+      "pickupCoordinates": {
+        "lat": 14.749176955458722,
+        "lng": 121.05130331856867
+      },
+      "pickupLocation": "Apitong Street, Barangay 177, Caloocan City",
+      "rating": 0,
+      "status": "CANCELLED",
+      "timestamp": 1762113069067,
+      "todaNumber": "",
+      "tripType": "App Booking",
+      "verificationCode": "964208"
+    },
+    "-Od595qUpaeDS3aCUq4z": {
+      "actualFare": 20,
+      "arrivedAtPickup": false,
+      "arrivedAtPickupTime": 0,
+      "assignedDriverId": "",
+      "assignedTricycleId": "",
+      "completionTime": "0",
+      "completionTimeLong": 0,
+      "customerId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "customerName": "Ken Zamodio",
+      "destination": "Genesis Street, Barangay 177, Caloocan City",
+      "distance": 0.25842744089777875,
+      "driverName": "",
+      "driverRFID": "",
+      "dropoffCoordinates": {
+        "lat": 14.74807815725309,
+        "lng": 121.04895727975025
+      },
+      "duration": 0,
+      "estimatedFare": 20,
+      "feedback": "",
+      "id": "-Od595qUpaeDS3aCUq4z",
+      "noShow": false,
+      "noShowReportedTime": 0,
+      "paymentMethod": "CASH",
+      "phoneActuallyVerified": true,
+      "phoneNumber": "09123123123",
+      "phoneVerified": true,
+      "pickupCoordinates": {
+        "lat": 14.748505029157386,
+        "lng": 121.05131966727117
+      },
+      "pickupLocation": "Narra Street, Barangay 177, Caloocan City",
+      "rating": 0,
+      "status": "CANCELLED",
+      "timestamp": 1762113638035,
+      "todaNumber": "",
+      "tripType": "App Booking",
+      "verificationCode": "998240"
+    },
+    "-Od59avn-SHTNQePYKF4": {
+      "actualFare": 20,
+      "arrivedAtPickup": false,
+      "arrivedAtPickupTime": 0,
+      "assignedDriverId": "",
+      "assignedTricycleId": "",
+      "completionTime": "0",
+      "completionTimeLong": 0,
+      "customerId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "customerName": "Ken Zamodio",
+      "destination": "Genesis Street, Barangay 177, Caloocan City",
+      "distance": 0.25842744089777875,
+      "driverName": "",
+      "driverRFID": "",
+      "dropoffCoordinates": {
+        "lat": 14.74807815725309,
+        "lng": 121.04895727975025
+      },
+      "duration": 0,
+      "estimatedFare": 20,
+      "feedback": "",
+      "id": "-Od59avn-SHTNQePYKF4",
+      "noShow": false,
+      "noShowReportedTime": 0,
+      "paymentMethod": "CASH",
+      "phoneActuallyVerified": true,
+      "phoneNumber": "09123123123",
+      "phoneVerified": true,
+      "pickupCoordinates": {
+        "lat": 14.748505029157386,
+        "lng": 121.05131966727117
+      },
+      "pickupLocation": "Narra Street, Barangay 177, Caloocan City",
+      "rating": 0,
+      "status": "CANCELLED",
+      "timestamp": 1762113769464,
+      "todaNumber": "",
+      "tripType": "App Booking",
+      "verificationCode": "962083"
+    },
+    "-Od5AwKZw06PU0Lm5oTw": {
+      "actualFare": 20,
+      "arrivedAtPickup": true,
+      "arrivedAtPickupTime": 1762114209040,
+      "assignedDriverId": "aQAyEHQ6prhOqs7layjLwLvW1g43",
+      "assignedTricycleId": "TODA-555",
+      "completionTime": 1762114211121,
+      "completionTimeLong": 0,
+      "customerId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "customerName": "Ken Zamodio",
+      "destination": "Genesis Street, Barangay 177, Caloocan City",
+      "distance": 0.25842744089777875,
+      "driverName": "Ken Aixroch Atienza Zamodio",
+      "driverRFID": "2E908005",
+      "dropoffCoordinates": {
+        "lat": 14.74807815725309,
+        "lng": 121.04895727975025
+      },
+      "duration": 0,
+      "estimatedFare": 20,
+      "feedback": "",
+      "id": "-Od5AwKZw06PU0Lm5oTw",
+      "noShow": false,
+      "noShowReportedTime": 0,
+      "paymentMethod": "CASH",
+      "phoneActuallyVerified": true,
+      "phoneNumber": "09123123123",
+      "phoneVerified": true,
+      "pickupCoordinates": {
+        "lat": 14.748505029157386,
+        "lng": 121.05131966727117
+      },
+      "pickupLocation": "Narra Street, Barangay 177, Caloocan City",
+      "rating": 0,
+      "status": "COMPLETED",
+      "timestamp": 1762114119273,
+      "todaNumber": "TODA-555",
+      "tripType": "App Booking",
+      "verificationCode": "944786"
+    },
+    "-Od5CGokohfWV9P853o4": {
+      "actualFare": 20,
+      "arrivedAtPickup": true,
+      "arrivedAtPickupTime": 1762114484344,
+      "assignedDriverId": "aQAyEHQ6prhOqs7layjLwLvW1g43",
+      "assignedTricycleId": "TODA-555",
+      "completionTime": 1762114486379,
+      "completionTimeLong": 0,
+      "customerId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "customerName": "Ken Zamodio",
+      "destination": "Genesis Street, Barangay 177, Caloocan City",
+      "distance": 0.2467733973903145,
+      "driverName": "Ken Aixroch Atienza Zamodio",
+      "driverRFID": "2E908005",
+      "dropoffCoordinates": {
+        "lat": 14.747920056335346,
+        "lng": 121.04930060250416
+      },
+      "duration": 0,
+      "estimatedFare": 20,
+      "feedback": "",
+      "id": "-Od5CGokohfWV9P853o4",
+      "noShow": false,
+      "noShowReportedTime": 0,
+      "paymentMethod": "CASH",
+      "phoneActuallyVerified": true,
+      "phoneNumber": "09123123123",
+      "phoneVerified": true,
+      "pickupCoordinates": {
+        "lat": 14.749058380379807,
+        "lng": 121.0512706211635
+      },
+      "pickupLocation": "Molave Street, Barangay 177, Caloocan City",
+      "rating": 0,
+      "status": "COMPLETED",
+      "timestamp": 1762114469303,
+      "todaNumber": "TODA-555",
+      "tripType": "App Booking",
+      "verificationCode": "308995"
+    },
+    "-Od5DE7S01Q-o4myXtsl": {
+      "actualFare": 20,
+      "arrivedAtPickup": true,
+      "arrivedAtPickupTime": 1762114730541,
+      "assignedDriverId": "driver_1759325281790_2222",
+      "assignedTricycleId": "395",
+      "completionTime": 1762114732740,
+      "completionTimeLong": 0,
+      "customerId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "customerName": "Ken Zamodio",
+      "destination": "Genesis Street, Barangay 177, Caloocan City",
+      "distance": 0.30481154594851795,
+      "driverName": "Lucas Abad",
+      "driverRFID": "2A8B5505",
+      "dropoffCoordinates": {
+        "lat": 14.748109777422869,
+        "lng": 121.04871204921176
+      },
+      "duration": 0,
+      "estimatedFare": 20,
+      "feedback": "",
+      "id": "-Od5DE7S01Q-o4myXtsl",
+      "noShow": false,
+      "noShowReportedTime": 0,
+      "paymentMethod": "CASH",
+      "phoneActuallyVerified": true,
+      "phoneNumber": "09123123123",
+      "phoneVerified": true,
+      "pickupCoordinates": {
+        "lat": 14.748386453712385,
+        "lng": 121.05153220040455
+      },
+      "pickupLocation": "Barangay 177, Barangay 177, Caloocan City",
+      "rating": 0,
+      "status": "COMPLETED",
+      "timestamp": 1762114720427,
+      "todaNumber": "395",
+      "tripType": "App Booking",
+      "verificationCode": "404870"
+    },
+    "-Od5P6newxAtzu1RF9Ew": {
+      "actualFare": 20,
+      "arrivedAtPickup": true,
+      "arrivedAtPickupTime": 1762117861219,
+      "assignedDriverId": "driver_1759325281790_2222",
+      "assignedTricycleId": "395",
+      "completionTime": 1762117862911,
+      "completionTimeLong": 0,
+      "customerId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "customerName": "Ken Zamodio",
+      "destination": "Peter Street, Barangay 177, Caloocan City",
+      "distance": 0.3032993440490575,
+      "driverName": "Lucas Abad",
+      "driverRFID": "2A8B5505",
+      "dropoffCoordinates": {
+        "lat": 14.748046537078736,
+        "lng": 121.04890005929133
+      },
+      "duration": 0,
+      "estimatedFare": 20,
+      "feedback": "",
+      "id": "-Od5P6newxAtzu1RF9Ew",
+      "noShow": false,
+      "noShowReportedTime": 0,
+      "paymentMethod": "CASH",
+      "phoneActuallyVerified": true,
+      "phoneNumber": "09123123123",
+      "phoneVerified": true,
+      "pickupCoordinates": {
+        "lat": 14.748789609961761,
+        "lng": 121.0516139439174
+      },
+      "pickupLocation": "Barangay 177, Barangay 177, Caloocan City",
+      "rating": 0,
+      "status": "COMPLETED",
+      "timestamp": 1762117836155,
+      "todaNumber": "395",
+      "tripType": "App Booking",
+      "verificationCode": "985389"
     }
   },
   "chatMessages": {
@@ -2975,6 +4626,41 @@
         "timestamp": 1761875146132
       }
     },
+    "-OcuHyDGRfn44pUkT3ku": {
+      "-OcusPUxr7RW3TMInH7f": {
+        "bookingId": "-OcuHyDGRfn44pUkT3ku",
+        "id": "-OcusPUxr7RW3TMInH7f",
+        "message": "hi",
+        "messageType": "TEXT",
+        "read": false,
+        "receiverId": "",
+        "senderId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+        "senderName": "Ken Zamodio",
+        "timestamp": 1761924449572
+      },
+      "-OcusQwtSRIe_zZfvKqQ": {
+        "bookingId": "-OcuHyDGRfn44pUkT3ku",
+        "id": "-OcusQwtSRIe_zZfvKqQ",
+        "message": "asd",
+        "messageType": "TEXT",
+        "read": false,
+        "receiverId": "",
+        "senderId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+        "senderName": "Ken Zamodio",
+        "timestamp": 1761924455520
+      },
+      "-OcusRERvEWvs_vgJr7d": {
+        "bookingId": "-OcuHyDGRfn44pUkT3ku",
+        "id": "-OcusRERvEWvs_vgJr7d",
+        "message": "asd",
+        "messageType": "TEXT",
+        "read": false,
+        "receiverId": "",
+        "senderId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+        "senderName": "Ken Zamodio",
+        "timestamp": 1761924456707
+      }
+    },
     "-OcumElYBlOmMEKAeuJ7": {
       "bookingId": "-OcuHyDGRfn44pUkT3ku",
       "id": "-OcumElYBlOmMEKAeuJ7",
@@ -2985,6 +4671,116 @@
       "senderId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
       "senderName": "Ken Zamodio",
       "timestamp": 1761922839856
+    },
+    "-Ocurk4jonLsYxPwrZkp": {
+      "bookingId": "-OcuHyDGRfn44pUkT3ku",
+      "id": "-Ocurk4jonLsYxPwrZkp",
+      "message": "hi",
+      "messageType": "TEXT",
+      "read": false,
+      "receiverId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "senderId": "driver_1759325281790_2222",
+      "senderName": "Ken",
+      "timestamp": 1761924282951
+    },
+    "-Ocv7-tx5foaKn7Uiwdl": {
+      "bookingId": "-OcuHyDGRfn44pUkT3ku",
+      "id": "-Ocv7-tx5foaKn7Uiwdl",
+      "message": "fgjfjf",
+      "messageType": "TEXT",
+      "read": false,
+      "receiverId": "",
+      "senderId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "senderName": "Ken Zamodio",
+      "timestamp": 1761928547934
+    },
+    "-Ocv76xodVDPMLdJlnTJ": {
+      "bookingId": "-OcuHyDGRfn44pUkT3ku",
+      "id": "-Ocv76xodVDPMLdJlnTJ",
+      "message": "djdjfjjfj",
+      "messageType": "TEXT",
+      "read": false,
+      "receiverId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "senderId": "driver_1759325281790_2222",
+      "senderName": "Ken",
+      "timestamp": 1761928576852
+    },
+    "-OcyiBtRIF8efhrdauot": {
+      "bookingId": "-Ocx17D8PJSaZ9tUaTpr",
+      "id": "-OcyiBtRIF8efhrdauot",
+      "message": "hi",
+      "messageType": "TEXT",
+      "read": false,
+      "receiverId": "2A8B5505",
+      "senderId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "senderName": "Ken Zamodio",
+      "timestamp": 1761988888061
+    },
+    "-Od-1PUxRRDDL13Lkqux": {
+      "bookingId": "-OczzOMHkvdc8ydbYob9",
+      "id": "-Od-1PUxRRDDL13Lkqux",
+      "message": "nah",
+      "messageType": "TEXT",
+      "read": false,
+      "receiverId": "2A8B5505",
+      "senderId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "senderName": "Ken Zamodio",
+      "timestamp": 1762010963189
+    },
+    "-Od-3m8rCJekuxq8C3F_": {
+      "bookingId": "-Od-3bCDq8dJRompGTrG",
+      "id": "-Od-3m8rCJekuxq8C3F_",
+      "message": "hi",
+      "messageType": "TEXT",
+      "read": false,
+      "receiverId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "senderId": "driver_1759325281790_2222",
+      "senderName": "Ken",
+      "timestamp": 1762011584316
+    },
+    "-Od-3p25Pp6iMs2yKAdi": {
+      "bookingId": "-Od-3bCDq8dJRompGTrG",
+      "id": "-Od-3p25Pp6iMs2yKAdi",
+      "message": "hello po",
+      "messageType": "TEXT",
+      "read": false,
+      "receiverId": "driver_1759325281790_2222",
+      "senderId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "senderName": "Ken Zamodio",
+      "timestamp": 1762011596186
+    },
+    "-Od-naCQ_Q9E_FYyhXL1": {
+      "bookingId": "-Od-n0mc5xSThA6_aZ4n",
+      "id": "-Od-naCQ_Q9E_FYyhXL1",
+      "message": "asan ka kupal",
+      "messageType": "TEXT",
+      "read": false,
+      "receiverId": "PaSDuzP1Ola1UvHLmhDw6DGoVZ23",
+      "senderId": "aQAyEHQ6prhOqs7layjLwLvW1g43",
+      "senderName": "Ken Aixroch Atienza Zamodio",
+      "timestamp": 1762023855809
+    },
+    "-Od-nfD9GgUngEvsuUbk": {
+      "bookingId": "-Od-n0mc5xSThA6_aZ4n",
+      "id": "-Od-nfD9GgUngEvsuUbk",
+      "message": "ditdito  nagjajakol",
+      "messageType": "TEXT",
+      "read": false,
+      "receiverId": "aQAyEHQ6prhOqs7layjLwLvW1g43",
+      "senderId": "PaSDuzP1Ola1UvHLmhDw6DGoVZ23",
+      "senderName": "Kimm Kimmy",
+      "timestamp": 1762023873911
+    },
+    "-Od-o-Zxd1yQ9O2THDno": {
+      "bookingId": "-Od-n0mc5xSThA6_aZ4n",
+      "id": "-Od-o-Zxd1yQ9O2THDno",
+      "message": "dito na ko boss",
+      "messageType": "TEXT",
+      "read": false,
+      "receiverId": "PaSDuzP1Ola1UvHLmhDw6DGoVZ23",
+      "senderId": "aQAyEHQ6prhOqs7layjLwLvW1g43",
+      "senderName": "Ken Aixroch Atienza Zamodio",
+      "timestamp": 1762023963776
     }
   },
   "chatRooms": {
@@ -3229,8 +5025,92 @@
       "lastMessageTime": 1761875146194
     },
     "-OcuHyDGRfn44pUkT3ku": {
+      "lastMessage": "djdjfjjfj",
+      "lastMessageTime": 1761928576924
+    },
+    "-Ocwl3B1pe2lPc0damTW": {
+      "active": true,
+      "bookingId": "-Ocwl3B1pe2lPc0damTW",
+      "createdAt": 1761958089619,
+      "customerId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "customerName": "Ken Zamodio",
+      "driverId": "driver_1759325281790_2222",
+      "driverName": "Lucas Abad",
+      "id": "-Ocwl3B1pe2lPc0damTW",
+      "lastMessage": "",
+      "lastMessageTime": 1761958089619
+    },
+    "-Ocx17D8PJSaZ9tUaTpr": {
+      "active": true,
+      "bookingId": "-Ocx17D8PJSaZ9tUaTpr",
+      "createdAt": 1761978116579,
+      "customerId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "customerName": "Ken Zamodio",
+      "driverId": "2A8B5505",
+      "driverName": "Lucas Abad",
+      "id": "-Ocx17D8PJSaZ9tUaTpr",
       "lastMessage": "hi",
-      "lastMessageTime": 1761922840074
+      "lastMessageTime": 1761988888214
+    },
+    "-OczRtfRopsNeqgMPI44": {
+      "active": true,
+      "bookingId": "-OczRtfRopsNeqgMPI44",
+      "createdAt": 1762001156163,
+      "customerId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "customerName": "Ken Zamodio",
+      "driverId": "2A8B5505",
+      "driverName": "Lucas Abad",
+      "id": "-OczRtfRopsNeqgMPI44",
+      "lastMessage": "",
+      "lastMessageTime": 1762001156163
+    },
+    "-OcztxPzZg1FSjjqgac3": {
+      "active": true,
+      "bookingId": "-OcztxPzZg1FSjjqgac3",
+      "createdAt": 1762010064293,
+      "customerId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "customerName": "Ken Zamodio",
+      "driverId": "2A8B5505",
+      "driverName": "Lucas Abad",
+      "id": "-OcztxPzZg1FSjjqgac3",
+      "lastMessage": "",
+      "lastMessageTime": 1762010064293
+    },
+    "-OczzOMHkvdc8ydbYob9": {
+      "active": true,
+      "bookingId": "-OczzOMHkvdc8ydbYob9",
+      "createdAt": 1762010956267,
+      "customerId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "customerName": "Ken Zamodio",
+      "driverId": "2A8B5505",
+      "driverName": "Lucas Abad",
+      "id": "-OczzOMHkvdc8ydbYob9",
+      "lastMessage": "nah",
+      "lastMessageTime": 1762010963460
+    },
+    "-Od-3bCDq8dJRompGTrG": {
+      "active": true,
+      "bookingId": "-Od-3bCDq8dJRompGTrG",
+      "createdAt": 1762011590799,
+      "customerId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+      "customerName": "Ken Zamodio",
+      "driverId": "driver_1759325281790_2222",
+      "driverName": "Lucas Abad",
+      "id": "-Od-3bCDq8dJRompGTrG",
+      "lastMessage": "hello po",
+      "lastMessageTime": 1762011596314
+    },
+    "-Od-n0mc5xSThA6_aZ4n": {
+      "active": true,
+      "bookingId": "-Od-n0mc5xSThA6_aZ4n",
+      "createdAt": 1762023849446,
+      "customerId": "PaSDuzP1Ola1UvHLmhDw6DGoVZ23",
+      "customerName": "Kimm Kimmy",
+      "driverId": "aQAyEHQ6prhOqs7layjLwLvW1g43",
+      "driverName": "Ken Aixroch Atienza Zamodio",
+      "id": "-Od-n0mc5xSThA6_aZ4n",
+      "lastMessage": "dito na ko boss",
+      "lastMessageTime": 1762023964041
     }
   },
   "contributions": {
@@ -4713,46 +6593,414 @@
       "driverRFID": "2A8B5505",
       "timestamp": "1761910135",
       "todaNumber": "395"
+    },
+    "1761923509": {
+      "amount": 5,
+      "date": "2025-10-31",
+      "driverName": "Lucas Abad",
+      "driverRFID": "2A8B5505",
+      "timestamp": "1761923509",
+      "todaNumber": "395"
+    },
+    "1761951472": {
+      "amount": 5,
+      "date": "2025-11-01",
+      "driverName": "Lucas Abad",
+      "driverRFID": "2A8B5505",
+      "timestamp": "1761951472",
+      "todaNumber": "395"
+    },
+    "1761955691": {
+      "amount": 5,
+      "date": "2025-11-01",
+      "driverName": "Lucas Abad",
+      "driverRFID": "2A8B5505",
+      "timestamp": "1761955691",
+      "todaNumber": "395"
+    },
+    "1761956737": {
+      "amount": 5,
+      "date": "2025-11-01",
+      "driverName": "Lucas Abad",
+      "driverRFID": "2A8B5505",
+      "timestamp": "1761956737",
+      "todaNumber": "395"
+    },
+    "1761958496": {
+      "amount": 5,
+      "date": "2025-11-01",
+      "driverName": "Lucas Abad",
+      "driverRFID": "2A8B5505",
+      "timestamp": "1761958496",
+      "todaNumber": "395"
+    },
+    "1761960195": {
+      "amount": 5,
+      "date": "2025-11-01",
+      "driverName": "Lucas Abad",
+      "driverRFID": "2A8B5505",
+      "timestamp": "1761960195",
+      "todaNumber": "395"
+    },
+    "1761960586": {
+      "amount": 5,
+      "date": "2025-11-01",
+      "driverName": "Lucas Abad",
+      "driverRFID": "2A8B5505",
+      "timestamp": "1761960586",
+      "todaNumber": "395"
+    },
+    "1762007174": {
+      "amount": 5,
+      "date": "2025-11-01",
+      "driverName": "Lucas Abad",
+      "driverRFID": "2A8B5505",
+      "timestamp": "1762007174",
+      "todaNumber": "395"
+    },
+    "1762010167": {
+      "amount": 5,
+      "date": "2025-11-01",
+      "driverName": "Lucas Abad",
+      "driverRFID": "2A8B5505",
+      "timestamp": "1762010167",
+      "todaNumber": "395"
+    },
+    "1762011528": {
+      "amount": 5,
+      "date": "2025-11-01",
+      "driverName": "Lucas Abad",
+      "driverRFID": "2A8B5505",
+      "timestamp": "1762011528",
+      "todaNumber": "395"
+    },
+    "1762023806": {
+      "amount": 5,
+      "date": "2025-11-02",
+      "driverName": "Ken Aixroch Atienza Zamodio",
+      "driverRFID": "2E908005",
+      "timestamp": "1762023806",
+      "todaNumber": "TODA-555"
+    },
+    "1762096884": {
+      "amount": 5,
+      "date": "2025-11-02",
+      "driverName": "Ken Aixroch Atienza Zamodio",
+      "driverRFID": "2E908005",
+      "timestamp": "1762096884",
+      "todaNumber": "TODA-555"
+    },
+    "1762112368": {
+      "amount": 5,
+      "date": "2025-11-03",
+      "driverName": "Lucas Abad",
+      "driverRFID": "2A8B5505",
+      "timestamp": "1762112368",
+      "todaNumber": "395"
+    },
+    "1762112912": {
+      "amount": 5,
+      "date": "2025-11-03",
+      "driverName": "Ken Aixroch Atienza Zamodio",
+      "driverRFID": "2E908005",
+      "timestamp": "1762112912",
+      "todaNumber": "TODA-555"
+    },
+    "1762114181": {
+      "amount": 5,
+      "date": "2025-11-03",
+      "driverName": "Ken Aixroch Atienza Zamodio",
+      "driverRFID": "2E908005",
+      "timestamp": "1762114181",
+      "todaNumber": "TODA-555"
+    },
+    "1762114460": {
+      "amount": 5,
+      "date": "2025-11-03",
+      "driverName": "Ken Aixroch Atienza Zamodio",
+      "driverRFID": "2E908005",
+      "timestamp": "1762114460",
+      "todaNumber": "TODA-555"
+    },
+    "1762114712": {
+      "amount": 5,
+      "date": "2025-11-03",
+      "driverName": "Lucas Abad",
+      "driverRFID": "2A8B5505",
+      "timestamp": "1762114712",
+      "todaNumber": "395"
+    },
+    "1762117822": {
+      "amount": 5,
+      "date": "2025-11-03",
+      "driverName": "Lucas Abad",
+      "driverRFID": "2A8B5505",
+      "timestamp": "1762117822",
+      "todaNumber": "395"
+    }
+  },
+  "driverFlags": {
+    "B8CXks82JZh2t45ldbFQsEr8WIA3": {
+      "-OczZCxdAzsUxfrGuhUB": {
+        "actions": [
+          {
+            "action": "FLAG_CREATED",
+            "adminId": "AUTO_DETECTION",
+            "timestamp": 1762003049309
+          }
+        ],
+        "details": {
+          "averageContribution": "70.00",
+          "driverContribution": "0.00",
+          "percentage": "0",
+          "period": "weekly"
+        },
+        "flagId": "-OczZCxdAzsUxfrGuhUB",
+        "notes": "Automatically detected by system on 11/1/2025",
+        "points": 75,
+        "severity": "high",
+        "status": "active",
+        "timestamp": 1762003049309,
+        "type": "LOW_CONTRIBUTIONS"
+      },
+      "-OczZCxlfIV2BSbNw4Su": {
+        "actions": [
+          {
+            "action": "FLAG_CREATED",
+            "adminId": "AUTO_DETECTION",
+            "timestamp": 1762003049317
+          }
+        ],
+        "details": {
+          "daysSinceActive": 20393,
+          "lastActiveDate": "1/1/1970"
+        },
+        "flagId": "-OczZCxlfIV2BSbNw4Su",
+        "notes": "Automatically detected by system on 11/1/2025",
+        "points": 50,
+        "severity": "medium",
+        "status": "active",
+        "timestamp": 1762003049317,
+        "type": "INACTIVE_ACCOUNT"
+      },
+      "-OczZICwVKq5XxNYcTGD": {
+        "actions": [
+          {
+            "action": "FLAG_CREATED",
+            "adminId": "AUTO_DETECTION",
+            "timestamp": 1762003070832
+          }
+        ],
+        "details": {
+          "averageContribution": "70.00",
+          "driverContribution": "0.00",
+          "percentage": "0",
+          "period": "weekly"
+        },
+        "flagId": "-OczZICwVKq5XxNYcTGD",
+        "notes": "Automatically detected by system on 11/1/2025",
+        "points": 75,
+        "severity": "high",
+        "status": "active",
+        "timestamp": 1762003070832,
+        "type": "LOW_CONTRIBUTIONS"
+      },
+      "-OczZICzreJxL_dbpN2Z": {
+        "actions": [
+          {
+            "action": "FLAG_CREATED",
+            "adminId": "AUTO_DETECTION",
+            "timestamp": 1762003070835
+          }
+        ],
+        "details": {
+          "daysSinceActive": 20393,
+          "lastActiveDate": "1/1/1970"
+        },
+        "flagId": "-OczZICzreJxL_dbpN2Z",
+        "notes": "Automatically detected by system on 11/1/2025",
+        "points": 50,
+        "severity": "medium",
+        "status": "active",
+        "timestamp": 1762003070835,
+        "type": "INACTIVE_ACCOUNT"
+      },
+      "-OczZJjWO-YLFQVP9i1M": {
+        "actions": [
+          {
+            "action": "FLAG_CREATED",
+            "adminId": "AUTO_DETECTION",
+            "timestamp": 1762003077077
+          }
+        ],
+        "details": {
+          "averageContribution": "70.00",
+          "driverContribution": "0.00",
+          "percentage": "0",
+          "period": "weekly"
+        },
+        "flagId": "-OczZJjWO-YLFQVP9i1M",
+        "notes": "Automatically detected by system on 11/1/2025",
+        "points": 75,
+        "resolvedBy": "Admin",
+        "resolvedDate": 1762010170159,
+        "severity": "high",
+        "status": "resolved",
+        "timestamp": 1762003077077,
+        "type": "LOW_CONTRIBUTIONS"
+      },
+      "-OczZJjY_vJEVO2deKgb": {
+        "actions": [
+          {
+            "action": "FLAG_CREATED",
+            "adminId": "AUTO_DETECTION",
+            "timestamp": 1762003077079
+          }
+        ],
+        "details": {
+          "daysSinceActive": 20393,
+          "lastActiveDate": "1/1/1970"
+        },
+        "flagId": "-OczZJjY_vJEVO2deKgb",
+        "notes": "Automatically detected by system on 11/1/2025",
+        "points": 50,
+        "resolvedBy": "Admin",
+        "resolvedDate": 1762010192741,
+        "severity": "medium",
+        "status": "resolved",
+        "timestamp": 1762003077079,
+        "type": "INACTIVE_ACCOUNT"
+      }
+    },
+    "driver_1759325281790_2222": {
+      "-Oczyf6fXYqHV-ezE2Ng": {
+        "actions": [
+          {
+            "action": "FLAG_CREATED",
+            "adminId": "AUTO_DETECTION",
+            "timestamp": 1762009984356
+          }
+        ],
+        "details": {
+          "averageContribution": "75.00",
+          "driverContribution": "0.00",
+          "percentage": "0",
+          "period": "weekly"
+        },
+        "flagId": "-Oczyf6fXYqHV-ezE2Ng",
+        "notes": "Automatically detected by system on 11/1/2025",
+        "points": 75,
+        "severity": "high",
+        "status": "active",
+        "timestamp": 1762009984356,
+        "type": "LOW_CONTRIBUTIONS"
+      },
+      "-Oczyf7wZquGiCcj8at8": {
+        "actions": [
+          {
+            "action": "FLAG_CREATED",
+            "adminId": "AUTO_DETECTION",
+            "timestamp": 1762009984438
+          }
+        ],
+        "details": {
+          "daysSinceActive": 20393,
+          "lastActiveDate": "1/1/1970"
+        },
+        "flagId": "-Oczyf7wZquGiCcj8at8",
+        "notes": "Automatically detected by system on 11/1/2025",
+        "points": 50,
+        "severity": "medium",
+        "status": "active",
+        "timestamp": 1762009984438,
+        "type": "INACTIVE_ACCOUNT"
+      }
+    },
+    "jtuQYMs9jjhVxZ68ylaPOQP08xl1": {
+      "-Oczyf6huovBbVbw38YM": {
+        "actions": [
+          {
+            "action": "FLAG_CREATED",
+            "adminId": "AUTO_DETECTION",
+            "timestamp": 1762009984358
+          }
+        ],
+        "details": {
+          "averageContribution": "75.00",
+          "driverContribution": "0.00",
+          "percentage": "0",
+          "period": "weekly"
+        },
+        "flagId": "-Oczyf6huovBbVbw38YM",
+        "notes": "Automatically detected by system on 11/1/2025",
+        "points": 75,
+        "severity": "high",
+        "status": "active",
+        "timestamp": 1762009984358,
+        "type": "LOW_CONTRIBUTIONS"
+      },
+      "-Oczyf7xVN6TRsOpAIYJ": {
+        "actions": [
+          {
+            "action": "FLAG_CREATED",
+            "adminId": "AUTO_DETECTION",
+            "timestamp": 1762009984438
+          }
+        ],
+        "details": {
+          "daysSinceActive": 20393,
+          "lastActiveDate": "1/1/1970"
+        },
+        "flagId": "-Oczyf7xVN6TRsOpAIYJ",
+        "notes": "Automatically detected by system on 11/1/2025",
+        "points": 50,
+        "severity": "medium",
+        "status": "active",
+        "timestamp": 1762009984438,
+        "type": "INACTIVE_ACCOUNT"
+      }
     }
   },
   "drivers": {
-    "BeCkACMYXveMn5SRDl1R8Kf5PSO2": {
-      "address": "Brgy 177",
-      "driverId": "BeCkACMYXveMn5SRDl1R8Kf5PSO2",
-      "driverName": "John Padilla",
+    "aQAyEHQ6prhOqs7layjLwLvW1g43": {
+      "address": "Cielito",
+      "balance": 5,
+      "driverId": "aQAyEHQ6prhOqs7layjLwLvW1g43",
+      "driverName": "Ken Aixroch Atienza Zamodio",
       "emergencyContact": "",
+      "hasBeenAutoReset": false,
       "hasRfidAssigned": true,
+      "hasTodaMembershipAssigned": false,
       "isActive": true,
       "licenseExpiry": 0,
-      "licenseNumber": "N12-34-375849",
+      "licenseNumber": "M23-42-123111",
+      "licensePhotoURL": "https://firebasestorage.googleapis.com/v0/b/toda-contribution-system.firebasestorage.app/o/driver_licenses%2FaQAyEHQ6prhOqs7layjLwLvW1g43_1762023455089.jpg?alt=media&token=151db3e9-7ac9-4f24-9520-8104bc2528f9",
+      "licensePhotoUploadedAt": 1762023459253,
+      "name": "Ken Aixroch Atienza Zamodio",
       "needsRfidAssignment": false,
-      "oldRfidUID": "0089172561",
-      "phoneNumber": "09660058600",
-      "previousRfid": "0089309425",
-      "registrationDate": "2025-10-24",
-      "rfidAssignedAt": "2025-10-30T18:51:30.112Z",
-      "rfidAssignedBy": "Admin",
-      "rfidHistory": [
-        {
-          "replacedAt": "2025-10-30T18:59:39.597Z",
-          "replacedBy": "Admin",
-          "rfid": "0089309425"
-        }
+      "paymentMode": "pay_every_trip",
+      "phoneNumber": "09677777777",
+      "profileUpdatedAt": 1762023594816,
+      "registrationDate": 1762022643632,
+      "rejectedAt": "2025-11-01T18:58:17.555Z",
+      "rejectedBy": "Admin",
+      "rejectionCount": 1,
+      "rejectionReason": "",
+      "rejectionTypes": [
+        "reupload_photo"
       ],
-      "rfidMissing": true,
-      "rfidNumber": "",
-      "rfidReassignedAt": "2025-10-30T18:59:39.597Z",
-      "rfidReassignedBy": "Admin",
-      "rfidReassignmentCount": 1,
-      "rfidReported": true,
-      "rfidReportedMissingAt": 1761891004126,
+      "rfidAssignedAt": "2025-11-01T19:00:41.681Z",
+      "rfidAssignedBy": "Admin",
+      "rfidNumber": "2E908005",
       "rfidUID": "",
-      "todaAssignedAt": "2025-10-30T17:24:46.854Z",
+      "status": "PENDING_APPROVAL",
+      "todaAssignedAt": "2025-11-01T19:00:32.413Z",
       "todaAssignedBy": "Admin",
-      "todaNumber": "TODA-069",
-      "verificationNotes": "Documents approved",
+      "todaNumber": "TODA-555",
+      "tricyclePlateNumber": "BSD-4241",
+      "verificationNotes": "Documents approved - All documents are clear and verified",
       "verificationStatus": "verified",
-      "verifiedAt": "2025-10-30T17:24:38.814Z",
+      "verifiedAt": "2025-11-01T19:00:22.167Z",
       "verifiedBy": "Admin",
       "yearsOfExperience": 0
     },
@@ -4761,6 +7009,8 @@
       "driverId": "driver_1759325281790_2222",
       "driverName": "Lucas Abad",
       "emergencyContact": "",
+      "flagScore": 500,
+      "flagStatus": "suspended",
       "hasRfidAssigned": false,
       "isActive": true,
       "lastRfidChange": 1761904799745,
@@ -4768,43 +7018,17 @@
       "licenseNumber": "N23-23-123432",
       "needsRfidAssignment": false,
       "oldRfidUID": "0092303987",
+      "paymentMode": "pay_later",
       "phoneNumber": "09222222222",
-      "previousRfid": "",
+      "previousRfid": "51AA5005",
       "registrationDate": "2025-10-01",
       "rfidAssignedAt": "2025-10-30T13:27:32.451Z",
       "rfidAssignedBy": "Admin",
-      "rfidHistory": [
-        {
-          "replacedAt": "2025-10-30T18:19:59.647Z",
-          "replacedBy": "Admin",
-          "rfid": "0092311598"
-        },
-        {
-          "replacedAt": "2025-10-30T18:44:04.341Z",
-          "replacedBy": "Admin",
-          "rfid": "0089172561"
-        },
-        {
-          "replacedAt": "2025-10-30T21:57:47.597Z",
-          "replacedBy": "Admin",
-          "rfid": "0092311598"
-        },
-        {
-          "replacedAt": "2025-10-31T09:59:46.089Z",
-          "replacedBy": "Admin",
-          "rfid": ""
-        },
-        {
-          "replacedAt": "2025-10-31T11:21:50.408Z",
-          "replacedBy": "Admin",
-          "rfid": ""
-        }
-      ],
       "rfidMissing": false,
-      "rfidNumber": "0089492266",
-      "rfidReassignedAt": "2025-10-31T11:21:50.408Z",
+      "rfidNumber": "2A8B5505",
+      "rfidReassignedAt": "2025-11-01T17:42:07.508Z",
       "rfidReassignedBy": "Admin",
-      "rfidReassignmentCount": 5,
+      "rfidReassignmentCount": 11,
       "rfidReported": false,
       "rfidStatus": "missing",
       "rfidUID": "0089492266",
@@ -4814,115 +7038,34 @@
       "verifiedBy": "Admin",
       "yearsOfExperience": 0
     },
-    "driver_1761271549797_3654": {
-      "address": "abdhd",
-      "driverId": "driver_1761271549797_3654",
-      "driverName": "ken",
+    "jtuQYMs9jjhVxZ68ylaPOQP08xl1": {
+      "address": "sasasa",
+      "driverId": "jtuQYMs9jjhVxZ68ylaPOQP08xl1",
+      "driverName": "yo yo yo",
       "emergencyContact": "",
+      "flagScore": 125,
+      "flagStatus": "monitored",
+      "hasRfidAssigned": true,
+      "hasTodaMembershipAssigned": false,
       "isActive": true,
       "licenseExpiry": 0,
-      "licenseNumber": "N12-37-727384",
-      "needsRfidAssignment": true,
-      "phoneNumber": "09123123654",
-      "registrationDate": "2025-10-24",
-      "rfidUID": "",
-      "todaNumber": "001",
-      "verificationStatus": "verified",
-      "verifiedAt": "2025-10-30T13:28:23.564Z",
-      "verifiedBy": "Admin",
-      "yearsOfExperience": 0
-    },
-    "driver_1761866979177_2828": {
-      "address": "Blk 14 E Looot 14",
-      "autoResetAt": "2025-10-31T00:00:03.946Z",
-      "autoResetReason": "Driver re-uploaded documents after rejection",
-      "driverId": "driver_1761866979177_2828",
-      "driverName": "Ken TOt",
-      "emergencyContact": "",
-      "hasBeenAutoReset": false,
-      "hasRfidAssigned": false,
-      "isActive": true,
-      "lastRfidChange": 1761881278650,
-      "licenseExpiry": 0,
-      "licenseNumber": "N21-34-567891",
-      "licensePhotoURL": "https://firebasestorage.googleapis.com/v0/b/toda-contribution-system.firebasestorage.app/o/driver_licenses%2Fdriver_1761866979177_2828_1761868797486.jpg?alt=media&token=c6d0c839-83fc-43c0-ab9b-5b35fe4bc0fa",
-      "licensePhotoUploadedAt": 1761868802141,
-      "name": "Ken TOt",
+      "licenseNumber": "N66-66-666666",
       "needsRfidAssignment": false,
-      "oldRfidUID": "0089309425",
-      "phoneNumber": "09155232828",
-      "previousRejectionReason": "📸 Please reupload your license photo. The current photo is blurry, unclear, or incomplete.",
-      "previousRfid": "",
-      "profileUpdatedAt": 1761870889432,
-      "registrationDate": "2025-10-30",
-      "rejectedAt": "2025-10-31T00:34:45.136Z",
-      "rejectedBy": "Admin",
-      "rejectionCount": 1,
-      "rejectionReason": "",
-      "rejectionTypes": [
-        "incomplete_info"
-      ],
-      "rfidAssignedAt": "2025-10-31T00:36:50.782Z",
+      "phoneNumber": "09888888888",
+      "registrationDate": 1762009634978,
+      "rfidAssignedAt": "2025-11-01T15:08:44.470Z",
       "rfidAssignedBy": "Admin",
-      "rfidHistory": [
-        {
-          "replacedAt": "2025-10-31T03:24:44.166Z",
-          "replacedBy": "Admin",
-          "rfid": "0092311598"
-        },
-        {
-          "replacedAt": "2025-10-31T03:26:50.022Z",
-          "replacedBy": "Admin",
-          "rfid": ""
-        },
-        {
-          "replacedAt": "2025-10-31T03:27:39.241Z",
-          "replacedBy": "Admin",
-          "rfid": ""
-        },
-        {
-          "replacedAt": "2025-10-31T03:28:34.703Z",
-          "replacedBy": "Admin",
-          "rfid": ""
-        }
-      ],
-      "rfidMissing": false,
-      "rfidNumber": "0092311598",
-      "rfidReassignedAt": "2025-10-31T03:28:34.703Z",
-      "rfidReassignedBy": "Admin",
-      "rfidReassignmentCount": 4,
-      "rfidReported": false,
-      "rfidStatus": "missing",
-      "rfidUID": "0092311598",
-      "todaAssignedAt": "2025-10-31T00:36:39.808Z",
+      "rfidNumber": "0089309425",
+      "rfidUID": "",
+      "status": "PENDING_APPROVAL",
+      "todaAssignedAt": "2025-11-02T16:00:20.768Z",
       "todaAssignedBy": "Admin",
-      "todaNumber": "TODA-019",
-      "tricyclePlateNumber": "AEE-1235",
+      "todaNumber": "087",
+      "tricyclePlateNumber": "AAA-6666",
       "verificationNotes": "Documents approved - All documents are clear and verified",
       "verificationStatus": "verified",
-      "verifiedAt": "2025-10-31T00:35:05.565Z",
+      "verifiedAt": "2025-11-02T15:49:23.639Z",
       "verifiedBy": "Admin",
-      "yearsOfExperience": 0
-    },
-    "mAWPOwNizhczC6p0w2Cq3094PzH2": {
-      "address": "brgy177",
-      "driverId": "mAWPOwNizhczC6p0w2Cq3094PzH2",
-      "driverName": "ron",
-      "emergencyContact": "",
-      "isActive": true,
-      "licenseExpiry": 0,
-      "licenseNumber": "N12-34-576904",
-      "needsRfidAssignment": true,
-      "phoneNumber": "09456456456",
-      "registrationDate": "2025-10-24",
-      "rfidUID": "",
-      "todaAssignedAt": "",
-      "todaAssignedBy": "",
-      "todaNumber": "",
-      "verificationNotes": "",
-      "verificationStatus": "",
-      "verifiedAt": "",
-      "verifiedBy": "",
       "yearsOfExperience": 0
     }
   },
@@ -5015,7 +7158,7 @@
       "driverId": "driver_002",
       "driverName": "Maria Santos",
       "id": "-Ocssn8GNZ_LAOZIt8w-",
-      "isRead": false,
+      "isRead": true,
       "message": "Maria Santos has submitted documents for verification. Please review and approve.",
       "priority": "normal",
       "timestamp": 1761891005047,
@@ -5025,7 +7168,7 @@
     "-OcssnGLiEFyo0cq_EGe": {
       "actionRequired": true,
       "id": "-OcssnGLiEFyo0cq_EGe",
-      "isRead": false,
+      "isRead": true,
       "message": "Pedro Reyes applied for Senior Citizen discount. Supporting documents attached.",
       "priority": "normal",
       "timestamp": 1761891005564,
@@ -5039,13 +7182,101 @@
       "driverId": "driver_1759325281790_2222",
       "driverName": "Lucas Abad",
       "id": "-OcthQHU7fkDFjgcdfKy",
-      "isRead": false,
+      "isRead": true,
       "message": "Lucas Abad (ID: driver_1759325281790_2222) reported RFID 0092303987 as missing. RFID has been auto-unlinked.",
       "oldRfidUID": "0092303987",
       "priority": "high",
       "timestamp": 1761904799901,
       "title": "RFID Reported Missing",
       "type": "RFID_MISSING"
+    },
+    "-Ocxnvfw7izAityEEAaC": {
+      "actionRequired": true,
+      "deleted": false,
+      "discountType": "PWD",
+      "isRead": true,
+      "message": "123 123123 123 has applied for PWD discount",
+      "priority": "medium",
+      "timestamp": 1761973615156,
+      "title": "New Discount Application",
+      "type": "DISCOUNT_APPLICATION",
+      "userId": "jEyWIAxljtRONRHbNGKlbK402iS2",
+      "userName": "123 123123 123"
+    },
+    "-OcxrzTqSPvLYkKAlLCH": {
+      "actionRequired": true,
+      "deleted": true,
+      "discountType": "PWD",
+      "isRead": true,
+      "message": "123 123123 123 has applied for PWD discount",
+      "priority": "medium",
+      "timestamp": 1761974679260,
+      "title": "New Discount Application",
+      "type": "DISCOUNT_APPLICATION",
+      "userId": "jEyWIAxljtRONRHbNGKlbK402iS2",
+      "userName": "123 123123 123"
+    },
+    "-OcxsGGM-79lBShU_xOK": {
+      "actionRequired": true,
+      "deleted": true,
+      "discountType": "PWD",
+      "isRead": true,
+      "message": "123 123123 123 has applied for PWD discount",
+      "priority": "medium",
+      "timestamp": 1761974752122,
+      "title": "New Discount Application",
+      "type": "DISCOUNT_APPLICATION",
+      "userId": "jEyWIAxljtRONRHbNGKlbK402iS2",
+      "userName": "123 123123 123"
+    },
+    "-Od-f6HFiUzwmt7x8N85": {
+      "actionRequired": true,
+      "deleted": false,
+      "driverId": "9dV61WsRxdhf01KFfsTPKzn2Eku2",
+      "driverName": "Ken Aixroch Atienza Zamodio",
+      "isRead": true,
+      "message": "Ken Aixroch Atienza Zamodio has resubmitted documents after rejection",
+      "priority": "medium",
+      "timestamp": 1762021633850,
+      "title": "Driver Resubmitted Documents",
+      "type": "DRIVER_VERIFICATION"
+    },
+    "-Od-f6HFiUzwmt7x8N86": {
+      "actionRequired": true,
+      "deleted": false,
+      "driverId": "9dV61WsRxdhf01KFfsTPKzn2Eku2",
+      "driverName": "Ken Aixroch Atienza Zamodio",
+      "isRead": true,
+      "message": "Ken Aixroch Atienza Zamodio has registered and needs verification",
+      "priority": "medium",
+      "timestamp": 1762021633850,
+      "title": "New Driver Registration",
+      "type": "DRIVER_VERIFICATION"
+    },
+    "-Od-maZyMx3YJHXADd6D": {
+      "actionRequired": true,
+      "deleted": false,
+      "driverId": "aQAyEHQ6prhOqs7layjLwLvW1g43",
+      "driverName": "Ken Aixroch Atienza Zamodio",
+      "isRead": true,
+      "message": "Ken Aixroch Atienza Zamodio has registered and needs verification",
+      "priority": "medium",
+      "timestamp": 1762023597032,
+      "title": "New Driver Registration",
+      "type": "DRIVER_VERIFICATION"
+    },
+    "-Od-qFqJdLR0fMnx79MN": {
+      "actionRequired": true,
+      "deleted": false,
+      "discountType": "PWD",
+      "isRead": true,
+      "message": "Kimm Kimmy has applied for PWD discount",
+      "priority": "medium",
+      "timestamp": 1762024556557,
+      "title": "New Discount Application",
+      "type": "DISCOUNT_APPLICATION",
+      "userId": "PaSDuzP1Ola1UvHLmhDw6DGoVZ23",
+      "userName": "Kimm Kimmy"
     }
   },
   "pendingApplications": {
@@ -5063,8 +7294,9 @@
     "09123123125": "LfsU1XpJ9abXpH8Ul6OOXv14LFj1",
     "09123123321": "GngMQvZSlzfEjN5X14GBfjITdPE3",
     "09123123456": "yBF1Bfl4gHRdpFQ4boZrlB403SZ2",
+    "09123123457": "oQtC9qLvEJOe3wEEtoYDzObOHR33",
     "09123123654": "driver_1761271549797_3654",
-    "09123123789": "Hrg7Hycfk5Xyr6jR3dY9mxRFfIV2",
+    "09123123789": "29wf5NBF1uY3Zz665SuJOar9r2T2",
     "09123456789": "driver_1758655140157_6789",
     "09155232828": "driver_1761866979177_2828",
     "09171717177": "v3onbyPQ4NVrw6J7INYT9kvZ3Or2",
@@ -5074,22 +7306,45 @@
     "09234234234": "kmtNlVdNF1fh5G0pDEIS7OIzeXo1",
     "09274225820": "onYdr4AOxXNLjuM43kFwxKQjDAN2",
     "09321321123": "DLOhLkH1YBQPBibypzwXVnxBxr33",
-    "09321321321": "mNX01VkKu2PrD3rtGNUuIVeQSuv2",
+    "09321321321": "F72Xqp0DelOKqG4w0NJP9KbJxkx1",
     "09345345345": "30oAhTaLHHSye9wE6GtisfP7NIv1",
     "09369969331": "awftzt79Z6gZ1YVHV5VDVGUuZSh2",
-    "09444444444": "driver_1758626191137_4444",
+    "09432432432": "gGqa14nMvgcIxQftHgFLIpBqjgj1",
+    "09444444444": "jEyWIAxljtRONRHbNGKlbK402iS2",
     "09456456456": "mAWPOwNizhczC6p0w2Cq3094PzH2",
+    "09544444444": "PaSDuzP1Ola1UvHLmhDw6DGoVZ23",
     "09555555555": "driver_1758645195343_5555",
     "09603423862": "UUz1JNrCCcRMUUaAg9HnDv2Gztf1",
     "09612310202": "eBSw6F3504amBQT5ofC6S9rejjQ2",
-    "09660058600": "BeCkACMYXveMn5SRDl1R8Kf5PSO2",
     "09667249471": "fBK9sUu7vHUq9XWQvqB2ul0l7qx1",
     "09667249477": "wPYAd1ju8uZIVFm6Zhd1kpEHNGX2",
     "09667249478": "uIdqEPwPc3dSxCR2pkNI35RbS1b2",
+    "09677777777": "aQAyEHQ6prhOqs7layjLwLvW1g43",
+    "09763823860": "u8MyQQaMaMME1keyKKsEHs9IxL53",
     "09765019704": "KWTKFAsCoTNfIHRPAZD0Guutv4c2",
-    "09888888888": "driver_1758645628068_8888",
-    "09987654321": "1UfgT7PTMTV7mvXzU2pqAXmb0qw2",
-    "09991986152": "vMQY2GbwdYPe3fSavbd2dLJwkRM2"
+    "09888888888": "jtuQYMs9jjhVxZ68ylaPOQP08xl1",
+    "09899999999": "yN38K2HmQOac7OrL5Ey2XhZOS0m2",
+    "09987654321": "1UfgT7PTMTV7mvXzU2pqAXmb0qw2"
+  },
+  "phone_auth_mapping": {
+    "09183452201": {
+      "firebaseAuthEmail": "simognf@gmail.com",
+      "mappedAt": 1762001999384,
+      "name": "Metro Shiner",
+      "uid": "P1JGym2WH1hSPU70LrcTNpxi5Rn2"
+    },
+    "09667249477": {
+      "firebaseAuthEmail": "jerychoroniel30@gmail.com",
+      "mappedAt": 1762094836967,
+      "name": "MOTO-ADMIN",
+      "uid": "HE6GATtJZ5UxgYLqthEuvk76gkA2"
+    },
+    "09991986152": {
+      "firebaseAuthEmail": "princekit04@gmail.com",
+      "mappedAt": 1762095188368,
+      "name": "MOTO-BARKER",
+      "uid": "jP3agXbHorSo3BNNWEJWF3yeJfd2"
+    }
   },
   "ratings": {
     "-OavNedR22dMWkaymBVn": {
@@ -5312,6 +7567,118 @@
         "reassignedAt": "2025-10-31T11:21:50.408Z",
         "reassignedBy": "Admin",
         "todaNumber": "395"
+      },
+      "-OcznFKs95b3fHqvC3Je": {
+        "driverId": "driver_1759325281790_2222",
+        "driverName": "Lucas Abad",
+        "newRfid": "0089309425",
+        "oldRfid": "0089492266",
+        "phoneNumber": "09222222222",
+        "reason": "RFID card lost/replaced",
+        "reassignedAt": "2025-11-01T14:23:11.147Z",
+        "reassignedBy": "Admin",
+        "todaNumber": "395"
+      },
+      "-OcznHnt77K8QSaycV3y": {
+        "driverId": "driver_1759325281790_2222",
+        "driverName": "Lucas Abad",
+        "newRfid": "0089492266",
+        "oldRfid": "0089309425",
+        "phoneNumber": "09222222222",
+        "reason": "RFID card lost/replaced",
+        "reassignedAt": "2025-11-01T14:23:21.260Z",
+        "reassignedBy": "Admin",
+        "todaNumber": "395"
+      },
+      "-Od-SMs05ewPVroNJEux": {
+        "driverId": "driver_1759325281790_2222",
+        "driverName": "Lucas Abad",
+        "newRfid": "2A8B5505",
+        "oldRfid": "0089492266",
+        "phoneNumber": "09222222222",
+        "reason": "RFID card lost/replaced",
+        "reassignedAt": "2025-11-01T17:27:11.848Z",
+        "reassignedBy": "Admin",
+        "todaNumber": "395"
+      },
+      "-Od-SQNAFO6KsBFCrl25": {
+        "driverId": "driver_1759325281790_2222",
+        "driverName": "Lucas Abad",
+        "newRfid": "2A8B5505",
+        "oldRfid": "0089492266",
+        "phoneNumber": "09222222222",
+        "reason": "RFID card lost/replaced",
+        "reassignedAt": "2025-11-01T17:27:26.194Z",
+        "reassignedBy": "Admin",
+        "todaNumber": "395"
+      },
+      "-Od-T1JHVJVj_NXBvhzk": {
+        "driverId": "driver_1759325281790_2222",
+        "driverName": "Lucas Abad",
+        "newRfid": "2A8B5505",
+        "oldRfid": "2A8B5506",
+        "phoneNumber": "09222222222",
+        "reason": "RFID card lost/replaced",
+        "reassignedAt": "2025-11-01T17:30:05.684Z",
+        "reassignedBy": "Admin",
+        "todaNumber": "395"
+      },
+      "-Od-TBRR2FitEHaaer0Z": {
+        "driverId": "driver_1759325281790_2222",
+        "driverName": "Lucas Abad",
+        "newRfid": "2A8B5505",
+        "oldRfid": "2A8B5506",
+        "phoneNumber": "09222222222",
+        "reason": "RFID card lost/replaced",
+        "reassignedAt": "2025-11-01T17:30:47.167Z",
+        "reassignedBy": "Admin",
+        "todaNumber": "395"
+      },
+      "-Od-TDOrcyhpPFScgzFN": {
+        "driverId": "driver_1759325281790_2222",
+        "driverName": "Lucas Abad",
+        "newRfid": "2A8B5505",
+        "oldRfid": "2A8B5506",
+        "phoneNumber": "09222222222",
+        "reason": "RFID card lost/replaced",
+        "reassignedAt": "2025-11-01T17:30:55.193Z",
+        "reassignedBy": "Admin",
+        "todaNumber": "395"
+      },
+      "-Od-Vj4An1O32l6Y8bWO": {
+        "driverId": "driver_1759325281790_2222",
+        "driverName": "Lucas Abad",
+        "newRfid": "51AA5005",
+        "oldRfid": "2A8B5505",
+        "phoneNumber": "09222222222",
+        "reason": "RFID card lost/replaced",
+        "reassignedAt": "2025-11-01T17:41:53.313Z",
+        "reassignedBy": "Admin",
+        "todaNumber": "395"
+      },
+      "-Od-VmXyMdY7nHdBIr11": {
+        "driverId": "driver_1759325281790_2222",
+        "driverName": "Lucas Abad",
+        "newRfid": "2A8B5505",
+        "oldRfid": "51AA5005",
+        "phoneNumber": "09222222222",
+        "reason": "RFID card lost/replaced",
+        "reassignedAt": "2025-11-01T17:42:07.508Z",
+        "reassignedBy": "Admin",
+        "todaNumber": "395"
+      }
+    },
+    "driver_1761271549797_3654": {
+      "-OczXFqeIBLM320OMM1J": {
+        "driverId": "driver_1761271549797_3654",
+        "driverName": "ken",
+        "newRfid": "0092311598",
+        "oldRfid": "0089309425",
+        "phoneNumber": "09123123654",
+        "reason": "RFID card lost/replaced",
+        "reassignedAt": "2025-11-01T13:08:56.874Z",
+        "reassignedBy": "Admin",
+        "todaNumber": "001"
       }
     },
     "driver_1761866979177_2828": {
@@ -5362,6 +7729,46 @@
     }
   },
   "rfidMapping": {
+    "0089309425": {
+      "currentRfid": "0089492266",
+      "driverId": "driver_1759325281790_2222",
+      "driverName": "Lucas Abad",
+      "mappedAt": "2025-11-01T14:23:21.260Z",
+      "mappedBy": "Admin",
+      "oldRfid": "0089309425"
+    },
+    "0089492266": {
+      "currentRfid": "2A8B5505",
+      "driverId": "driver_1759325281790_2222",
+      "driverName": "Lucas Abad",
+      "mappedAt": "2025-11-01T17:27:26.194Z",
+      "mappedBy": "Admin",
+      "oldRfid": "0089492266"
+    },
+    "2A8B5505": {
+      "currentRfid": "51AA5005",
+      "driverId": "driver_1759325281790_2222",
+      "driverName": "Lucas Abad",
+      "mappedAt": "2025-11-01T17:41:53.313Z",
+      "mappedBy": "Admin",
+      "oldRfid": "2A8B5505"
+    },
+    "2A8B5506": {
+      "currentRfid": "2A8B5505",
+      "driverId": "driver_1759325281790_2222",
+      "driverName": "Lucas Abad",
+      "mappedAt": "2025-11-01T17:30:55.193Z",
+      "mappedBy": "Admin",
+      "oldRfid": "2A8B5506"
+    },
+    "51AA5005": {
+      "currentRfid": "2A8B5505",
+      "driverId": "driver_1759325281790_2222",
+      "driverName": "Lucas Abad",
+      "mappedAt": "2025-11-01T17:42:07.508Z",
+      "mappedBy": "Admin",
+      "oldRfid": "51AA5005"
+    },
     "currentRfid": "0089492266",
     "driverId": "driver_1759325281790_2222",
     "driverName": "Lucas Abad",
@@ -5371,6 +7778,7 @@
   },
   "rfidUIDIndex": {
     "2A8B5505": "driver_1759325281790_2222",
+    "2E908005": "aQAyEHQ6prhOqs7layjLwLvW1g43",
     "51AA5005": "BeCkACMYXveMn5SRDl1R8Kf5PSO2",
     "F1C05205": "driver_1761271024381_8600"
   },
@@ -5383,6 +7791,50 @@
     }
   },
   "users": {
+    "1HbRxcweo5MPMQG5238zOzjAXXW2": {
+      "active": true,
+      "address": "asda",
+      "dateOfBirth": 946656000000,
+      "email": "metrO@gmail.com",
+      "gender": "Male",
+      "id": "1HbRxcweo5MPMQG5238zOzjAXXW2",
+      "lastActiveTime": 1762092558255,
+      "membershipStatus": "ACTIVE",
+      "name": "metrooo a shiner",
+      "notificationPreferences": {
+        "bookingUpdates": true,
+        "emergencyAlerts": true,
+        "promotionalMessages": false,
+        "smsNotifications": true
+      },
+      "occupation": "123",
+      "phoneNumber": "09899999999",
+      "registrationDate": 1762092558255,
+      "userType": "PASSENGER",
+      "verified": true
+    },
+    "29wf5NBF1uY3Zz665SuJOar9r2T2": {
+      "active": true,
+      "address": "123",
+      "dateOfBirth": 946656000000,
+      "email": "kenaixroch123@gmail.com",
+      "gender": "Male",
+      "id": "29wf5NBF1uY3Zz665SuJOar9r2T2",
+      "lastActiveTime": 1762099233165,
+      "membershipStatus": "ACTIVE",
+      "name": "asd asd asd",
+      "notificationPreferences": {
+        "bookingUpdates": true,
+        "emergencyAlerts": true,
+        "promotionalMessages": false,
+        "smsNotifications": true
+      },
+      "occupation": "123",
+      "phoneNumber": "09123123789",
+      "registrationDate": 1762099233165,
+      "userType": "PASSENGER",
+      "verified": true
+    },
     "2A8B5505": {
       "profile": {
         "rating": 1.6,
@@ -5461,6 +7913,28 @@
       "userType": "PASSENGER",
       "verified": true
     },
+    "F72Xqp0DelOKqG4w0NJP9KbJxkx1": {
+      "active": true,
+      "address": "123",
+      "dateOfBirth": 946656000000,
+      "email": "ken@gmail.com",
+      "gender": "Male",
+      "id": "F72Xqp0DelOKqG4w0NJP9KbJxkx1",
+      "lastActiveTime": 1762099891968,
+      "membershipStatus": "ACTIVE",
+      "name": "Ken asd asd",
+      "notificationPreferences": {
+        "bookingUpdates": true,
+        "emergencyAlerts": true,
+        "promotionalMessages": false,
+        "smsNotifications": true
+      },
+      "occupation": "123",
+      "phoneNumber": "09321321321",
+      "registrationDate": 1762099891968,
+      "userType": "PASSENGER",
+      "verified": true
+    },
     "FCQebAgg2sVIfLDZR4CXDD5iXhL2": {
       "active": true,
       "address": "Brgy 177",
@@ -5470,6 +7944,8 @@
       "discountIdNumber": "123123",
       "discountType": "PWD",
       "discountVerified": true,
+      "discountVerifiedAt": 1761972752963,
+      "discountVerifiedBy": "Admin",
       "gender": "Male",
       "id": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
       "lastActiveTime": 1760233991243,
@@ -5508,6 +7984,21 @@
       "registrationDate": 1761226805794,
       "userType": "PASSENGER",
       "verified": true
+    },
+    "HE6GATtJZ5UxgYLqthEuvk76gkA2": {
+      "email": "jerychoroniel30@gmail.com",
+      "firebaseAuthEmail": "jerychoroniel30@gmail.com",
+      "id": "HE6GATtJZ5UxgYLqthEuvk76gkA2",
+      "isActive": true,
+      "isVerified": true,
+      "lastActiveTime": 1762094836893,
+      "membershipStatus": "ACTIVE",
+      "name": "MOTO-ADMIN",
+      "passwordHash": "75d60c6bf9cb864fe4bb93fe1df8335e:913921a64d7a6224069ea695365ab843abce043f9dc93d1527e036f06c911715",
+      "phoneNumber": "09667249477",
+      "position": "President",
+      "registrationDate": 1762094836893,
+      "userType": "ADMIN"
     },
     "Hrg7Hycfk5Xyr6jR3dY9mxRFfIV2": {
       "active": true,
@@ -5586,6 +8077,56 @@
       "todaId": "ADMIN_1758530740891",
       "userType": "ADMIN"
     },
+    "PaSDuzP1Ola1UvHLmhDw6DGoVZ23": {
+      "active": true,
+      "address": "Kimmy st",
+      "dateOfBirth": 946684800000,
+      "discountIdImageUrl": "https://firebasestorage.googleapis.com/v0/b/toda-contribution-system.firebasestorage.app/o/discount_ids%2FPaSDuzP1Ola1UvHLmhDw6DGoVZ23_1762024519620.jpg?alt=media&token=2b7477a3-8af9-4766-a1c1-f36c04faa81b",
+      "discountIdNumber": "444444444444444444444444444",
+      "discountType": "PWD",
+      "discountVerified": true,
+      "discountVerifiedAt": 1762024566753,
+      "discountVerifiedBy": "Admin",
+      "email": "kimmy30@gmail.com",
+      "gender": "Male",
+      "id": "PaSDuzP1Ola1UvHLmhDw6DGoVZ23",
+      "lastActiveTime": 1762023402917,
+      "membershipStatus": "ACTIVE",
+      "name": "Kimm Kimmy",
+      "notificationPreferences": {
+        "bookingUpdates": true,
+        "emergencyAlerts": true,
+        "promotionalMessages": false,
+        "smsNotifications": true
+      },
+      "occupation": "Exp",
+      "phoneNumber": "09544444444",
+      "registrationDate": 1762023402917,
+      "userType": "PASSENGER",
+      "verified": true
+    },
+    "SfDVgieVfLPKUz3kmwppvkNzIMl1": {
+      "active": true,
+      "address": "d",
+      "dateOfBirth": 946656000000,
+      "email": "sada@gmail.com",
+      "gender": "Male",
+      "id": "SfDVgieVfLPKUz3kmwppvkNzIMl1",
+      "lastActiveTime": 1762097328213,
+      "membershipStatus": "ACTIVE",
+      "name": "s s s",
+      "notificationPreferences": {
+        "bookingUpdates": true,
+        "emergencyAlerts": true,
+        "promotionalMessages": false,
+        "smsNotifications": true
+      },
+      "occupation": "asd",
+      "phoneNumber": "09899999999",
+      "registrationDate": 1762097328213,
+      "userType": "PASSENGER",
+      "verified": true
+    },
     "UUz1JNrCCcRMUUaAg9HnDv2Gztf1": {
       "active": true,
       "address": "Luke Dtort",
@@ -5621,6 +8162,43 @@
       "phoneNumber": "09123123124",
       "registrationDate": 1757507570391,
       "userType": "PASSENGER",
+      "verified": true
+    },
+    "a5T395oIGKRxm7AG9JTHbIrhARW2": {
+      "active": true,
+      "address": "asdas",
+      "dateOfBirth": 1072886400000,
+      "email": "simognf@gmail.com",
+      "gender": "Male",
+      "id": "a5T395oIGKRxm7AG9JTHbIrhARW2",
+      "lastActiveTime": 1762091178092,
+      "membershipStatus": "ACTIVE",
+      "name": "Metro a Shiner",
+      "notificationPreferences": {
+        "bookingUpdates": true,
+        "emergencyAlerts": true,
+        "promotionalMessages": true,
+        "smsNotifications": true
+      },
+      "occupation": "asda",
+      "phoneNumber": "09899999999",
+      "registrationDate": 1762091178092,
+      "userType": "PASSENGER",
+      "verified": true
+    },
+    "aQAyEHQ6prhOqs7layjLwLvW1g43": {
+      "active": true,
+      "address": "",
+      "emergencyContact": "",
+      "employeeId": "",
+      "id": "aQAyEHQ6prhOqs7layjLwLvW1g43",
+      "lastActiveTime": 1762022643253,
+      "membershipStatus": "ACTIVE",
+      "name": "Ken Aixroch Atienza Zamodio",
+      "phoneNumber": "09677777777",
+      "position": "",
+      "registrationDate": 1762022643253,
+      "userType": "DRIVER",
       "verified": true
     },
     "awftzt79Z6gZ1YVHV5VDVGUuZSh2": {
@@ -5798,6 +8376,28 @@
       "userType": "PASSENGER",
       "verified": true
     },
+    "gGqa14nMvgcIxQftHgFLIpBqjgj1": {
+      "active": true,
+      "address": "123",
+      "dateOfBirth": 946656000000,
+      "email": "123@gmail.com",
+      "gender": "Male",
+      "id": "gGqa14nMvgcIxQftHgFLIpBqjgj1",
+      "lastActiveTime": 1762104533127,
+      "membershipStatus": "ACTIVE",
+      "name": "12 123 123",
+      "notificationPreferences": {
+        "bookingUpdates": true,
+        "emergencyAlerts": true,
+        "promotionalMessages": false,
+        "smsNotifications": true
+      },
+      "occupation": "123",
+      "phoneNumber": "09432432432",
+      "registrationDate": 1762104533126,
+      "userType": "PASSENGER",
+      "verified": true
+    },
     "hxoDqoyN4MWSqUMu3KKv31ZeOKG2": {
       "address": "",
       "emergencyContact": "09090909090",
@@ -5814,6 +8414,74 @@
       "registrationDate": 1758650976336,
       "todaId": "ADMIN_1758650976336",
       "userType": "ADMIN"
+    },
+    "jEyWIAxljtRONRHbNGKlbK402iS2": {
+      "active": true,
+      "address": "123",
+      "dateOfBirth": 946656000000,
+      "discountIdImageUrl": "https://firebasestorage.googleapis.com/v0/b/toda-contribution-system.firebasestorage.app/o/discount_ids%2FjEyWIAxljtRONRHbNGKlbK402iS2_1761972975100.jpg?alt=media&token=79ac5c13-8444-4a35-b6fd-1b54cc4ed510",
+      "discountIdNumber": "143453456",
+      "discountRejected": true,
+      "discountRejectedAt": 1761975061238,
+      "discountRejectedBy": "Admin",
+      "discountRejectionData": {
+        "discountExpiryDate": "",
+        "discountIdImageUrl": "https://firebasestorage.googleapis.com/v0/b/toda-contribution-system.firebasestorage.app/o/discount_ids%2FjEyWIAxljtRONRHbNGKlbK402iS2_1761972975100.jpg?alt=media&token=79ac5c13-8444-4a35-b6fd-1b54cc4ed510",
+        "discountIdNumber": "143453456",
+        "discountType": "PWD"
+      },
+      "discountRejectionReasons": [
+        "Invalid or expired ID"
+      ],
+      "discountType": "PWD",
+      "discountVerified": false,
+      "email": "123@gmail.com",
+      "gender": "Male",
+      "id": "jEyWIAxljtRONRHbNGKlbK402iS2",
+      "lastActiveTime": 1761972950303,
+      "membershipStatus": "ACTIVE",
+      "name": "123 123123 123",
+      "notificationPreferences": {
+        "bookingUpdates": true,
+        "emergencyAlerts": true,
+        "promotionalMessages": false,
+        "smsNotifications": true
+      },
+      "occupation": "123",
+      "phoneNumber": "09444444444",
+      "registrationDate": 1761972950303,
+      "userType": "PASSENGER",
+      "verified": true
+    },
+    "jP3agXbHorSo3BNNWEJWF3yeJfd2": {
+      "email": "princekit04@gmail.com",
+      "firebaseAuthEmail": "princekit04@gmail.com",
+      "id": "jP3agXbHorSo3BNNWEJWF3yeJfd2",
+      "isActive": true,
+      "isVerified": true,
+      "lastActiveTime": 1762095188292,
+      "membershipStatus": "ACTIVE",
+      "name": "MOTO-BARKER",
+      "passwordHash": "0c2ffb16157f72cd525da6b607a95df7:f34572becf06c4df51b02294bb75a5be004675602a3c008767a3dd71473fd95a",
+      "phoneNumber": "09991986152",
+      "position": "Barker",
+      "registrationDate": 1762095188292,
+      "userType": "ADMIN"
+    },
+    "jtuQYMs9jjhVxZ68ylaPOQP08xl1": {
+      "active": true,
+      "address": "",
+      "emergencyContact": "",
+      "employeeId": "",
+      "id": "jtuQYMs9jjhVxZ68ylaPOQP08xl1",
+      "lastActiveTime": 1762009633956,
+      "membershipStatus": "ACTIVE",
+      "name": "yo yo yo",
+      "phoneNumber": "09888888888",
+      "position": "",
+      "registrationDate": 1762009633956,
+      "userType": "DRIVER",
+      "verified": true
     },
     "l43TYA5B2SUpajYfMIp5smYXeQu1": {
       "address": "Brgy 177",
@@ -5849,6 +8517,43 @@
       "userType": "DRIVER",
       "verified": true
     },
+    "mfQQYrQbiGfHfNBbV8QZwBromgr1": {
+      "active": true,
+      "address": "",
+      "emergencyContact": "",
+      "employeeId": "",
+      "id": "mfQQYrQbiGfHfNBbV8QZwBromgr1",
+      "lastActiveTime": 1761963240393,
+      "membershipStatus": "ACTIVE",
+      "name": "Nek Nek",
+      "phoneNumber": "09444444444",
+      "position": "",
+      "registrationDate": 1761963240393,
+      "userType": "DRIVER",
+      "verified": true
+    },
+    "oQtC9qLvEJOe3wEEtoYDzObOHR33": {
+      "active": true,
+      "address": "Baragay 177",
+      "dateOfBirth": 946656000000,
+      "email": "eulanmiguelcapawing@gmail.com",
+      "gender": "Male",
+      "id": "oQtC9qLvEJOe3wEEtoYDzObOHR33",
+      "lastActiveTime": 1761992763586,
+      "membershipStatus": "ACTIVE",
+      "name": "Eulan Miguel Velasco Capawing",
+      "notificationPreferences": {
+        "bookingUpdates": true,
+        "emergencyAlerts": true,
+        "promotionalMessages": false,
+        "smsNotifications": true
+      },
+      "occupation": "students",
+      "phoneNumber": "09123123457",
+      "registrationDate": 1761992763586,
+      "userType": "PASSENGER",
+      "verified": true
+    },
     "onYdr4AOxXNLjuM43kFwxKQjDAN2": {
       "active": true,
       "address": "Barangay 177 ",
@@ -5882,6 +8587,28 @@
       "userType": "PASSENGER",
       "verified": true
     },
+    "u8MyQQaMaMME1keyKKsEHs9IxL53": {
+      "active": true,
+      "address": "sjds",
+      "dateOfBirth": 946656000000,
+      "email": "kenaixrochz@gmail.com",
+      "gender": "Male",
+      "id": "u8MyQQaMaMME1keyKKsEHs9IxL53",
+      "lastActiveTime": 1762105433443,
+      "membershipStatus": "ACTIVE",
+      "name": "ken gkt ieie",
+      "notificationPreferences": {
+        "bookingUpdates": true,
+        "emergencyAlerts": true,
+        "promotionalMessages": false,
+        "smsNotifications": true
+      },
+      "occupation": "sjd",
+      "phoneNumber": "09763823860",
+      "registrationDate": 1762105433443,
+      "userType": "PASSENGER",
+      "verified": true
+    },
     "uIdqEPwPc3dSxCR2pkNI35RbS1b2": {
       "employeeId": "1111111111111",
       "id": "uIdqEPwPc3dSxCR2pkNI35RbS1b2",
@@ -5893,19 +8620,6 @@
       "phoneNumber": "09667249478",
       "position": "111111111",
       "registrationDate": 1758073822409,
-      "userType": "ADMIN"
-    },
-    "wPYAd1ju8uZIVFm6Zhd1kpEHNGX2": {
-      "employeeId": "11111111111111111111111",
-      "id": "wPYAd1ju8uZIVFm6Zhd1kpEHNGX2",
-      "isActive": true,
-      "isVerified": true,
-      "lastActiveTime": 1757591979442,
-      "membershipStatus": "ACTIVE",
-      "name": "Kenzai Modio",
-      "phoneNumber": "09667249477",
-      "position": "President",
-      "registrationDate": 1757591979442,
       "userType": "ADMIN"
     },
     "yBF1Bfl4gHRdpFQ4boZrlB403SZ2": {
@@ -5932,6 +8646,28 @@
       "occupation": "123",
       "phoneNumber": "09123123456",
       "registrationDate": 1761231022166,
+      "userType": "PASSENGER",
+      "verified": true
+    },
+    "yN38K2HmQOac7OrL5Ey2XhZOS0m2": {
+      "active": true,
+      "address": "d",
+      "dateOfBirth": 946656000000,
+      "email": "dadadad@gmail.com",
+      "gender": "Male",
+      "id": "yN38K2HmQOac7OrL5Ey2XhZOS0m2",
+      "lastActiveTime": 1762097706695,
+      "membershipStatus": "ACTIVE",
+      "name": "d d d",
+      "notificationPreferences": {
+        "bookingUpdates": true,
+        "emergencyAlerts": true,
+        "promotionalMessages": false,
+        "smsNotifications": true
+      },
+      "occupation": "asda",
+      "phoneNumber": "09899999999",
+      "registrationDate": 1762097706695,
       "userType": "PASSENGER",
       "verified": true
     }

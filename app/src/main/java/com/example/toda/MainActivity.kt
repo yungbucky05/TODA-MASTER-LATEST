@@ -52,6 +52,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import com.example.toda.ui.booking.ActiveBookingScreen
+import com.example.toda.data.PendingBookingStore
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -150,10 +151,37 @@ fun BookingApp(
     var pendingBookingSnapshot: Booking? by remember { mutableStateOf<Booking?>(null) }
 
     LaunchedEffect(bookingState.currentBookingId) {
-        // Once a booking is created and we receive the server ID, navigate to active booking
         bookingState.currentBookingId?.let { newId ->
             currentActiveBookingId = newId
             currentScreen = "active_booking"
+            // Note: Do NOT clear saved pending data here so it persists if no driver accepts
+        }
+    }
+
+    // Clear saved attempt once a driver accepts or the trip starts
+    LaunchedEffect(currentActiveBookingId, activeBookings) {
+        val id = currentActiveBookingId
+        if (id != null) {
+            val current = activeBookings.find { it.id == id }
+            if (current != null && (current.status == BookingStatus.ACCEPTED ||
+                    current.status == BookingStatus.AT_PICKUP ||
+                    current.status == BookingStatus.IN_PROGRESS)) {
+                PendingBookingStore.clear(context)
+            }
+        }
+    }
+
+    // If booking creation fails, notify and return to booking screen where saved coords will auto-restore
+    LaunchedEffect(bookingState.error) {
+        val err = bookingState.error
+        if (!err.isNullOrBlank()) {
+            android.widget.Toast.makeText(context, err, android.widget.Toast.LENGTH_LONG).show()
+            if (currentScreen == "active_booking") {
+                currentActiveBookingId = null
+                pendingBookingSnapshot = null
+                currentScreen = "customer_interface"
+            }
+            enhancedBookingViewModel.clearError()
         }
     }
 
@@ -468,9 +496,14 @@ fun BookingApp(
             if (user != null) {
                 // Prefer the booking from server by ID; fallback to the local snapshot
                 val serverBooking = activeBookings.find { it.id == bookingId }
+                LaunchedEffect(serverBooking) {
+                    if (serverBooking != null) {
+                        pendingBookingSnapshot = serverBooking
+                    }
+                }
+
                 val bookingForScreen = serverBooking ?: pendingBookingSnapshot?.copy(
-                    id = bookingId ?: pendingBookingSnapshot?.id.orEmpty(),
-                    status = BookingStatus.PENDING
+                    id = bookingId ?: pendingBookingSnapshot?.id.orEmpty()
                 )
 
                 if (bookingForScreen != null) {

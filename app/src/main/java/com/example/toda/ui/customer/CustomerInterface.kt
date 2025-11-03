@@ -40,6 +40,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.toda.utils.FeeCalculator
 import com.example.toda.ui.booking.ActiveBookingScreen
 import com.example.toda.utils.NotificationManager
+import com.example.toda.data.PendingBookingStore
+import com.example.toda.data.PendingBookingData
 
 data class LocationValidation(
     val isValid: Boolean,
@@ -80,7 +82,6 @@ fun CustomerInterface(
     val geocodingService = remember { GeocodingService() }
     val locationSuggestionService = remember { LocationSuggestionService(context) }
 
-
     // Snackbar state for validation messages
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -99,7 +100,6 @@ fun CustomerInterface(
     var locationValidation by remember { mutableStateOf(LocationValidation(true, "")) }
     var fareBreakdown by remember { mutableStateOf<FareBreakdown?>(null) }
     var showSuccessMessage by remember { mutableStateOf(false) }
-
     // Add state for invalid location dialog
     var showInvalidLocationDialog by remember { mutableStateOf(false) }
     var invalidLocationMessage by remember { mutableStateOf("") }
@@ -141,6 +141,30 @@ fun CustomerInterface(
         isMyBooking && isActiveStatus
     }
 
+    var overlayBooking by remember { mutableStateOf<Booking?>(null) }
+
+    LaunchedEffect(assignedBooking?.id) {
+        assignedBooking?.let { overlayBooking = it }
+    }
+
+    LaunchedEffect(overlayBooking?.id, bookings, bookingHistory) {
+        val currentId = overlayBooking?.id ?: return@LaunchedEffect
+        val updated = bookings.firstOrNull { it.id == currentId }
+            ?: bookingHistory.firstOrNull { it.id == currentId }
+        if (updated != null && updated != overlayBooking) {
+            overlayBooking = updated
+        }
+    }
+
+    val bookingForOverlay = overlayBooking ?: assignedBooking
+    val canDismissOverlay = when (bookingForOverlay?.status) {
+        BookingStatus.COMPLETED,
+        BookingStatus.CANCELLED,
+        BookingStatus.REJECTED,
+        BookingStatus.NO_SHOW -> true
+        else -> false
+    }
+
     // Add more debugging for assignedBooking
     LaunchedEffect(assignedBooking) {
         println("=== ASSIGNED BOOKING CHANGED ===")
@@ -151,9 +175,7 @@ fun CustomerInterface(
                 println("User booking: ${booking.id} - Status: ${booking.status}")
             }
         }
-        println("===============================")
     }
-
     // Add comprehensive debugging for real device testing
     LaunchedEffect(bookings, user) {
         println("=== COMPREHENSIVE DEVICE DEBUG ===")
@@ -319,6 +341,19 @@ fun CustomerInterface(
             pickupLocation != null && destination != null &&
             locationValidation.isValid && fareBreakdown != null) {
 
+            // Save attempted booking so we can restore if submission fails
+            PendingBookingStore.save(
+                context,
+                PendingBookingData(
+                    pickupLat = pickupGeoPoint!!.latitude,
+                    pickupLng = pickupGeoPoint!!.longitude,
+                    dropoffLat = dropoffGeoPoint!!.latitude,
+                    dropoffLng = dropoffGeoPoint!!.longitude,
+                    pickupLocationName = pickupLocation,
+                    destinationName = destination
+                )
+            )
+
             val booking = Booking(
                 id = "booking_${System.currentTimeMillis()}",
                 customerId = user.id,
@@ -336,14 +371,8 @@ fun CustomerInterface(
             onBookingSubmitted(booking)
             showSuccessMessage = true
 
-            // Reset form
-            pickupInputText = ""
-            destinationInputText = ""
-            pickupLocation = null
-            destination = null
-            pickupGeoPoint = null
-            dropoffGeoPoint = null
-            fareBreakdown = null
+            // DON'T reset form - keep the data so user can retry if booking fails
+            // This allows easy editing and resubmission if there are no available drivers
         } else {
             println("Booking submission failed - validation conditions not met")
         }
@@ -397,7 +426,7 @@ fun CustomerInterface(
             "booking" -> {
                 BookingView(
                     user = user,
-                    assignedBooking = assignedBooking,
+                    displayedBooking = bookingForOverlay,
                     customerLocation = customerLocation,
                     isCurrentlyTracking = isCurrentlyTracking,
                     driverTracking = driverTracking,
@@ -536,8 +565,16 @@ fun CustomerInterface(
                         showChat = true
                         currentView = "chat"
                     },
-                    // Add missing parameters for ActiveBookingScreen
-                    onCancelBooking = onCancelBooking // Add cancel booking callback
+                    onCancelBooking = { bookingId ->
+                        onCancelBooking(bookingId)
+                        showSuccessMessage = false
+                    },
+                    isActiveBookingDismissible = canDismissOverlay,
+                    onDismissActiveBooking = {
+                        overlayBooking = null
+                        showChat = false
+                        currentView = "booking"
+                    }
                 )
             }
             "history" -> {
@@ -609,12 +646,45 @@ fun CustomerInterface(
             )
         }
     }
+
+    // Attempt to restore last attempted booking coordinates if available and no active booking is shown
+    LaunchedEffect(Unit) {
+        if (pickupGeoPoint == null && dropoffGeoPoint == null) {
+            val saved = PendingBookingStore.load(context)
+            if (saved != null) {
+                pickupGeoPoint = saved.pickupPoint()
+                dropoffGeoPoint = saved.dropoffPoint()
+
+                // Restore names if available; otherwise reverse geocode to fill them in
+                if (!saved.pickupLocationName.isNullOrBlank()) {
+                    pickupLocation = saved.pickupLocationName
+                    pickupInputText = saved.pickupLocationName
+                } else {
+                    isLoadingLocation = true
+                    val name = geocodingService.reverseGeocode(saved.pickupLat, saved.pickupLng) ?: "Selected Location"
+                    pickupLocation = name
+                    pickupInputText = name
+                    isLoadingLocation = false
+                }
+                if (!saved.destinationName.isNullOrBlank()) {
+                    destination = saved.destinationName
+                    destinationInputText = saved.destinationName
+                } else {
+                    isLoadingLocation = true
+                    val name = geocodingService.reverseGeocode(saved.dropoffLat, saved.dropoffLng) ?: "Selected Location"
+                    destination = name
+                    destinationInputText = name
+                    isLoadingLocation = false
+                }
+            }
+        }
+    }
 }
 
 @Composable
 private fun BookingView(
     user: User,
-    assignedBooking: Booking?,
+    displayedBooking: Booking?,
     customerLocation: CustomerLocation?,
     isCurrentlyTracking: Boolean,
     driverTracking: DriverTracking?,
@@ -653,10 +723,12 @@ private fun BookingView(
     onPickupSuggestionSelected: (LocationSuggestion) -> Unit,
     onDestinationSuggestionSelected: (LocationSuggestion) -> Unit,
     onChatClick: () -> Unit = {},
-    onCancelBooking: (String) -> Unit = {}
+    onCancelBooking: (String) -> Unit = {},
+    isActiveBookingDismissible: Boolean = false,
+    onDismissActiveBooking: () -> Unit = {}
 ) {
     // Use Box to conditionally apply scrolling only when NOT showing ActiveBookingScreen
-    if (assignedBooking != null) {
+    if (displayedBooking != null) {
         // ActiveBookingScreen has its own LazyColumn, so don't add scroll modifier here
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -666,9 +738,13 @@ private fun BookingView(
 
             // Use the full ActiveBookingScreen instead of the card
             ActiveBookingScreen(
-                booking = assignedBooking,
+                booking = displayedBooking,
                 currentUser = user,
-                onBack = { /* No-op, stay on booking view */ },
+                onBack = {
+                    if (isActiveBookingDismissible) {
+                        onDismissActiveBooking()
+                    }
+                },
                 onNavigateToFullChat = onChatClick,
                 onCancelBooking = onCancelBooking
             )

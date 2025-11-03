@@ -4,10 +4,11 @@ echo TODA Project Setup Diagnostic
 echo ====================================
 echo.
 
-echo [1/6] Checking Java Installation...
+echo [1/6] Checking Java Installation (needs JDK 17+)...
+echo JAVA_HOME = %JAVA_HOME%
 java -version 2>nul
 if %errorlevel% neq 0 (
-    echo ❌ Java NOT found - Install JDK 11
+    echo ❌ Java NOT found - Install JDK 17 or use Android Studio's embedded JBR
 ) else (
     echo ✅ Java found
 )

@@ -36,6 +36,9 @@
 // Coin pulse input pin (coin acceptor signal wire connected directly to ESP32)
 #define COIN_PULSE_PIN 32
 
+// New: Standardized contribution amount
+const int CONTRIBUTION_AMOUNT = 5;
+
 // Create instances
 Adafruit_PN532 nfc(PN532_SCK, PN532_MISO, PN532_MOSI, PN532_SS);
 LiquidCrystal_I2C lcd(LCD_ADDRESS, 16, 2);  // 16x2 LCD display
@@ -87,6 +90,9 @@ struct Driver {
     String todaNumber;
     String driverName;
     bool isRegistered;
+    // New: needed to update driver's balance and check payment mode
+    String driverId;
+    String paymentMode; // "pay_every_trip" or "pay_later" or "pay_balance"
 };
 
 // Global variable to store current driver info
@@ -94,6 +100,10 @@ Driver currentDriver;
 
 // Queue management
 String firstDriverQueueKey = "";
+
+// New: Variables for pay_balance mode
+bool isPayingBalance = false;
+int balanceBeingPaid = 0;
 
 // Function forward declarations
 void checkForRFIDCard();
@@ -103,6 +113,9 @@ void processCoinContribution();
 void processContributionAndQueue();
 void recordContribution();
 void addDriverToQueue();
+// New: pay_later flow functions
+void processPayLaterAndQueue(Driver driver);
+void addDriverToQueueWithPaid(bool paid);
 void showError(String message);
 void updateLCDDisplay(String todaNumber, String message);
 void clearLCDDisplay();
@@ -619,22 +632,155 @@ void checkDriverRegistration(String rfidUID) {
                     return;
                 }
 
+                // New: Parse driverId and paymentMode
+                int idStart = driverJson.indexOf("\"driverId\":\"") + 14;
+                int idEnd = (idStart >= 14) ? driverJson.indexOf("\"", idStart) : -1;
+                String driverIdParsed = (idStart >= 14 && idEnd > idStart) ? driverJson.substring(idStart, idEnd) : "";
+
+                // Fix: Use dynamic parsing to handle spaces after colon
+                String paymentMode = "";
+                int modeKeyPos = driverJson.indexOf("\"paymentMode\"");
+                if (modeKeyPos != -1) {
+                    // Find the colon after "paymentMode"
+                    int colonPos = driverJson.indexOf(":", modeKeyPos);
+                    if (colonPos != -1) {
+                        // Find the opening quote after the colon (handles spaces)
+                        int modeStart = driverJson.indexOf("\"", colonPos) + 1;
+                        int modeEnd = (modeStart > colonPos) ? driverJson.indexOf("\"", modeStart) : -1;
+                        if (modeStart > colonPos && modeEnd > modeStart) {
+                            paymentMode = driverJson.substring(modeStart, modeEnd);
+                        }
+                    }
+                }
+
                 if (driverName.length() > 0 && todaNumber.length() > 0) {
                     Driver driver;
                     driver.rfidUID = rfidUID;
                     driver.driverName = driverName;
                     driver.todaNumber = todaNumber;
                     driver.isRegistered = true;
+                    // Fix: Use the driverId from the index lookup, not the parsed one which might be missing
+                    driver.driverId = driverId;  // Use the driverId from Step 1, not driverIdParsed
+                    driver.paymentMode = paymentMode;
 
                     Serial.println("✓ Driver found via RFID index:");
                     Serial.println("  Driver ID: " + driverId);
                     Serial.println("  Name: " + driver.driverName);
                     Serial.println("  TODA Number: " + driver.todaNumber);
+                    Serial.println("  Payment Mode: " + driver.paymentMode);
 
-                    enableCoinSlot(driver);
-                    delay(1000);
-                    isProcessingRFID = false;
-                    return;
+                    // New: Check payment mode and branch accordingly
+                    if (driver.paymentMode == "pay_later") {
+                        Serial.println("Payment mode is PAY LATER - driver will be queued without coin insertion");
+
+                        // Check if already in queue first
+                        if (Firebase.RTDB.get(&fbdo, "/queue")) {
+                            if (fbdo.dataType() == "json") {
+                                String queueJson = fbdo.jsonString();
+                                String searchPattern = "\"driverRFID\":\"" + driver.rfidUID + "\"";
+                                int rfidPos = queueJson.indexOf(searchPattern);
+
+                                if (rfidPos != -1) {
+                                    int statusStart = queueJson.indexOf("\"status\":", rfidPos);
+                                    if (statusStart != -1) {
+                                        int statusValueStart = queueJson.indexOf("\"", statusStart + 9) + 1;
+                                        int statusValueEnd = queueJson.indexOf("\"", statusValueStart);
+                                        String status = queueJson.substring(statusValueStart, statusValueEnd);
+
+                                        if (status == "waiting") {
+                                            Serial.println("✗ Driver already in queue!");
+                                            showError("Already in queue! Please wait for your turn.");
+                                            updateLCDDisplay(driver.todaNumber, "Already in Queue!");
+                                            delay(3000);
+                                            clearLCDDisplay();
+                                            isProcessingRFID = false;
+                                            return;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Update driver balance
+                        String balancePath = "/drivers/" + driver.driverId + "/balance";
+                        int currentBalance = 0;
+
+                        if (Firebase.RTDB.getInt(&fbdo, balancePath)) {
+                            currentBalance = fbdo.intData();
+                        }
+
+                        int newBalance = currentBalance + CONTRIBUTION_AMOUNT;
+
+                        if (Firebase.RTDB.setInt(&fbdo, balancePath, newBalance)) {
+                            Serial.println("✓ Balance updated: " + String(currentBalance) + " -> " + String(newBalance));
+                        } else {
+                            Serial.println("✗ Failed to update balance: " + fbdo.errorReason());
+                        }
+
+                        // Store driver info and process pay_later flow
+                        currentDriver = driver;
+                        processPayLaterAndQueue(driver);
+                        delay(1000);
+                        isProcessingRFID = false;
+                        return;
+                    } else if (driver.paymentMode == "pay_balance") {
+                        Serial.println("Payment mode is PAY BALANCE - opening coin slot to pay off balance");
+
+                        // Get current balance
+                        String balancePath = "/drivers/" + driver.driverId + "/balance";
+                        int currentBalance = 0;
+
+                        if (Firebase.RTDB.getInt(&fbdo, balancePath)) {
+                            currentBalance = fbdo.intData();
+                        }
+
+                        if (currentBalance <= 0) {
+                            Serial.println("✓ No balance to pay - balance is zero or negative");
+                            showError("No balance to pay!");
+                            updateLCDDisplay(driver.todaNumber, "Balance: P0");
+                            delay(3000);
+                            clearLCDDisplay();
+                            isProcessingRFID = false;
+                            return;
+                        }
+
+                        // Store driver info and enable pay_balance mode
+                        currentDriver = driver;
+                        isPayingBalance = true;
+                        balanceBeingPaid = currentBalance;
+
+                        // Enable coin slot for balance payment
+                        nfcEnabled = false;
+                        coinSlotEnabled = true;
+                        isProcessingRFID = false;
+
+                        // Reset coin pulse counters and mark power-on time
+                        noInterrupts();
+                        coinValidPulses = 0;
+                        coinActive = false;
+                        interrupts();
+                        coinSlotPowerOnTime = millis();
+
+                        // Send command to Arduino to power on coin slot
+                        Serial.println("Sending command 200 to Arduino via Serial2...");
+                        Serial2.write((uint8_t)200);
+                        Serial2.flush();
+
+                        Serial.println("✓ Coin slot enabled for balance payment");
+                        Serial.println("Current balance: ₱" + String(currentBalance));
+                        Serial.println("Insert coins to pay off balance - ₱5 per coin");
+
+                        // Display balance on LCD
+                        updateLCDDisplay(driver.todaNumber, "Bal: P" + String(currentBalance));
+
+                        return;
+                    } else {
+                        // Default: pay_every_trip mode - enable coin slot
+                        enableCoinSlot(driver);
+                        delay(1000);
+                        isProcessingRFID = false;
+                        return;
+                    }
                 } else {
                     Serial.println("✗ Incomplete driver data");
                     showError("Driver record incomplete. Please contact admin.");
@@ -752,6 +898,57 @@ void enableCoinSlot(Driver driver) {
 }
 
 void processCoinContribution() {
+    // Check if we're in pay_balance mode
+    if (isPayingBalance) {
+        // Reduce balance by contribution amount
+        balanceBeingPaid -= CONTRIBUTION_AMOUNT;
+
+        Serial.println("₱" + String(CONTRIBUTION_AMOUNT) + " payment received from " + currentDriver.driverName);
+        Serial.println("Remaining balance: ₱" + String(balanceBeingPaid));
+
+        // Update balance in Firebase
+        String balancePath = "/drivers/" + currentDriver.driverId + "/balance";
+        if (Firebase.RTDB.setInt(&fbdo, balancePath, balanceBeingPaid)) {
+            Serial.println("✓ Balance updated in database: " + String(balanceBeingPaid));
+        } else {
+            Serial.println("✗ Failed to update balance: " + fbdo.errorReason());
+        }
+
+        // Update LCD with new balance
+        if (balanceBeingPaid > 0) {
+            updateLCDDisplay(currentDriver.todaNumber, "Bal: P" + String(balanceBeingPaid));
+            Serial.println("Balance payment in progress - insert more coins or wait to finish");
+        } else {
+            // Balance paid off completely
+            Serial.println("✓ Balance fully paid!");
+            updateLCDDisplay(currentDriver.todaNumber, "Balance Paid!");
+            delay(2000);
+
+            // Send command to Arduino to power off coin slot
+            Serial2.write((uint8_t)201);
+            Serial2.flush();
+
+            // Re-enable NFC for next driver
+            coinSlotEnabled = false;
+            nfcEnabled = true;
+            isPayingBalance = false;
+            balanceBeingPaid = 0;
+
+            // Clear coin pulses to avoid re-trigger
+            noInterrupts();
+            coinValidPulses = 0;
+            coinActive = false;
+            interrupts();
+
+            // Clear LCD and show system ready message
+            clearLCDDisplay();
+
+            Serial.println("Balance payment complete! PN532 re-enabled. Next driver can scan RFID.");
+        }
+        return;
+    }
+
+    // Original pay_every_trip flow
     totalSavings += 5;
     Serial.println("₱5 contribution received from " + currentDriver.driverName);
     Serial.println("Total today: ₱" + String(totalSavings));
@@ -860,6 +1057,79 @@ void addDriverToQueue() {
     queueJson.set("timestamp", getCurrentDate() + " " + getCurrentTime()); // Real-time readable timestamp
     queueJson.set("status", "waiting");
     queueJson.set("contributionPaid", true);
+
+    if (Firebase.RTDB.setJSON(&fbdo, queuePath, &queueJson)) {
+        Serial.println("✓ Driver added to queue successfully!");
+        Serial.println("Driver " + currentDriver.driverName + " is now in the tricycle queue");
+        Serial.println("Queue Time: " + getCurrentDate() + " " + getCurrentTime());
+    } else {
+        Serial.println("✗ Failed to add driver to queue: " + fbdo.errorReason());
+    }
+}
+
+// New: processPayLaterAndQueue function for drivers with pay_later mode
+void processPayLaterAndQueue(Driver driver) {
+    Serial.println("Processing pay_later contribution for driver: " + driver.driverName);
+
+    // Record unpaid contribution to contributions node
+    String timestamp = String(time(nullptr));
+    String contributionPath = "/contributions/" + timestamp;
+
+    FirebaseJson contributionJson;
+    contributionJson.set("driverRFID", currentDriver.rfidUID);
+    contributionJson.set("driverName", currentDriver.driverName);
+    contributionJson.set("todaNumber", currentDriver.todaNumber);
+    contributionJson.set("amount", CONTRIBUTION_AMOUNT);
+    contributionJson.set("timestamp", timestamp);
+    contributionJson.set("date", getCurrentDate());
+    contributionJson.set("paid", false);  // Mark as unpaid for pay_later
+
+    if (Firebase.RTDB.setJSON(&fbdo, contributionPath, &contributionJson)) {
+        Serial.println("✓ Unpaid contribution recorded in database");
+    } else {
+        Serial.println("✗ Failed to record contribution: " + fbdo.errorReason());
+    }
+
+    // For pay_later, we directly add the driver to the queue
+    addDriverToQueueWithPaid(false);
+
+    // Display message on LCD
+    updateLCDDisplay(driver.todaNumber, "Queued! Pay Later");
+    delay(2000);
+
+    // Re-enable NFC and disable coin slot
+    nfcEnabled = true;
+    coinSlotEnabled = false;
+    isProcessingRFID = false;
+
+    // Clear coin pulses
+    noInterrupts();
+    coinValidPulses = 0;
+    coinActive = false;
+    interrupts();
+
+    // Clear LCD and show system ready message
+    clearLCDDisplay();
+
+    Serial.println("pay_later contribution processed! Driver added to queue with unpaid contribution.");
+}
+
+// New: addDriverToQueueWithPaid function to specify if the contribution is paid
+void addDriverToQueueWithPaid(bool paid) {
+    Serial.println("Adding driver to queue (paid: " + String(paid) + ")...");
+
+    // Create queue entry JSON
+    String timestamp = String(time(nullptr));
+    String queuePath = "/queue/" + timestamp;
+
+    FirebaseJson queueJson;
+    queueJson.set("driverRFID", currentDriver.rfidUID);
+    queueJson.set("driverName", currentDriver.driverName);
+    queueJson.set("todaNumber", currentDriver.todaNumber);
+    queueJson.set("queueTime", timestamp);
+    queueJson.set("timestamp", getCurrentDate() + " " + getCurrentTime()); // Real-time readable timestamp
+    queueJson.set("status", "waiting");
+    queueJson.set("contributionPaid", paid);
 
     if (Firebase.RTDB.setJSON(&fbdo, queuePath, &queueJson)) {
         Serial.println("✓ Driver added to queue successfully!");

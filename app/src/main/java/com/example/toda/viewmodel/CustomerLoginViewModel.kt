@@ -109,6 +109,73 @@ class CustomerLoginViewModel @Inject constructor(
         }
     }
 
+    // New: register after OTP by linking email/password to the current (phone-auth) Firebase user
+    fun registerAfterOtpLinking(
+        name: String,
+        phoneNumber: String,
+        email: String,
+        password: String,
+        address: String,
+        dateOfBirth: Long?,
+        gender: String,
+        occupation: String,
+        notificationPreferences: Map<String, Boolean>
+    ) {
+        if (email.isBlank() || !Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            _loginState.value = _loginState.value.copy(error = "Please enter a valid email address")
+            return
+        }
+        viewModelScope.launch {
+            try {
+                _loginState.value = _loginState.value.copy(isLoading = true, error = null)
+
+                val userData = mapOf(
+                    "name" to name,
+                    "phoneNumber" to phoneNumber,
+                    "email" to email,
+                    "address" to address,
+                    "dateOfBirth" to (dateOfBirth ?: 0),
+                    "gender" to gender,
+                    "occupation" to occupation,
+                    "active" to true,
+                    "userType" to "PASSENGER",
+                    "verified" to true,
+                    "membershipStatus" to "ACTIVE",
+                    "registrationDate" to Date().time,
+                    "lastActiveTime" to Date().time,
+                    "notificationPreferences" to notificationPreferences
+                )
+
+                repository.registerUserByLinkingEmailToCurrentUser(
+                    email = email,
+                    phoneNumber = phoneNumber,
+                    password = password,
+                    userData = userData
+                ).fold(
+                    onSuccess = { user ->
+                        _currentUser.value = user
+                        _loginState.value = _loginState.value.copy(
+                            isLoading = false,
+                            isSuccess = true,
+                            userId = user.id
+                        )
+                    },
+                    onFailure = { error ->
+                        _loginState.value = _loginState.value.copy(
+                            isLoading = false,
+                            error = error.message ?: "Registration linking failed"
+                        )
+                    }
+                )
+            } catch (e: Exception) {
+                _loginState.value = _loginState.value.copy(
+                    isLoading = false,
+                    error = e.message ?: "Registration linking failed"
+                )
+            }
+        }
+    }
+
     fun register(
         name: String,
         phoneNumber: String,

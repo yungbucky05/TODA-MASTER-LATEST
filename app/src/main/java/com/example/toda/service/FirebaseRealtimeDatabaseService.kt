@@ -94,6 +94,19 @@ class FirebaseRealtimeDatabaseService {
         }
     }
 
+    // New: fetch stored email by phone number (from users node)
+    suspend fun getUserEmailByPhoneNumber(phoneNumber: String): String? {
+        return try {
+            val userId = phoneNumberIndexRef.child(phoneNumber).get().await().getValue(String::class.java)
+            if (userId != null) {
+                val snapshot = usersRef.child(userId).get().await()
+                snapshot.child("email").getValue(String::class.java)
+            } else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     suspend fun getUserByUserId(userId: String): FirebaseUser? {
         return try {
             usersRef.child(userId).get().await().getValue(FirebaseUser::class.java)
