@@ -94,15 +94,19 @@ fun BarkerInterface(
     var selectedDestination by remember { mutableStateOf<DestinationOption?>(null) }
     var dropoffGeoPoint by remember { mutableStateOf<GeoPoint?>(null) }
     var passengerCount by remember { mutableStateOf(3) }
-    var estimatedFare by remember { mutableStateOf(0.0) }
+    var customerFarePerPassenger by remember { mutableStateOf(0.0) }
+    var driverFare by remember { mutableStateOf(0.0) }
     var isSubmitting by remember { mutableStateOf(false) }
 
-    // Calculate fare: (baseFare * 3) / number of passengers
+    // Calculate fare: (baseFare * MAX_PASSENGERS) / passengers for customers; driver always collects full amount
     LaunchedEffect(passengerCount, selectedDestination, fareMatrix) {
-        estimatedFare = if (selectedDestination != null) {
-            (fareMatrix.baseFare * 3) / passengerCount
+        if (selectedDestination != null) {
+            val totalDriverFare = fareMatrix.baseFare * 3
+            driverFare = totalDriverFare
+            customerFarePerPassenger = totalDriverFare / passengerCount
         } else {
-            0.0
+            driverFare = 0.0
+            customerFarePerPassenger = 0.0
         }
     }
     
@@ -111,7 +115,8 @@ fun BarkerInterface(
         val bookingId = lastSubmittedBookingId
         if (bookingId != null) {
             val booking = activeBookings.find { it.id == bookingId }
-            if (booking != null && booking.status == BookingStatus.ACCEPTED && 
+            if (booking != null &&
+                (booking.status == BookingStatus.ACCEPTED || booking.status == BookingStatus.IN_PROGRESS) &&
                 booking.driverName.isNotBlank()) {
                 // Driver assigned! Show the info
                 lastDriverInfo = Triple(
@@ -304,7 +309,7 @@ fun BarkerInterface(
                         }
                     }
 
-                    if (estimatedFare > 0) {
+                    if (customerFarePerPassenger > 0) {
                         Surface(
                             color = Color(0xFFE8F5E9),
                             shape = RoundedCornerShape(12.dp),
@@ -320,7 +325,7 @@ fun BarkerInterface(
                                     color = Color.Gray
                                 )
                                 Text(
-                                    text = "₱${String.format(Locale.US, "%.2f", estimatedFare)}",
+                                    text = "₱${String.format(Locale.US, "%.2f", customerFarePerPassenger)}",
                                     fontSize = 32.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF4CAF50)
@@ -381,7 +386,8 @@ fun BarkerInterface(
                                 destination = selectedDestination!!.label,
                                 pickupGeoPoint = terminalGeoPoint,
                                 dropoffGeoPoint = dropoffGeoPoint!!,
-                                estimatedFare = estimatedFare
+                                estimatedFare = driverFare.takeIf { it > 0.0 } ?: (fareMatrix.baseFare * 3),
+                                bookingApp = "barkerApp"
                             )
 
                             coroutineScope.launch {
@@ -389,7 +395,8 @@ fun BarkerInterface(
 
                                 selectedDestination = null
                                 dropoffGeoPoint = null
-                                estimatedFare = 0.0
+                                customerFarePerPassenger = 0.0
+                                driverFare = 0.0
                                 passengerCount = 3
 
                                 snackbarHostState.showSnackbar(

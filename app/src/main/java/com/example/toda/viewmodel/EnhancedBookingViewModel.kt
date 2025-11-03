@@ -112,7 +112,8 @@ class EnhancedBookingViewModel @Inject constructor(
         destination: String,
         pickupGeoPoint: GeoPoint,
         dropoffGeoPoint: GeoPoint,
-        estimatedFare: Double
+        estimatedFare: Double,
+        bookingApp: String = "passengerApp"
     ) {
         viewModelScope.launch {
             println("=== VIEWMODEL CREATE BOOKING DEBUG ===")
@@ -125,6 +126,7 @@ class EnhancedBookingViewModel @Inject constructor(
             println("  pickupGeoPoint: $pickupGeoPoint")
             println("  dropoffGeoPoint: $dropoffGeoPoint")
             println("  estimatedFare: $estimatedFare")
+            println("  bookingApp: $bookingApp")
 
             _bookingState.value = _bookingState.value.copy(isLoading = true)
 
@@ -140,7 +142,9 @@ class EnhancedBookingViewModel @Inject constructor(
                 estimatedFare = estimatedFare,
                 status = BookingStatus.PENDING,
                 timestamp = System.currentTimeMillis(),
-                verificationCode = (100000..999999).random().toString()
+                verificationCode = (100000..999999).random().toString(),
+                isWalkIn = bookingApp == "barkerApp",
+                bookingApp = bookingApp
             )
 
             println("Created booking object: $booking")

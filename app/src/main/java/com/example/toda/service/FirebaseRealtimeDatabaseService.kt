@@ -1728,12 +1728,22 @@ class FirebaseRealtimeDatabaseService {
     // Additional booking management functions
     suspend fun matchBookingToFirstDriver(bookingId: String): Boolean {
         return try {
-            // Ensure booking is still PENDING before attempting assignment
-            val currentStatus = bookingsRef.child(bookingId).child("status").get().await().getValue(String::class.java)
+            // Fetch booking snapshot to validate status and determine source app
+            val bookingSnapshot = bookingsRef.child(bookingId).get().await()
+            if (!bookingSnapshot.exists()) {
+                println("Booking $bookingId not found; skipping auto-match")
+                return false
+            }
+
+            val currentStatus = bookingSnapshot.child("status").getValue(String::class.java)
             if (currentStatus != null && currentStatus != "PENDING") {
                 println("Booking $bookingId is $currentStatus; skipping auto-match")
                 return false
             }
+
+            val bookingApp = bookingSnapshot.child("bookingApp").getValue(String::class.java) ?: ""
+            val isWalkInBooking = bookingSnapshot.child("isWalkIn").getValue(Boolean::class.java) ?: false
+            val targetStatus = if (bookingApp == "barkerApp" || isWalkInBooking) "IN_PROGRESS" else "ACCEPTED"
 
             // Read queue snapshot
             val queueRef = database.child("queue")
@@ -1775,6 +1785,7 @@ class FirebaseRealtimeDatabaseService {
                 }
 
                 // Get driver details
+                val driverIdFromQueue = queueEntry.child("driverId").getValue(String::class.java)
                 val driverRFID = queueEntry.child("driverRFID").getValue(String::class.java) ?: ""
                 val driverName = queueEntry.child("driverName").getValue(String::class.java) ?: ""
                 val todaNumber = queueEntry.child("todaNumber").getValue(String::class.java) ?: ""
@@ -1787,22 +1798,34 @@ class FirebaseRealtimeDatabaseService {
                 }
 
                 // Look up driver user ID
-                var driverUserId = ""
-                try {
-                    val driversSnapshot = hardwareDriversRef.orderByChild("rfidUID").equalTo(driverRFID).get().await()
-                    if (driversSnapshot.exists()) {
-                        driverUserId = driversSnapshot.children.firstOrNull()?.key ?: ""
-                        println("✓ Found driver user ID: $driverUserId")
-                    } else {
-                        println("⚠ No driver found with RFID in drivers table")
-                    }
-                } catch (e: Exception) {
-                    println("Error looking up driver: ${e.message}")
+                var driverUserId = driverIdFromQueue?.takeIf { it.isNotBlank() } ?: ""
+                if (driverUserId.isNotEmpty()) {
+                    println("✓ Using driverId from queue entry: $driverUserId")
                 }
 
                 if (driverUserId.isEmpty()) {
-                    driverUserId = driverRFID
-                    println("Using RFID as driver ID (fallback)")
+                    try {
+                        val driversSnapshot = hardwareDriversRef.orderByChild("rfidNumber").equalTo(driverRFID).get().await()
+                        if (driversSnapshot.exists()) {
+                            driverUserId = driversSnapshot.children.firstOrNull()?.key ?: ""
+                            println("✓ Found driver user ID via rfidNumber: $driverUserId")
+                        } else {
+                            val driversByUid = hardwareDriversRef.orderByChild("rfidUID").equalTo(driverRFID).get().await()
+                            if (driversByUid.exists()) {
+                                driverUserId = driversByUid.children.firstOrNull()?.key ?: ""
+                                println("✓ Found driver user ID via rfidUID: $driverUserId")
+                            } else {
+                                println("⚠ No driver found with RFID in drivers table")
+                            }
+                        }
+                    } catch (e: Exception) {
+                        println("Error looking up driver: ${e.message}")
+                    }
+                }
+
+                if (driverUserId.isEmpty()) {
+                    println("✗ Skipping - unable to resolve driver user ID for RFID $driverRFID")
+                    continue
                 }
 
                 println("\n=== FETCHING PAYMENT MODE (AUTO-MATCH) ===")
@@ -1832,8 +1855,8 @@ class FirebaseRealtimeDatabaseService {
                     "bookings/$bookingId/assignedTricycleId" to todaNumber,
                     "bookings/$bookingId/todaNumber" to todaNumber,
                     "bookings/$bookingId/paymentMode" to paymentMode,
-                    "bookings/$bookingId/status" to "ACCEPTED",
-                    "bookingIndex/$bookingId/status" to "ACCEPTED",
+                    "bookings/$bookingId/status" to targetStatus,
+                    "bookingIndex/$bookingId/status" to targetStatus,
                     "bookingIndex/$bookingId/driverRFID" to driverRFID,
                     "bookingIndex/$bookingId/paymentMode" to paymentMode
                 )
@@ -1841,7 +1864,7 @@ class FirebaseRealtimeDatabaseService {
                 database.updateChildren(updates).await()
                 queueRef.child(queueKey).removeValue().await()
 
-                println("✅ Matched booking $bookingId with driver $driverUserId (PaymentMode: $paymentMode)")
+                println("✅ Matched booking $bookingId with driver $driverUserId (Status: $targetStatus, PaymentMode: $paymentMode)")
                 return true
             }
 

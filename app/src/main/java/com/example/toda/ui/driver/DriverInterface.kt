@@ -22,17 +22,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.clip
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.toda.data.Booking
 import com.example.toda.data.BookingStatus
 import com.example.toda.data.User
 import com.example.toda.viewmodel.EnhancedBookingViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.toda.ui.components.OSMMapView
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 import com.example.toda.ui.chat.SimpleChatScreen
 import com.example.toda.data.RfidChangeHistory
+import org.osmdroid.util.GeoPoint
+
+private val BarkerTerminalGeoPoint = GeoPoint(14.746010978688304, 121.0513973236084)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -224,12 +229,17 @@ fun DriverInterface(
 
         // Match ONLY by user.id - simple and reliable
         val userIdMatch = booking.assignedDriverId == user.id
+        val rfidMatch = driverRFID.isNotEmpty() && booking.driverRFID == driverRFID
 
         println("  Match check:")
         println("    userIdMatch (booking.assignedDriverId == user.id): $userIdMatch")
         println("      ('${booking.assignedDriverId}' == '${user.id}')")
+        println("    rfidMatch (booking.driverRFID == driverRFID): $rfidMatch")
+        if (rfidMatch) {
+            println("      driverRFID match: ('${booking.driverRFID}' == '$driverRFID')")
+        }
 
-        val isMyBooking = userIdMatch
+        val isMyBooking = userIdMatch || rfidMatch
 
         val isActiveStatus = booking.status == BookingStatus.ACCEPTED ||
                            booking.status == BookingStatus.AT_PICKUP ||
@@ -289,7 +299,7 @@ fun DriverInterface(
     }
 
     // Get completed bookings for history - match by user.id only
-    val completedBookings = remember(activeBookings, user.id) {
+    val completedBookings = remember(activeBookings, user.id, driverRFID) {
         println("=== FILTERING COMPLETED BOOKINGS ===")
         println("Total active bookings: ${activeBookings.size}")
         println("Driver User ID: ${user.id}")
@@ -301,7 +311,8 @@ fun DriverInterface(
             println("  - status: ${booking.status}")
             println("  - customerName: ${booking.customerName}")
 
-            val isMyBooking = booking.assignedDriverId == user.id
+            val isMyBooking = booking.assignedDriverId == user.id ||
+                (driverRFID.isNotEmpty() && booking.driverRFID == driverRFID)
             val isCompleted = booking.status == BookingStatus.COMPLETED
 
             println("  - isMyBooking: $isMyBooking")
@@ -316,8 +327,9 @@ fun DriverInterface(
             result
         }
 
-        println("=== COMPLETED BOOKINGS COUNT: ${filtered.size} ===")
-        filtered
+        val sorted = filtered.sortedByDescending { it.timestamp }
+        println("=== COMPLETED BOOKINGS COUNT: ${sorted.size} ===")
+        sorted
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -1088,6 +1100,8 @@ fun BookingMonitoringCard(
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
+    val isOnsiteBooking = booking.bookingApp == "barkerApp"
+
     // State for showing/hiding the No Show button based on arrival time
     val currentTime = remember { mutableStateOf(System.currentTimeMillis()) }
     val showNoShowButton = remember(booking.arrivedAtPickup, booking.arrivedAtPickupTime, booking.status, currentTime.value) {
@@ -1142,6 +1156,23 @@ fun BookingMonitoringCard(
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
+            if (isOnsiteBooking) {
+                Surface(
+                    color = Color(0xFFE8F5E9),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "On-site Booking",
+                        color = Color(0xFF2E7D32),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
             // Header with customer name and status
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1196,6 +1227,60 @@ fun BookingMonitoringCard(
             BookingDetailRow("Pick up", booking.pickupLocation)
             BookingDetailRow("Drop off", booking.destination)
             BookingDetailRow("Fare", formatFare(booking.estimatedFare))
+
+            val isPassengerAppBooking = booking.bookingApp == "passengerApp"
+            val pickupPoint = booking.pickupGeoPoint
+            val dropoffPoint = booking.dropoffGeoPoint
+            val hasPickupCoordinates = pickupPoint.latitude != 0.0 || pickupPoint.longitude != 0.0
+            val hasDropoffCoordinates = dropoffPoint.latitude != 0.0 || dropoffPoint.longitude != 0.0
+
+            val (mapTitle, mapStart, mapEnd) = remember(
+                booking.status,
+                isPassengerAppBooking,
+                pickupPoint.latitude,
+                pickupPoint.longitude,
+                dropoffPoint.latitude,
+                dropoffPoint.longitude
+            ) {
+                if (!isPassengerAppBooking) {
+                    Triple("", null, null)
+                } else if (booking.status == BookingStatus.ACCEPTED && hasPickupCoordinates) {
+                    Triple("Route to pickup", BarkerTerminalGeoPoint, pickupPoint)
+                } else if (booking.status == BookingStatus.IN_PROGRESS && hasPickupCoordinates && hasDropoffCoordinates) {
+                    Triple("Trip progress", pickupPoint, dropoffPoint)
+                } else {
+                    Triple("", null, null)
+                }
+            }
+
+            if (mapStart != null && mapEnd != null) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = mapTitle,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.Black
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(220.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFFF5F5F5))
+                ) {
+                    OSMMapView(
+                        modifier = Modifier.fillMaxSize(),
+                        pickupLocation = mapStart,
+                        dropoffLocation = mapEnd,
+                        onMapClick = {},
+                        enableDrag = false,
+                        enableZoom = false,
+                        validateBarangay177 = false
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
 
             // Show arrival time and countdown if driver has arrived AND status is ACCEPTED
             if (booking.status == BookingStatus.ACCEPTED && booking.arrivedAtPickup && booking.arrivedAtPickupTime > 0L) {
@@ -1528,6 +1613,25 @@ fun HistoryBookingCard(booking: Booking) {
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
+            val isOnsiteBooking = booking.bookingApp == "barkerApp"
+
+            if (isOnsiteBooking) {
+                Surface(
+                    color = Color(0xFFE8F5E9),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "On-site Booking",
+                        color = Color(0xFF2E7D32),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
             // Header with customer name and fare
             Row(
                 modifier = Modifier.fillMaxWidth(),
