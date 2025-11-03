@@ -13,9 +13,25 @@ import javax.inject.Inject
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 
+// Data classes must be defined before use
+data class BookingState(
+    val isLoading: Boolean = false,
+    val currentBookingId: String? = null,
+    val message: String? = null,
+    val error: String? = null
+)
+
+data class DriverData(
+    val paymentMode: String? = null,
+    val balance: Double? = null,
+    val canGoOnline: Boolean? = null,
+    val lastPaymentDate: Long? = null
+)
+
 @HiltViewModel
 class EnhancedBookingViewModel @Inject constructor(
-    private val repository: TODARepository
+    private val repository: TODARepository,
+    private val paymentService: com.example.toda.service.DriverPaymentService
 ) : ViewModel() {
 
     private val _bookingState = MutableStateFlow(BookingState())
@@ -305,6 +321,27 @@ class EnhancedBookingViewModel @Inject constructor(
                                 println("✗ Failed to create rating entry: ${error.message}")
                             }
                         )
+
+                        // Record P5 contribution for the driver
+                        launch {
+                            // Get booking to find driver ID
+                            val booking = repository.getBookingByIdOnce(bookingId)
+                            booking?.let { completedBooking ->
+                                if (completedBooking.assignedDriverId.isNotEmpty()) {
+                                    paymentService.recordTripContribution(
+                                        completedBooking.assignedDriverId,
+                                        bookingId
+                                    ).fold(
+                                        onSuccess = {
+                                            println("✓ Trip contribution recorded for driver: ${completedBooking.assignedDriverId}")
+                                        },
+                                        onFailure = { error ->
+                                            println("✗ Failed to record trip contribution: ${error.message}")
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     }
                 },
                 onFailure = { error ->
@@ -402,6 +439,21 @@ class EnhancedBookingViewModel @Inject constructor(
         return repository.getDriverById(driverId)
     }
 
+    suspend fun getDriverData(driverId: String): Result<DriverData> {
+        return try {
+            val driverMap = repository.getDriverById(driverId).getOrThrow()
+            val driverData = DriverData(
+                paymentMode = driverMap["paymentMode"] as? String,
+                balance = (driverMap["balance"] as? Number)?.toDouble(),
+                canGoOnline = driverMap["canGoOnline"] as? Boolean,
+                lastPaymentDate = (driverMap["lastPaymentDate"] as? Number)?.toLong()
+            )
+            Result.success(driverData)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun getDriverContributionStatus(driverId: String): Result<Boolean> {
         return repository.getDriverContributionStatus(driverId)
     }
@@ -414,8 +466,32 @@ class EnhancedBookingViewModel @Inject constructor(
         return repository.observeDriverQueueStatus(driverRFID)
     }
 
+    fun observeDriverBalance(driverId: String): Flow<Double> {
+        return repository.observeDriverBalance(driverId)
+    }
+
+    fun observeDriverPaymentMode(driverId: String): Flow<String?> {
+        return repository.observeDriverPaymentMode(driverId)
+    }
+
+    fun observeDriverRfid(driverId: String): Flow<String> {
+        return repository.observeDriverRfid(driverId)
+    }
+
+    fun observePayBalanceStatus(driverId: String): Flow<Boolean> {
+        return repository.observePayBalanceStatus(driverId)
+    }
+
+    suspend fun markPayBalance(driverId: String, wantsToPay: Boolean): Result<Unit> {
+        return repository.markPayBalance(driverId, wantsToPay)
+    }
+
     suspend fun leaveQueue(driverRFID: String): Result<Boolean> {
         return repository.leaveQueue(driverRFID)
+    }
+
+    suspend fun joinQueue(driverId: String, driverRFID: String, driverName: String): Result<Boolean> {
+        return repository.joinQueue(driverId, driverRFID, driverName)
     }
 
     suspend fun getDriverTodayStats(driverId: String): Result<Triple<Int, Double, Double>> {
@@ -505,11 +581,10 @@ class EnhancedBookingViewModel @Inject constructor(
     suspend fun getDriverContributionSummary(driverId: String): Result<ContributionSummary> {
         return runCatching { repository.getDriverContributionSummary(driverId) }
     }
+
+    // Payment mode management
+    suspend fun updatePaymentMode(driverId: String, paymentMode: String): Result<Unit> {
+        return paymentService.updatePaymentMode(driverId, paymentMode)
+    }
 }
 
-data class BookingState(
-    val isLoading: Boolean = false,
-    val currentBookingId: String? = null,
-    val message: String? = null,
-    val error: String? = null
-)

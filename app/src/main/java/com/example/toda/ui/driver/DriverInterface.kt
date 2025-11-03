@@ -68,7 +68,12 @@ fun DriverInterface(
     var driverRFID by remember { mutableStateOf("") }
     var driverName by remember { mutableStateOf("") }
 
-    // Load driver RFID and stats (no contribution check)
+    // Payment mode and balance state - for display and mode selection
+    var paymentMode by remember { mutableStateOf<String?>(null) }
+    var driverBalance by remember { mutableStateOf(0.0) }
+    var showPaymentModeSelection by remember { mutableStateOf(false) }
+
+    // Load driver RFID and stats
     LaunchedEffect(user.id) {
         try {
             // Get driver RFID from the drivers table
@@ -110,18 +115,26 @@ fun DriverInterface(
         }
     }
 
+    // Real-time observer for RFID changes - updates when admin reassigns RFID
+    LaunchedEffect(user.id) {
+        if (user.id.isNotEmpty()) {
+            viewModel.observeDriverRfid(user.id).collect { rfidUID ->
+                println("=== RFID REAL-TIME UPDATE ===")
+                println("Driver ${user.id} RFID changed to: $rfidUID")
+                driverRFID = rfidUID
+            }
+        }
+    }
+
     // Load RFID history when RFID tab is selected
     LaunchedEffect(selectedTab, user.id) {
         if (selectedTab == 4) { // RFID Management tab
-            rfidHistoryLoading = true
             viewModel.getRfidChangeHistory(user.id).fold(
                 onSuccess = { history ->
                     rfidHistory = history
-                    rfidHistoryLoading = false
                 },
                 onFailure = { error ->
                     println("Error loading RFID history: ${error.message}")
-                    rfidHistoryLoading = false
                 }
             )
         }
@@ -135,6 +148,28 @@ fun DriverInterface(
                 println("Driver $driverRFID is in queue: $isInQueue")
                 println("Setting online status to: $isInQueue")
                 isOnline = isInQueue
+            }
+        }
+    }
+
+    // Real-time observer for driver balance - auto-update when balance changes
+    LaunchedEffect(user.id) {
+        if (user.id.isNotEmpty()) {
+            viewModel.observeDriverBalance(user.id).collect { balance ->
+                println("=== BALANCE UPDATE ===")
+                println("Driver ${user.id} balance changed to: ₱$balance")
+                driverBalance = balance // UPDATE: Actually update the state variable
+            }
+        }
+    }
+
+    // Real-time observer for payment mode - sync with contributions screen changes
+    LaunchedEffect(user.id) {
+        if (user.id.isNotEmpty()) {
+            viewModel.observeDriverPaymentMode(user.id).collect { mode ->
+                println("=== PAYMENT MODE UPDATE ===")
+                println("Driver ${user.id} payment mode changed to: $mode")
+                paymentMode = mode
             }
         }
     }
@@ -390,7 +425,9 @@ fun DriverInterface(
                         todaysTrips = todaysTrips,
                         todaysEarnings = todaysEarnings,
                         driverRating = driverRating,
-                        onViewDocuments = { /* No-op */ }
+                        onViewDocuments = { /* No-op */ },
+                        paymentMode = paymentMode ?: "pay_every_trip",
+                        driverBalance = driverBalance
                     )
                     1 -> BookingsContent(
                         myBookings = myBookings,
@@ -565,6 +602,83 @@ fun DriverInterface(
                 modifier = Modifier.fillMaxWidth(0.9f)
             )
         }
+
+        // Payment mode selection dialog - appears when payment mode is not set
+        if (showPaymentModeSelection) {
+            PaymentModeScreen(
+                driverId = user.id,
+                driverName = driverName,
+                currentPaymentMode = paymentMode,
+                currentBalance = driverBalance,
+                onModeSelected = { selectedMode ->
+                    coroutineScope.launch {
+                        viewModel.updatePaymentMode(user.id, selectedMode).fold(
+                            onSuccess = {
+                                paymentMode = selectedMode
+                                showPaymentModeSelection = false
+
+                                // Different behavior based on payment mode:
+                                // - Pay Every Trip: Requires hardware RFID tap to join queue
+                                // - Pay Later: Auto-join queue immediately
+                                if (selectedMode == "pay_later") {
+                                    // Auto-join queue for Pay Later mode
+                                    if (driverRFID.isNotEmpty()) {
+                                        println("=== AUTO-JOINING QUEUE (PAY LATER MODE) ===")
+                                        viewModel.joinQueue(user.id, driverRFID, driverName).fold(
+                                            onSuccess = { joined ->
+                                                if (joined) {
+                                                    println("✓ Driver automatically joined queue (Pay Later mode)")
+                                                    android.widget.Toast.makeText(
+                                                        context,
+                                                        "You're now online! You can start accepting bookings.",
+                                                        android.widget.Toast.LENGTH_LONG
+                                                    ).show()
+                                                } else {
+                                                    println("⚠ Driver may already be in queue")
+                                                }
+                                            },
+                                            onFailure = { error ->
+                                                println("✗ Error joining queue: ${error.message}")
+                                                android.widget.Toast.makeText(
+                                                    context,
+                                                    "Error joining queue: ${error.message}",
+                                                    android.widget.Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+                                        )
+                                    } else {
+                                        println("⚠ Cannot join queue - driver RFID is empty")
+                                        android.widget.Toast.makeText(
+                                            context,
+                                            "Please contact admin to assign RFID",
+                                            android.widget.Toast.LENGTH_LONG
+                                        ).show()
+                                    }
+                                } else {
+                                    // Pay Every Trip mode: Inform driver to use hardware system
+                                    println("=== PAY EVERY TRIP MODE SELECTED ===")
+                                    println("Driver must tap RFID card at terminal to join queue")
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        "Please tap your RFID card at the terminal to go online and start accepting bookings.",
+                                        android.widget.Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            },
+                            onFailure = { error ->
+                                println("Error updating payment mode: ${error.message}")
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "Error: ${error.message}",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        )
+                    }
+                },
+                isFirstTimeSetup = true
+            )
+        }
     }
 }
 
@@ -603,7 +717,9 @@ fun DashboardContent(
     todaysTrips: Int,
     todaysEarnings: Double,
     driverRating: Double,
-    onViewDocuments: () -> Unit
+    onViewDocuments: () -> Unit,
+    paymentMode: String = "pay_every_trip",
+    driverBalance: Double = 0.0
 ) {
     LazyColumn(
         modifier = Modifier
@@ -611,6 +727,77 @@ fun DashboardContent(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Payment Mode Info Card - Display only (hardware handles online/offline)
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (driverBalance > 0) Color(0xFFFFF9C4) else Color(0xFFE8F5E9)
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "Payment Mode",
+                                fontSize = 14.sp,
+                                color = Color.Gray
+                            )
+                            Text(
+                                text = if (paymentMode == "pay_later") "Pay Later" else "Pay Every Trip",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Color.Black
+                            )
+                        }
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                text = "Balance",
+                                fontSize = 14.sp,
+                                color = Color.Gray
+                            )
+                            Text(
+                                text = "₱%.2f".format(driverBalance),
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (driverBalance > 0) Color(0xFFD32F2F) else Color(0xFF4CAF50)
+                            )
+                        }
+                    }
+
+                    // Info note about outstanding balance
+                    if (driverBalance > 0) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Info,
+                                contentDescription = null,
+                                tint = Color(0xFFFF9800),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Outstanding balance from completed trips",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFFFF9800)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         item {
             // Driver Status Card
             Card(
@@ -934,6 +1121,35 @@ fun BookingMonitoringCard(
             }
 
             Spacer(modifier = Modifier.height(12.dp))
+
+            // Payment mode indicator
+            if (booking.paymentMode.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            if (booking.paymentMode == "pay_later") Color(0xFFFFF9C4) else Color(0xFFE3F2FD),
+                            RoundedCornerShape(8.dp)
+                        )
+                        .padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Payment,
+                        contentDescription = null,
+                        tint = if (booking.paymentMode == "pay_later") Color(0xFFFF9800) else Color(0xFF1976D2),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (booking.paymentMode == "pay_later") "Pay Later" else "Pay Every Trip",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = if (booking.paymentMode == "pay_later") Color(0xFFFF9800) else Color(0xFF1976D2)
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
             // Booking details
             BookingDetailRow("Time", SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(booking.timestamp)))
@@ -1307,6 +1523,35 @@ fun HistoryBookingCard(booking: Booking) {
             }
 
             Spacer(modifier = Modifier.height(12.dp))
+
+            // Payment mode indicator
+            if (booking.paymentMode.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            if (booking.paymentMode == "pay_later") Color(0xFFFFF9C4) else Color(0xFFE3F2FD),
+                            RoundedCornerShape(8.dp)
+                        )
+                        .padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Payment,
+                        contentDescription = null,
+                        tint = if (booking.paymentMode == "pay_later") Color(0xFFFF9800) else Color(0xFF1976D2),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (booking.paymentMode == "pay_later") "Pay Later" else "Pay Every Trip",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = if (booking.paymentMode == "pay_later") Color(0xFFFF9800) else Color(0xFF1976D2)
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
 
             // Pickup location
             Row(
