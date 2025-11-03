@@ -111,7 +111,6 @@ fun DriverLoginScreen(
                     FirebaseAuth.getInstance().signInWithCredential(credential)
                         .addOnCompleteListener { task ->
                             if (task.isSuccessful) {
-                                FirebaseAuth.getInstance().signOut()
                                 isVerifyingOtp = false
                                 showOtpDialog = false
                                 // Proceed with driver registration
@@ -180,7 +179,6 @@ fun DriverLoginScreen(
                     FirebaseAuth.getInstance().signInWithCredential(credential)
                         .addOnCompleteListener { task ->
                             if (task.isSuccessful) {
-                                FirebaseAuth.getInstance().signOut()
                                 isVerifyingOtp = false
                                 showOtpDialog = false
                                 val combinedName = listOfNotNull(
@@ -240,7 +238,6 @@ fun DriverLoginScreen(
         FirebaseAuth.getInstance().signInWithCredential(credential)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
-                    FirebaseAuth.getInstance().signOut()
                     isVerifyingOtp = false
                     showOtpDialog = false
 

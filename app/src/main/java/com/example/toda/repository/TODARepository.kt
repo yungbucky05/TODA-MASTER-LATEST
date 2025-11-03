@@ -770,10 +770,37 @@ class TODARepository @Inject constructor(
             println("Phone: ${driver.phoneNumber}")
             println("Creating Firebase Auth account...")
 
-            // Step 1: Create Firebase Auth account and user profile first
-            val authResult: Result<String> = if (driver.email.isNotBlank()) {
-                authService.createUserWithEmail(driver.email, driver.password).mapCatching { userId ->
-                    val userProfile = FirebaseUser(
+            val currentAuthUser = authService.getCurrentUser()
+
+            // Step 1: Ensure the driver has an auth account we can attach profile data to
+            val authResult: Result<String> = when {
+                currentAuthUser != null && driver.email.isNotBlank() -> {
+                    println("Linking driver email to existing phone-auth user...")
+                    authService.linkEmailPasswordToCurrentUser(driver.email, driver.password)
+                }
+                currentAuthUser != null -> {
+                    Result.success(currentAuthUser.uid)
+                }
+                driver.email.isNotBlank() -> {
+                    println("No active auth session found; creating user with email credential")
+                    authService.createUserWithEmail(driver.email, driver.password)
+                }
+                else -> {
+                    println("No email provided; creating driver using phone alias account")
+                    registerUser(
+                        phoneNumber = driver.phoneNumber,
+                        name = driver.name,
+                        userType = UserType.DRIVER,
+                        password = driver.password
+                    )
+                }
+            }
+
+            authResult.fold(
+                onSuccess = { userId ->
+                    println("✓ Firebase Auth account created: $userId")
+
+                    val profile = FirebaseUser(
                         id = userId,
                         phoneNumber = driver.phoneNumber,
                         email = driver.email,
@@ -783,24 +810,10 @@ class TODARepository @Inject constructor(
                         registrationDate = System.currentTimeMillis()
                     )
 
-                    if (!firebaseService.createUser(userProfile)) {
-                        throw Exception("Failed to create driver user profile")
+                    if (!firebaseService.createUser(profile)) {
+                        println("✗ Failed to persist driver user profile")
+                        return Result.failure(Exception("Failed to create driver user profile"))
                     }
-
-                    userId
-                }
-            } else {
-                registerUser(
-                    phoneNumber = driver.phoneNumber,
-                    name = driver.name,
-                    userType = UserType.DRIVER,
-                    password = driver.password
-                )
-            }
-
-            authResult.fold(
-                onSuccess = { userId ->
-                    println("✓ Firebase Auth account created: $userId")
 
                     // Step 2: Add additional driver-specific data to drivers table
                     println("Creating driver record in database...")
