@@ -427,6 +427,10 @@ class TODARepository @Inject constructor(
         return firebaseService.observeRegularFareMatrix().map { it ?: FareMatrix() }
     }
 
+    fun observeSpecialFareMatrix(): Flow<FareMatrix> {
+        return firebaseService.observeSpecialFareMatrix().map { it ?: FareMatrix(baseFare = 25.0, perKmRate = 5.0) }
+    }
+
     // Booking Management
     suspend fun createBooking(booking: Booking): Result<String> {
         return try {
@@ -1404,6 +1408,69 @@ class TODARepository @Inject constructor(
 
     suspend fun sendPasswordResetEmail(email: String): Result<Unit> {
         return authService.sendPasswordResetEmail(email)
+    }
+
+    // =====================
+    // Flagged Accounts System
+    // =====================
+    
+    /**
+     * Get driver flag data (flagScore and flagStatus) from drivers collection
+     */
+    suspend fun getDriverFlagData(driverId: String): Result<DriverFlagData> {
+        return firebaseService.getDriverFlagData(driverId)
+    }
+    
+    /**
+     * Observe driver flag data in real-time
+     */
+    fun observeDriverFlagData(driverId: String): Flow<DriverFlagData> {
+        return firebaseService.observeDriverFlagData(driverId)
+    }
+    
+    /**
+     * Get all active flags for a driver from driverFlags collection
+     */
+    suspend fun getDriverActiveFlags(driverId: String): Result<List<DriverFlag>> {
+        return firebaseService.getDriverActiveFlags(driverId)
+    }
+    
+    /**
+     * Observe driver flags in real-time from driverFlags collection
+     */
+    fun observeDriverFlags(driverId: String): Flow<List<DriverFlag>> {
+        return firebaseService.observeDriverFlags(driverId)
+    }
+    
+    // Customer Flag Methods
+    // =====================
+    
+    /**
+     * Get customer flag data (flagScore and flagStatus) from users collection
+     */
+    suspend fun getUserFlagData(userId: String): Result<DriverFlagData> {
+        return firebaseService.getUserFlagData(userId)
+    }
+    
+    /**
+     * Observe customer flag data in real-time
+     */
+    fun observeUserFlagData(userId: String): Flow<DriverFlagData> {
+        return firebaseService.observeUserFlagData(userId)
+    }
+    
+    /**
+     * Get all active flags for a customer from userFlags collection
+     */
+    suspend fun getUserActiveFlags(userId: String): Result<List<DriverFlag>> {
+        return firebaseService.getUserActiveFlags(userId)
+    }
+    
+    /**
+     * Observe customer flags in real-time from userFlags collection
+     */
+    fun observeUserFlags(userId: String): Flow<List<DriverFlag>> {
+        return firebaseService.observeUserFlags(userId)
     }
 }
 

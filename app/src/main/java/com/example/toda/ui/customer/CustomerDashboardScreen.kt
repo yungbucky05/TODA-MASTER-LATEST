@@ -261,8 +261,8 @@ private fun DashboardHeader(
             .background(
                 Brush.linearGradient(
                     listOf(
-                        MaterialTheme.colorScheme.primary,
-                        MaterialTheme.colorScheme.primaryContainer
+                        Color(0xFF0E8E90), // TealBlue80 - Main teal
+                        Color(0xFF0B7476)  // TealBlue60 - Slightly darker teal
                     )
                 )
             )
@@ -273,13 +273,13 @@ private fun DashboardHeader(
                 Text(
                     text = "Welcome back",
                     style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
+                    color = Color.White.copy(alpha = 0.9f)
                 )
                 Text(
                     text = profile?.name?.ifBlank { "Passenger" } ?: "Passenger",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onPrimary,
+                    color = Color.White,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -291,26 +291,23 @@ private fun DashboardHeader(
                     icon = Icons.Default.Phone,
                     label = profile?.phoneNumber?.takeIf { it.isNotBlank() } ?: "No phone"
                 )
-                HeaderInfoChip(
-                    icon = Icons.Default.Star,
-                    label = "Trust ${profile?.trustScore?.toInt() ?: 100}%"
-                )
             }
             Button(
                 onClick = onBookRide,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.18f)
+                    containerColor = Color.White,
+                    contentColor = Color(0xFF0E8E90)
                 )
             ) {
                 Icon(
                     imageVector = Icons.Default.DirectionsCar,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimary
+                    tint = Color(0xFF0E8E90)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Book a Ride",
-                    color = MaterialTheme.colorScheme.onPrimary,
+                    color = Color(0xFF0E8E90),
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -336,7 +333,7 @@ private fun HeaderInfoChip(
 ) {
     Surface(
         shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.18f)
+        color = Color.White.copy(alpha = 0.2f)
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -346,12 +343,12 @@ private fun HeaderInfoChip(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimary
+                tint = Color.White
             )
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onPrimary,
+                color = Color.White,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -413,18 +410,18 @@ private fun DiscountStatusRow(userProfile: UserProfile?) {
 
     val (containerColor, contentColor, message) = when {
         discountType != null && verified -> Triple(
-            MaterialTheme.colorScheme.secondaryContainer,
-            MaterialTheme.colorScheme.onSecondaryContainer,
+            Color(0xFFE0F7F7), // Light teal
+            Color(0xFF0E8E90), // Main teal
             "${discountType.displayName} discount is active"
         )
         discountType != null -> Triple(
-            MaterialTheme.colorScheme.surfaceVariant,
-            MaterialTheme.colorScheme.onSurfaceVariant,
+            Color(0xFFF5F5F5), // Light gray
+            Color(0xFF757575), // Medium gray
             "${discountType.displayName} pending verification"
         )
         else -> Triple(
-            MaterialTheme.colorScheme.surfaceVariant,
-            MaterialTheme.colorScheme.onSurfaceVariant,
+            Color(0xFFF5F5F5), // Light gray
+            Color(0xFF757575), // Medium gray
             "No discount applied"
         )
     }
@@ -473,14 +470,14 @@ private fun AccountStatusBanner(userProfile: UserProfile?) {
     val isBlocked = userProfile?.isBlocked == true
     val (containerColor, contentColor, message) = if (isBlocked) {
         Triple(
-            MaterialTheme.colorScheme.errorContainer,
-            MaterialTheme.colorScheme.onErrorContainer,
+            Color(0xFFFFEBEE), // Light red
+            Color(0xFFD32F2F), // Red
             "Contact support to restore booking access."
         )
     } else {
         Triple(
-            MaterialTheme.colorScheme.secondaryContainer,
-            MaterialTheme.colorScheme.onSecondaryContainer,
+            Color(0xFFE0F7F7), // Light teal
+            Color(0xFF0E8E90), // Main teal
             "You're all set to request rides."
         )
     }
@@ -582,8 +579,8 @@ private fun StatCard(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(20.dp),
-        tonalElevation = 2.dp,
-        color = MaterialTheme.colorScheme.secondaryContainer
+        tonalElevation = 1.dp,
+        color = Color(0xFFE0F7F7) // Very light teal
     ) {
         Column(
             modifier = Modifier.padding(vertical = 20.dp, horizontal = 12.dp),
@@ -594,12 +591,12 @@ private fun StatCard(
                 text = value,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSecondaryContainer
+                color = Color(0xFF0E8E90) // Main teal
             )
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                color = Color(0xFF0B7476) // Darker teal
             )
         }
     }

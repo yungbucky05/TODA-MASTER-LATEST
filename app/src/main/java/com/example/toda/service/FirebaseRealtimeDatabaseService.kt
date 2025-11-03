@@ -194,6 +194,46 @@ class FirebaseRealtimeDatabaseService {
         awaitClose { fareMatrixRef.removeEventListener(listener) }
     }
 
+    // Observe FareMatrix for special trips
+    fun observeSpecialFareMatrix(): Flow<FareMatrix?> = callbackFlow {
+        val fareMatrixRef = database.child("fareMatrix").child("special")
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val baseFare = when (val value = snapshot.child("baseFare").value) {
+                    is Number -> value.toDouble()
+                    is String -> value.toDoubleOrNull() ?: 25.0
+                    else -> 25.0
+                }
+                val perKmRate = when (val value = snapshot.child("perKmRate").value) {
+                    is Number -> value.toDouble()
+                    is String -> value.toDoubleOrNull() ?: 5.0
+                    else -> 5.0
+                }
+                val lastUpdated = when (val value = snapshot.child("lastUpdated").value) {
+                    is Number -> value.toLong()
+                    is String -> value.toLongOrNull() ?: 0L
+                    else -> 0L
+                }
+                val updatedBy = snapshot.child("updatedBy").getValue(String::class.java) ?: ""
+
+                val fareMatrix = FareMatrix(
+                    baseFare = baseFare,
+                    perKmRate = perKmRate,
+                    lastUpdated = lastUpdated,
+                    updatedBy = updatedBy
+                )
+                trySend(fareMatrix)
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                trySend(null)
+            }
+        }
+
+        fareMatrixRef.addValueEventListener(listener)
+        awaitClose { fareMatrixRef.removeEventListener(listener) }
+    }
+
     // Booking Management
     suspend fun createBooking(booking: FirebaseBooking): String? {
         return try {
@@ -2290,6 +2330,379 @@ class FirebaseRealtimeDatabaseService {
             println("✗ Error fixing driver bookings: ${e.message}")
             e.printStackTrace()
             0
+        }
+    }
+
+    // =====================
+    // Flagged Accounts System
+    // =====================
+    
+    /**
+     * Get driver flag data (flagScore and flagStatus) from drivers collection
+     * Path: drivers/{driverId}
+     * 
+     * NOTE: This method calculates the actual score from active flags to handle
+     * data inconsistencies where admin panel may have resolved flags but not
+     * updated the flagScore in the drivers collection.
+     */
+    suspend fun getDriverFlagData(driverId: String): Result<DriverFlagData> {
+        return try {
+            // Read stored values from drivers collection
+            val driverSnapshot = hardwareDriversRef.child(driverId).get().await()
+            val storedScore = driverSnapshot.child("flagScore").getValue(Int::class.java) ?: 0
+            val storedStatus = driverSnapshot.child("flagStatus").getValue(String::class.java) ?: "good"
+            
+            // Calculate actual score from active flags in driverFlags collection
+            val flagsSnapshot = database.child("driverFlags").child(driverId).get().await()
+            var calculatedScore = 0
+            var activeFlagCount = 0
+            
+            flagsSnapshot.children.forEach { flagSnapshot ->
+                val status = flagSnapshot.child("status").getValue(String::class.java)
+                val points = flagSnapshot.child("points").getValue(Int::class.java) ?: 0
+                if (status == "active") {
+                    calculatedScore += points
+                    activeFlagCount++
+                }
+            }
+            
+            // Log discrepancy if found
+            if (storedScore != calculatedScore) {
+                println("⚠️ FLAG SCORE MISMATCH DETECTED")
+                println("   Driver ID: $driverId")
+                println("   Stored in drivers collection: $storedScore pts")
+                println("   Calculated from $activeFlagCount active flags: $calculatedScore pts")
+                println("   ✓ Using calculated value for accuracy")
+            }
+            
+            // Determine status based on calculated score (source of truth)
+            val calculatedStatus = when {
+                calculatedScore > 300 -> "suspended"
+                calculatedScore > 150 -> "restricted"
+                calculatedScore > 50 -> "monitored"
+                else -> "good"
+            }
+            
+            // Return calculated values
+            Result.success(DriverFlagData(
+                flagScore = calculatedScore,
+                flagStatus = calculatedStatus
+            ))
+        } catch (e: Exception) {
+            println("Error fetching driver flag data: ${e.message}")
+            Result.failure(e)
+        }
+    }
+    
+    /**
+     * Observe driver flag data in real-time
+     * Path: drivers/{driverId}
+     */
+    fun observeDriverFlagData(driverId: String): Flow<DriverFlagData> = callbackFlow {
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val flagScore = snapshot.child("flagScore").getValue(Int::class.java) ?: 0
+                val flagStatus = snapshot.child("flagStatus").getValue(String::class.java) ?: "good"
+                
+                trySend(DriverFlagData(
+                    flagScore = flagScore,
+                    flagStatus = flagStatus
+                ))
+            }
+            
+            override fun onCancelled(error: DatabaseError) {
+                println("Error observing driver flag data: ${error.message}")
+                close(error.toException())
+            }
+        }
+        
+        hardwareDriversRef.child(driverId).addValueEventListener(listener)
+        
+        awaitClose {
+            hardwareDriversRef.child(driverId).removeEventListener(listener)
+        }
+    }
+    
+    /**
+     * Get all active flags for a driver from driverFlags collection
+     * Path: driverFlags/{driverId}
+     */
+    suspend fun getDriverActiveFlags(driverId: String): Result<List<DriverFlag>> {
+        return try {
+            val driverFlagsRef = database.child("driverFlags").child(driverId)
+            val snapshot = driverFlagsRef.get().await()
+            
+            val activeFlags = mutableListOf<DriverFlag>()
+            
+            snapshot.children.forEach { flagSnapshot ->
+                val flag = parseDriverFlag(flagSnapshot)
+                // Only include active flags
+                if (flag != null && flag.status == "active") {
+                    activeFlags.add(flag)
+                }
+            }
+            
+            // Sort by severity (critical -> high -> medium -> low) and then by points (descending)
+            val sortedFlags = activeFlags.sortedWith(
+                compareByDescending<DriverFlag> { getSeverityPriority(it.severity) }
+                    .thenByDescending { it.points }
+            )
+            
+            Result.success(sortedFlags)
+        } catch (e: Exception) {
+            println("Error fetching driver active flags: ${e.message}")
+            Result.failure(e)
+        }
+    }
+    
+    /**
+     * Observe driver flags in real-time from driverFlags collection
+     * Path: driverFlags/{driverId}
+     */
+    fun observeDriverFlags(driverId: String): Flow<List<DriverFlag>> = callbackFlow {
+        val driverFlagsRef = database.child("driverFlags").child(driverId)
+        
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val activeFlags = mutableListOf<DriverFlag>()
+                
+                snapshot.children.forEach { flagSnapshot ->
+                    val flag = parseDriverFlag(flagSnapshot)
+                    // Only include active flags
+                    if (flag != null && flag.status == "active") {
+                        activeFlags.add(flag)
+                    }
+                }
+                
+                // Sort by severity and points
+                val sortedFlags = activeFlags.sortedWith(
+                    compareByDescending<DriverFlag> { getSeverityPriority(it.severity) }
+                        .thenByDescending { it.points }
+                )
+                
+                trySend(sortedFlags)
+            }
+            
+            override fun onCancelled(error: DatabaseError) {
+                println("Error observing driver flags: ${error.message}")
+                close(error.toException())
+            }
+        }
+        
+        driverFlagsRef.addValueEventListener(listener)
+        
+        awaitClose {
+            driverFlagsRef.removeEventListener(listener)
+        }
+    }
+    
+    /**
+     * Helper function to parse a DriverFlag from Firebase snapshot
+     */
+    private fun parseDriverFlag(snapshot: DataSnapshot): DriverFlag? {
+        return try {
+            val flagId = snapshot.key ?: return null
+            val type = snapshot.child("type").getValue(String::class.java) ?: return null
+            val severity = snapshot.child("severity").getValue(String::class.java) ?: "medium"
+            val points = snapshot.child("points").getValue(Int::class.java) ?: 0
+            val timestamp = snapshot.child("timestamp").getValue(Long::class.java) ?: System.currentTimeMillis()
+            val status = snapshot.child("status").getValue(String::class.java) ?: "active"
+            val notes = snapshot.child("notes").getValue(String::class.java) ?: ""
+            
+            // Parse details map
+            val details = mutableMapOf<String, Any>()
+            snapshot.child("details").children.forEach { detailSnapshot ->
+                val key = detailSnapshot.key ?: return@forEach
+                val value = detailSnapshot.value ?: return@forEach
+                details[key] = value
+            }
+            
+            DriverFlag(
+                flagId = flagId,
+                type = type,
+                severity = severity,
+                points = points,
+                timestamp = timestamp,
+                status = status,
+                details = details,
+                notes = notes
+            )
+        } catch (e: Exception) {
+            println("Error parsing driver flag: ${e.message}")
+            null
+        }
+    }
+    
+    /**
+     * Helper function to get severity priority for sorting
+     */
+    private fun getSeverityPriority(severity: String): Int {
+        return when (severity.lowercase()) {
+            "critical" -> 4
+            "high" -> 3
+            "medium" -> 2
+            "low" -> 1
+            else -> 0
+        }
+    }
+
+    // ==================== CUSTOMER FLAG METHODS ====================
+    
+    /**
+     * Get customer flag data (flagScore and flagStatus) with hybrid calculation
+     * Path: users/{userId}
+     * 
+     * Uses the same hybrid approach as driver flags - calculates actual score
+     * from active flags to handle data inconsistencies.
+     */
+    suspend fun getUserFlagData(userId: String): Result<DriverFlagData> {
+        return try {
+            // Read stored values from users collection
+            val userSnapshot = usersRef.child(userId).get().await()
+            val storedScore = userSnapshot.child("flagScore").getValue(Int::class.java) ?: 0
+            val storedStatus = userSnapshot.child("flagStatus").getValue(String::class.java) ?: "good"
+            
+            // Calculate actual score from active flags in userFlags collection
+            val flagsSnapshot = database.child("userFlags").child(userId).get().await()
+            var calculatedScore = 0
+            var activeFlagCount = 0
+            
+            flagsSnapshot.children.forEach { flagSnapshot ->
+                val status = flagSnapshot.child("status").getValue(String::class.java)
+                val points = flagSnapshot.child("points").getValue(Int::class.java) ?: 0
+                if (status == "active") {
+                    calculatedScore += points
+                    activeFlagCount++
+                }
+            }
+            
+            // Log discrepancy if found
+            if (storedScore != calculatedScore) {
+                println("⚠️ CUSTOMER FLAG SCORE MISMATCH DETECTED")
+                println("   User ID: $userId")
+                println("   Stored in users collection: $storedScore pts")
+                println("   Calculated from $activeFlagCount active flags: $calculatedScore pts")
+                println("   ✓ Using calculated value for accuracy")
+            }
+            
+            // Determine status based on calculated score (source of truth)
+            val calculatedStatus = when {
+                calculatedScore > 300 -> "suspended"
+                calculatedScore > 150 -> "restricted"
+                calculatedScore > 50 -> "monitored"
+                else -> "good"
+            }
+            
+            // Return calculated values
+            Result.success(DriverFlagData(
+                flagScore = calculatedScore,
+                flagStatus = calculatedStatus
+            ))
+        } catch (e: Exception) {
+            println("Error fetching customer flag data: ${e.message}")
+            Result.failure(e)
+        }
+    }
+    
+    /**
+     * Observe customer flag data in real-time
+     * Path: users/{userId}
+     */
+    fun observeUserFlagData(userId: String): Flow<DriverFlagData> = callbackFlow {
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val flagScore = snapshot.child("flagScore").getValue(Int::class.java) ?: 0
+                val flagStatus = snapshot.child("flagStatus").getValue(String::class.java) ?: "good"
+                
+                trySend(DriverFlagData(
+                    flagScore = flagScore,
+                    flagStatus = flagStatus
+                ))
+            }
+            
+            override fun onCancelled(error: DatabaseError) {
+                println("Error observing customer flag data: ${error.message}")
+                close(error.toException())
+            }
+        }
+        
+        usersRef.child(userId).addValueEventListener(listener)
+        
+        awaitClose {
+            usersRef.child(userId).removeEventListener(listener)
+        }
+    }
+    
+    /**
+     * Get all active flags for a customer from userFlags collection
+     * Path: userFlags/{userId}
+     */
+    suspend fun getUserActiveFlags(userId: String): Result<List<DriverFlag>> {
+        return try {
+            val userFlagsRef = database.child("userFlags").child(userId)
+            val snapshot = userFlagsRef.get().await()
+            
+            val activeFlags = mutableListOf<DriverFlag>()
+            
+            snapshot.children.forEach { flagSnapshot ->
+                val flag = parseDriverFlag(flagSnapshot) // Reuse same parser
+                // Only include active flags
+                if (flag != null && flag.status == "active") {
+                    activeFlags.add(flag)
+                }
+            }
+            
+            // Sort by severity (critical -> high -> medium -> low) and then by points (descending)
+            val sortedFlags = activeFlags.sortedWith(
+                compareByDescending<DriverFlag> { getSeverityPriority(it.severity) }
+                    .thenByDescending { it.points }
+            )
+            
+            Result.success(sortedFlags)
+        } catch (e: Exception) {
+            println("Error fetching customer active flags: ${e.message}")
+            Result.failure(e)
+        }
+    }
+    
+    /**
+     * Observe customer flags in real-time from userFlags collection
+     * Path: userFlags/{userId}
+     */
+    fun observeUserFlags(userId: String): Flow<List<DriverFlag>> = callbackFlow {
+        val userFlagsRef = database.child("userFlags").child(userId)
+        
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val activeFlags = mutableListOf<DriverFlag>()
+                
+                snapshot.children.forEach { flagSnapshot ->
+                    val flag = parseDriverFlag(flagSnapshot)
+                    // Only include active flags
+                    if (flag != null && flag.status == "active") {
+                        activeFlags.add(flag)
+                    }
+                }
+                
+                // Sort by severity and points
+                val sortedFlags = activeFlags.sortedWith(
+                    compareByDescending<DriverFlag> { getSeverityPriority(it.severity) }
+                        .thenByDescending { it.points }
+                )
+                
+                trySend(sortedFlags)
+            }
+            
+            override fun onCancelled(error: DatabaseError) {
+                println("Error observing customer flags: ${error.message}")
+                close(error.toException())
+            }
+        }
+        
+        userFlagsRef.addValueEventListener(listener)
+        
+        awaitClose {
+            userFlagsRef.removeEventListener(listener)
         }
     }
 

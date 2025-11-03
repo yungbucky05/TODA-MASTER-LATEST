@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Role Management - TODA Admin</title>
+  <link rel="stylesheet" href="RoleManagement.css">
+  <link rel="icon" type="image/png" href="../moto_logo.png">
+</head>
+<body>
+  <div class="page-container">
+    <header class="top-bar">
+      <button class="back-btn" onclick="window.location.href='../index.html'">
+        <span class="icon">←</span>
+      </button>
+      <div class="page-title">
+        <h1>Role Management</h1>
+        <p>Create and maintain administrator and barker accounts</p>
+      </div>
+    </header>
+
+    <div class="stats-grid">
+      <div class="stat-card blue">
+        <div class="stat-icon">🛡️</div>
+        <div class="stat-details">
+          <div class="stat-value" id="totalAccounts">0</div>
+          <div class="stat-label">Total Managed Accounts</div>
+        </div>
+      </div>
+      <div class="stat-card purple">
+        <div class="stat-icon">👩‍💼</div>
+        <div class="stat-details">
+          <div class="stat-value" id="adminCount">0</div>
+          <div class="stat-label">Admins</div>
+        </div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-icon">🚦</div>
+        <div class="stat-details">
+          <div class="stat-value" id="barkerCount">0</div>
+          <div class="stat-label">Barkers</div>
+        </div>
+      </div>
+      <div class="stat-card orange">
+        <div class="stat-icon">✅</div>
+        <div class="stat-details">
+          <div class="stat-value" id="activeCount">0</div>
+          <div class="stat-label">Active Accounts</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-layout">
+      <div class="content-card form-card">
+        <div class="card-header">
+          <div>
+            <h2>Create New Account</h2>
+            <p class="card-subtitle">Provide credentials and assign a role to grant access</p>
+          </div>
+          <button class="outline-btn" id="generatePasswordBtn" type="button">Generate Password</button>
+        </div>
+        <form id="accountForm" class="form-grid">
+          <div class="form-field">
+            <label for="fullName">Full Name</label>
+            <input type="text" id="fullName" placeholder="e.g., Maria Santos" required>
+          </div>
+          <div class="form-field">
+            <label for="phoneNumber">Phone Number</label>
+            <input type="tel" id="phoneNumber" placeholder="09xxxxxxxxx" required>
+          </div>
+          <div class="form-field">
+            <label for="email">Email (optional)</label>
+            <input type="email" id="email" placeholder="maria@example.com">
+          </div>
+          <div class="form-field">
+            <label for="accountRole">Role</label>
+            <select id="accountRole" required>
+              <option value="ADMIN">Administrator</option>
+              <option value="BARKER">Barker</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label for="password">Password</label>
+            <div class="input-with-action">
+              <input type="password" id="password" minlength="6" required>
+              <button type="button" class="link-btn" data-toggle="password">Show</button>
+            </div>
+          </div>
+          <div class="form-field">
+            <label for="confirmPassword">Confirm Password</label>
+            <div class="input-with-action">
+              <input type="password" id="confirmPassword" minlength="6" required>
+              <button type="button" class="link-btn" data-toggle="confirmPassword">Show</button>
+            </div>
+          </div>
+          <div class="form-row">
+            <label class="checkbox-label">
+              <input type="checkbox" id="sendCredentialsCheckbox">
+              <span>Display generated credentials after creation</span>
+            </label>
+          </div>
+          <div id="formFeedback" class="form-feedback" role="alert" aria-live="polite"></div>
+          <div class="form-actions">
+            <button type="submit" id="createAccountBtn" class="primary-btn">Create Account</button>
+            <button type="reset" class="secondary-btn">Clear</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="content-card guidance-card">
+        <div class="card-header">
+          <h2>Role Guidelines</h2>
+        </div>
+        <div class="guidelines">
+          <div class="guideline-item">
+            <h3>Administrator</h3>
+            <p>Full access to the web dashboard, including driver management, audit logs, and queue tools.</p>
+          </div>
+          <div class="guideline-item">
+            <h3>Barker</h3>
+            <p>Focused on on-site queue operations. Only assign this role to trusted staff at terminals.</p>
+          </div>
+          <div class="guideline-item">
+            <h3>Security Tips</h3>
+            <ul>
+              <li>Use unique phone numbers. Reusing numbers blocks login.</li>
+              <li>Encourage strong passwords or generate them automatically.</li>
+              <li>Deactivate unused accounts instead of deleting to preserve history.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="content-card">
+      <div class="card-header list-header">
+        <div>
+          <h2>Managed Accounts</h2>
+          <p class="card-subtitle">Search by name, phone, or email to find an account quickly</p>
+        </div>
+        <div class="list-controls">
+          <input type="text" id="searchInput" class="search-input" placeholder="Search accounts...">
+          <select id="roleFilter" class="filter-select">
+            <option value="all">All Roles</option>
+            <option value="ADMIN">Administrators</option>
+            <option value="BARKER">Barkers</option>
+          </select>
+          <select id="statusFilter" class="filter-select">
+            <option value="all">All Statuses</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </div>
+      </div>
+      <div id="accountsList" class="accounts-list">
+        <div class="loading">Loading accounts...</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="messageContainer" class="message-container"></div>
+
+  <div id="confirmModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="confirmTitle">Confirm Action</h2>
+  <button class="close-btn" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="confirmMessage"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="secondary-btn" data-dismiss="modal">Cancel</button>
+        <button class="primary-btn" id="confirmButton">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="credentialsModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Account Credentials</h2>
+  <button class="close-btn" data-dismiss="credentials">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Share these details securely with the new user.</p>
+        <div class="credential-item">
+          <span class="label">Name</span>
+          <span class="value" id="credentialName">-</span>
+        </div>
+        <div class="credential-item">
+          <span class="label">Phone</span>
+          <span class="value" id="credentialPhone">-</span>
+        </div>
+        <div class="credential-item">
+          <span class="label">Role</span>
+          <span class="value" id="credentialRole">-</span>
+        </div>
+        <div class="credential-item">
+          <span class="label">Password</span>
+          <span class="value" id="credentialPassword">-</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="secondary-btn" data-dismiss="credentials">Close</button>
+        <button class="primary-btn" id="copyCredentialsBtn">Copy Details</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="RoleManagement.js"></script>
+</body>
+</html>

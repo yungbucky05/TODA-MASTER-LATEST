@@ -195,6 +195,15 @@ fun ActiveBookingScreen(
                     bookingViewModel.clearDriverFoundDialog(booking.id)
                     snackbarHostState.showSnackbar("Booking was cancelled.")
                 }
+                BookingStatus.NO_SHOW -> {
+                    // Customer no-show detected - clear state and navigate back
+                    bookingViewModel.clearDriverFoundDialog(booking.id)
+                    bookingViewModel.stopBookingPolling(booking.id)
+                    snackbarHostState.showSnackbar("Booking cancelled - Customer no-show")
+                    // Small delay to show the snackbar, then navigate back
+                    kotlinx.coroutines.delay(1500)
+                    onBack()
+                }
                 else -> Unit
             }
         }
@@ -205,11 +214,6 @@ fun ActiveBookingScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Active Booking") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
                 actions = {
                     // Passenger: call the driver if phone available
                     if (currentUser.userType == UserType.PASSENGER && driverPhone.isNotBlank()) {

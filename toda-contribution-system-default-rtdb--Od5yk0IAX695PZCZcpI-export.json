@@ -1,0 +1,40 @@
+{
+  "actualFare": 20,
+  "arrivedAtPickup": true,
+  "arrivedAtPickupTime": 1762127499806,
+  "assignedDriverId": "aQAyEHQ6prhOqs7layjLwLvW1g43",
+  "assignedTricycleId": "TODA-555",
+  "completionTime": 1762127502402,
+  "completionTimeLong": 0,
+  "customerId": "FCQebAgg2sVIfLDZR4CXDD5iXhL2",
+  "customerName": "Ken Zamodio",
+  "destination": "Alma Jose Street, Barangay 177, Caloocan City",
+  "distance": 0.6856030388301642,
+  "driverName": "Ken Aixroch Atienza Zamodio",
+  "driverRFID": "2E908005",
+  "dropoffCoordinates": {
+    "lat": 14.746157223323834,
+    "lng": 121.04649680001398
+  },
+  "duration": 0,
+  "estimatedFare": 20,
+  "feedback": "",
+  "id": "-Od5yk0IAX695PZCZcpI",
+  "noShow": false,
+  "noShowReportedTime": 0,
+  "paymentMethod": "CASH",
+  "phoneActuallyVerified": true,
+  "phoneNumber": "09123123123",
+  "phoneVerified": true,
+  "pickupCoordinates": {
+    "lat": 14.747508993411756,
+    "lng": 121.05271748134066
+  },
+  "pickupLocation": "Avocado Street, Barangay 177, Caloocan City",
+  "rating": 0,
+  "status": "COMPLETED",
+  "timestamp": 1762127429747,
+  "todaNumber": "TODA-555",
+  "tripType": "App Booking",
+  "verificationCode": "633853"
+}

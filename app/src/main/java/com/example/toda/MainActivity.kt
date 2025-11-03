@@ -432,8 +432,6 @@ fun BookingApp(
                     customerLocationService = locationBookingViewModel.getCustomerLocationService(),
                     driverTrackingService = locationBookingViewModel.driverTrackingService,
                     onBookingSubmitted = { booking ->
-                        // Keep a snapshot so we can show map + waiting state immediately
-                        pendingBookingSnapshot = booking
                         // Save to Firebase using EnhancedBookingViewModel
                         enhancedBookingViewModel.createBooking(
                             customerId = booking.customerId,
@@ -445,8 +443,8 @@ fun BookingApp(
                             dropoffGeoPoint = booking.dropoffGeoPoint,
                             estimatedFare = booking.estimatedFare
                         )
-                        // Optimistically navigate while waiting for server to echo the booking
-                        currentScreen = "active_booking"
+                        // Stay on customer interface - user can view booking in "Bookings" tab
+                        // No automatic navigation to active_booking screen
                     },
                     onCompleteBooking = { bookingId ->
                         enhancedBookingViewModel.updateBookingStatusOnly(bookingId, "COMPLETED")
