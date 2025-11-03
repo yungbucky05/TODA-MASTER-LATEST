@@ -172,43 +172,23 @@ if exist "%APK_DRIVER%" (
     dir "app\build\outputs\apk\driver\release\" || dir "app\build\outputs\apk\driver\"
 )
 
-REM Build Admin release
+REM Build Barker app release
 echo.
-echo Building Admin release APK...
-call gradlew.bat assembleAdminRelease --no-daemon
-if %ERRORLEVEL% NEQ 0 (
-    echo BUILD FAILED for admin. Check the Gradle output above.
-    echo.
-    echo Press any key to exit...
-    pause >nul
-    exit /b 1
-)
-set APK_ADMIN=app\build\outputs\apk\admin\release\app-admin-release.apk
-echo Checking for APK at %APK_ADMIN%
-if exist "%APK_ADMIN%" (
-    echo ✓ SUCCESS: %APK_ADMIN% created!
-) else (
-    echo ✗ WARNING: Expected APK not found at %APK_ADMIN%
-    dir "app\build\outputs\apk\admin\release\" || dir "app\build\outputs\apk\admin\"
-)
-
-REM Build Barker release
-echo.
-echo Building Barker release APK...
+echo Building Barker app release APK...
 call gradlew.bat assembleBarkerRelease --no-daemon
 if %ERRORLEVEL% NEQ 0 (
-    echo BUILD FAILED for barker. Check the Gradle output above.
+    echo BUILD FAILED for barker app. Check the Gradle output above.
     echo.
     echo Press any key to exit...
     pause >nul
     exit /b 1
 )
-set APK_BARKER=app\build\outputs\apk\barker\release\app-barker-release.apk
-echo Checking for APK at %APK_BARKER%
-if exist "%APK_BARKER%" (
-    echo ✓ SUCCESS: %APK_BARKER% created!
+set APK_BARKER_APP=app\build\outputs\apk\barker\release\app-barker-release.apk
+echo Checking for APK at %APK_BARKER_APP%
+if exist "%APK_BARKER_APP%" (
+    echo ✓ SUCCESS: %APK_BARKER_APP% created!
 ) else (
-    echo ✗ WARNING: Expected APK not found at %APK_BARKER%
+    echo ✗ WARNING: Expected APK not found at %APK_BARKER_APP%
     dir "app\build\outputs\apk\barker\release\" || dir "app\build\outputs\apk\barker\"
 )
 

@@ -23,6 +23,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.toda.data.Booking
 import com.example.toda.data.BookingStatus
@@ -78,6 +80,8 @@ fun DriverInterface(
     var isRestoringPaymentMode by remember { mutableStateOf(false) }
     var driverBalance by remember { mutableStateOf(0.0) }
     var showPaymentModeSelection by remember { mutableStateOf(false) }
+    var showPrivacyDialog by remember { mutableStateOf(false) }
+    var showHelpDialog by remember { mutableStateOf(false) }
 
     // Load driver RFID and stats
     LaunchedEffect(user.id) {
@@ -332,6 +336,36 @@ fun DriverInterface(
         sorted
     }
 
+    if (showHelpDialog) {
+        AlertDialog(
+            onDismissRequest = { showHelpDialog = false },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Help, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("How to use TODA")
+                }
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "- Go Online at the terminal to receive bookings.\n" +
+                            "- Track Active Trips and update statuses as you drive.\n" +
+                            "- Review Available Bookings and accept jobs you can take.\n" +
+                            "- Check Contributions and RFID tabs for account updates.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showHelpDialog = false }) {
+                    Text("Got it")
+                }
+            }
+        )
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -378,6 +412,32 @@ fun DriverInterface(
                                 )
                         )
                         Spacer(modifier = Modifier.width(8.dp))
+
+                        IconButton(
+                            onClick = { showHelpDialog = true },
+                            colors = IconButtonDefaults.iconButtonColors(
+                                contentColor = Color(0xFF1976D2)
+                            )
+                        ) {
+                            Icon(
+                                Icons.Default.Help,
+                                contentDescription = "How to use the app"
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(4.dp))
+
+                        IconButton(
+                            onClick = { showPrivacyDialog = true },
+                            colors = IconButtonDefaults.iconButtonColors(
+                                contentColor = Color(0xFF1976D2)
+                            )
+                        ) {
+                            Icon(
+                                Icons.Default.Info,
+                                contentDescription = "Privacy and Terms"
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(4.dp))
 
                         // Sign Out Button
                         IconButton(
@@ -715,6 +775,65 @@ fun DriverInterface(
                     }
                 },
                 isFirstTimeSetup = true
+            )
+        }
+
+        if (showPrivacyDialog) {
+            val scrollState = rememberScrollState()
+            AlertDialog(
+                onDismissRequest = { showPrivacyDialog = false },
+                title = { Text("Privacy Notice", fontWeight = FontWeight.Bold) },
+                text = {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 420.dp)
+                            .verticalScroll(scrollState)
+                    ) {
+                        Text(
+                            text = "We value your privacy. In compliance with the Data Privacy Act of 2012 (RA 10173), we collect your personal data, including your Driver's License Number, ID documents, and contact information, solely for verifying your identity, eligibility, and compliance as a registered driver under the CCCH TODA system.",
+                            fontSize = 14.sp,
+                            color = Color.Black
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(text = "• Used only for registration, verification, compliance, and monitoring purposes.", fontSize = 14.sp)
+                        Text(text = "• Accessed only by authorized TODA officials and system administrators.", fontSize = 14.sp)
+                        Text(text = "• Stored securely and protected from unauthorized access.", fontSize = 14.sp)
+                        Text(text = "• Retained only as long as necessary for the stated purposes.", fontSize = 14.sp)
+                        Text(text = "• Not shared, sold, or disclosed to third parties without your consent unless required by law.", fontSize = 14.sp)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Divider()
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("Terms and Conditions", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(text = "1. Registration and Verification", fontWeight = FontWeight.Medium)
+                        Text(text = "• Drivers must submit valid identification and required documents for verification.", fontSize = 14.sp)
+                        Text(text = "• Only verified and approved drivers will receive an assigned RFID card for logging butaw contributions.", fontSize = 14.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(text = "2. RFID Use", fontWeight = FontWeight.Medium)
+                        Text(text = "• Each RFID card is unique and non-transferable.", fontSize = 14.sp)
+                        Text(text = "• Lost RFID cards must be reported immediately through the app for deactivation and reassignment.", fontSize = 14.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(text = "3. Butaw Contributions", fontWeight = FontWeight.Medium)
+                        Text(text = "• All contributions made through the RFID-enabled Smart Piggy Bank are final and non-refundable.", fontSize = 14.sp)
+                        Text(text = "• Failure to contribute after each ride may result in being flagged by the system for non-compliance.", fontSize = 14.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(text = "4. App Usage and Queue System", fontWeight = FontWeight.Medium)
+                        Text(text = "• Drivers must use the app to receive online bookings and view their queue position.", fontSize = 14.sp)
+                        Text(text = "• The system ensures fair dispatching; tampering or misusing the app may result in suspension.", fontSize = 14.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(text = "5. Data Protection", fontWeight = FontWeight.Medium)
+                        Text(text = "• All collected personal information will be kept confidential and used only for TODA operations and verification.", fontSize = 14.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(text = "6. Compliance", fontWeight = FontWeight.Medium)
+                        Text(text = "• Drivers must comply with TODA policies and local government transport regulations while using the system.", fontSize = 14.sp)
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showPrivacyDialog = false }) {
+                        Text("Close")
+                    }
+                }
             )
         }
     }
