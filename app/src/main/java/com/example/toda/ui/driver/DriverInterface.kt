@@ -26,6 +26,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.toda.data.Booking
 import com.example.toda.data.BookingStatus
 import com.example.toda.data.User
+import com.example.toda.data.DriverFlag
+import com.example.toda.data.DriverFlagData
 import com.example.toda.viewmodel.EnhancedBookingViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
@@ -192,6 +194,39 @@ fun DriverInterface(
         }
     }
 
+    // Flag System State
+    var flagScore by remember { mutableStateOf(0) }
+    var flagStatus by remember { mutableStateOf("good") }
+    var activeFlags by remember { mutableStateOf<List<DriverFlag>>(emptyList()) }
+    var isSuspended by remember { mutableStateOf(false) }
+
+    // Real-time observer for driver flag data (flagScore and flagStatus)
+    LaunchedEffect(user.id) {
+        if (user.id.isNotEmpty()) {
+            viewModel.observeDriverFlagData(user.id).collect { flagData ->
+                println("=== FLAG DATA UPDATE ===")
+                println("Driver ${user.id} - Score: ${flagData.flagScore}, Status: ${flagData.flagStatus}")
+                flagScore = flagData.flagScore
+                flagStatus = flagData.flagStatus
+                isSuspended = flagData.flagStatus == "suspended"
+            }
+        }
+    }
+
+    // Real-time observer for active flags
+    LaunchedEffect(user.id) {
+        if (user.id.isNotEmpty()) {
+            viewModel.observeDriverFlags(user.id).collect { flags ->
+                println("=== ACTIVE FLAGS UPDATE ===")
+                println("Driver ${user.id} has ${flags.size} active flags")
+                flags.forEach { flag ->
+                    println("  - ${flag.type}: +${flag.points} pts (${flag.severity})")
+                }
+                activeFlags = flags
+            }
+        }
+    }
+
     // Refresh stats whenever bookings change (to update dashboard in real-time)
     LaunchedEffect(activeBookings.size, activeBookings.hashCode()) {
         if (user.id.isNotEmpty()) {
@@ -321,11 +356,22 @@ fun DriverInterface(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color(0xFFF5F5F5))
-        ) {
+        // Check if driver is suspended - show blocked screen
+        if (isSuspended) {
+            BlockedAccessScreen(
+                flagScore = flagScore,
+                onContactSupport = {
+                    // TODO: Implement contact support navigation
+                    println("Contact support clicked from blocked screen")
+                }
+            )
+        } else {
+            // Normal driver interface
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xFFF5F5F5))
+            ) {
             // Top App Bar - NO TOGGLE SWITCH, status is read-only based on contributions
             TopAppBar(
                 title = {
@@ -424,6 +470,40 @@ fun DriverInterface(
                     text = "RFID",
                     isSelected = selectedTab == 4,
                     onClick = { selectedTab = 4 }
+                )
+                // Add Flags tab - show badge if there are active flags
+                Box {
+                    TabButton(
+                        icon = Icons.Default.Flag,
+                        text = "Flags",
+                        isSelected = selectedTab == 5,
+                        onClick = { selectedTab = 5 }
+                    )
+                    // Show badge with flag count if there are active flags
+                    if (activeFlags.isNotEmpty()) {
+                        Badge(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .offset(x = (-8).dp, y = 8.dp)
+                        ) {
+                            Text(
+                                text = activeFlags.size.toString(),
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Flag Status Banner - Show if driver is monitored, restricted, or suspended
+            if (flagStatus != "good") {
+                FlagStatusBanner(
+                    flagStatus = flagStatus,
+                    flagScore = flagScore,
+                    onContactSupport = {
+                        // TODO: Implement contact support navigation
+                        println("Contact support clicked - TODO: Navigate to support screen")
+                    }
                 )
             }
 
@@ -526,12 +606,65 @@ fun DriverInterface(
                             }
                         )
                     }
+                    5 -> {
+                        // Flags Content - Show active flags and status
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color(0xFFF5F5F5))
+                        ) {
+                            // Flag Status Card
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column {
+                                            Text(
+                                                text = "Account Status",
+                                                fontSize = 16.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = "Flag Score: $flagScore points",
+                                                fontSize = 14.sp,
+                                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                            )
+                                        }
+                                        FlagStatusBadge(
+                                            flagStatus = flagStatus,
+                                            flagScore = flagScore
+                                        )
+                                    }
+                                }
+                            }
+                            
+                            // Active Flags List
+                            ActiveFlagsList(
+                                flags = activeFlags,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
                 }
             }
         }
+        } // End of else block for non-suspended drivers
 
-        // Leave Queue Button - appears at the bottom when driver is online
-        if (isOnline && !isLoading) {
+        // Leave Queue Button - appears at the bottom when driver is online (and not suspended)
+        if (isOnline && !isLoading && !isSuspended) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()

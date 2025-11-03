@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
@@ -19,11 +20,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CoroutineScope
 import org.osmdroid.util.GeoPoint
 import com.example.toda.data.*
+import com.example.toda.data.DriverFlag
+import com.example.toda.data.FlagStatus
 import com.example.toda.service.CustomerLocationService
 import com.example.toda.service.GeocodingService
 import com.example.toda.service.DriverTrackingService
@@ -34,6 +38,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.*
 import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.toda.ui.chat.SimpleChatScreen
 import com.example.toda.viewmodel.EnhancedBookingViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -120,6 +125,43 @@ fun CustomerInterface(
 
     // Driver tracking state
     val driverTracking by driverTrackingService.driverUpdates.collectAsState(initial = null)
+
+    // Real-time fare matrix state - Special trip (default for customers)
+    val specialFareMatrix by viewModel.specialFareMatrix.collectAsStateWithLifecycle()
+
+    // Debug: Print when fare matrix updates
+    LaunchedEffect(specialFareMatrix) {
+        println("=== FARE MATRIX UPDATED ===")
+        println("Base Fare: ₱${specialFareMatrix.baseFare}")
+        println("Per KM Rate: ₱${specialFareMatrix.perKmRate}")
+        println("Last Updated: ${specialFareMatrix.lastUpdated}")
+        println("Updated By: ${specialFareMatrix.updatedBy}")
+        println("==========================")
+    }
+
+    // ==================== FLAG MONITORING ====================
+    // Customer flag data state
+    var flagScore by remember { mutableStateOf(0) }
+    var flagStatus by remember { mutableStateOf(FlagStatus.GOOD) }
+    var activeFlags by remember { mutableStateOf<List<DriverFlag>>(emptyList()) }
+    
+    // Observe customer flag data in real-time
+    LaunchedEffect(user.id) {
+        viewModel.observeUserFlagData(user.id).collect { flagData ->
+            flagScore = flagData.flagScore
+            flagStatus = FlagStatus.fromString(flagData.flagStatus)
+            println("📊 Customer flag data updated: $flagScore pts, Status: $flagStatus")
+        }
+    }
+    
+    // Observe active flags in real-time
+    LaunchedEffect(user.id) {
+        viewModel.observeUserFlags(user.id).collect { flags ->
+            activeFlags = flags
+            println("🚩 Customer active flags updated: ${flags.size} active flags")
+        }
+    }
+    // =========================================================
 
     // Find assigned booking (accepted or in progress booking for current user)
     val assignedBooking = bookings.find { booking ->
@@ -271,15 +313,16 @@ fun CustomerInterface(
     }
 
     // Calculate fare when both locations are selected
-    LaunchedEffect(pickupGeoPoint, dropoffGeoPoint, user.profile) {
+    LaunchedEffect(pickupGeoPoint, dropoffGeoPoint, user.profile, specialFareMatrix) {
         if (pickupGeoPoint != null && dropoffGeoPoint != null) {
             val driverLocation = GeoPoint(14.746, 121.048) // Default driver location
-            // Pass user profile to calculate fare with discount
+            // Pass user profile AND fare matrix to calculate fare with discount and live rates
             val calculatedFare = calculateDetailedFare(
                 pickupGeoPoint!!,
                 dropoffGeoPoint!!,
                 driverLocation,
-                user.profile
+                user.profile,
+                specialFareMatrix // Pass live fare rates
             )
             fareBreakdown = calculatedFare
         } else {
@@ -326,6 +369,18 @@ fun CustomerInterface(
     }
 
     fun submitBooking() {
+        // Check if customer is suspended
+        if (flagStatus == FlagStatus.SUSPENDED) {
+            coroutineScope.launch {
+                snackbarHostState.showSnackbar(
+                    message = "🚫 Your account is suspended. You cannot create bookings.",
+                    duration = SnackbarDuration.Long
+                )
+            }
+            currentView = "flags" // Navigate to flags tab
+            return
+        }
+        
         // Add debugging information
         println("=== BOOKING SUBMISSION DEBUG ===")
         println("pickupGeoPoint: $pickupGeoPoint")
@@ -335,6 +390,8 @@ fun CustomerInterface(
         println("locationValidation.isValid: ${locationValidation.isValid}")
         println("locationValidation.message: ${locationValidation.message}")
         println("fareBreakdown: $fareBreakdown")
+        println("flagStatus: $flagStatus")
+        println("flagScore: $flagScore")
         println("===============================")
 
         if (pickupGeoPoint != null && dropoffGeoPoint != null &&
@@ -372,87 +429,86 @@ fun CustomerInterface(
             onBookingSubmitted(booking)
             showSuccessMessage = true
 
-            // DON'T reset form - keep the data so user can retry if booking fails
-            // This allows easy editing and resubmission if there are no available drivers
+            // Clear the form after successful submission
+            pickupLocation = null
+            destination = null
+            pickupGeoPoint = null
+            dropoffGeoPoint = null
+            pickupInputText = ""
+            destinationInputText = ""
+            fareBreakdown = null
+            
+            // Clear saved pending booking data
+            PendingBookingStore.clear(context)
         } else {
             println("Booking submission failed - validation conditions not met")
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        ImprovedTopBar(
-            userName = user.name,
-            onBack = onBack,
-            onLogout = onLogout
-        )
-
-        // View Toggle Buttons
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+    Scaffold(
+        topBar = {
+            ModernTopBar(
+                userName = user.name,
+                onBack = onBack,
+                onLogout = onLogout
+            )
+        },
+        bottomBar = {
+            ModernBottomNavigation(
+                currentView = currentView,
+                activeFlags = activeFlags,
+                onViewChange = { currentView = it }
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
         ) {
-            Button(
-                onClick = { currentView = "booking" },
-                modifier = Modifier.weight(1f),
-                colors = if (currentView == "booking")
-                    ButtonDefaults.buttonColors()
-                else
-                    ButtonDefaults.outlinedButtonColors()
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Book Ride")
-            }
-
-            Button(
-                onClick = { currentView = "history" },
-                modifier = Modifier.weight(1f),
-                colors = if (currentView == "history")
-                    ButtonDefaults.buttonColors()
-                else
-                    ButtonDefaults.outlinedButtonColors()
-            ) {
-                Icon(Icons.Default.History, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("History (${bookingHistory.size})")
-            }
-        }
 
         when (currentView) {
             "booking" -> {
-                BookingView(
-                    user = user,
-                    displayedBooking = bookingForOverlay,
-                    customerLocation = customerLocation,
-                    isCurrentlyTracking = isCurrentlyTracking,
-                    driverTracking = driverTracking,
-                    pickupLocation = pickupLocation,
-                    destination = destination,
-                    pickupGeoPoint = pickupGeoPoint,
-                    dropoffGeoPoint = dropoffGeoPoint,
-                    isSelectingPickup = isSelectingPickup,
-                    isSelectingDropoff = isSelectingDropoff,
-                    isLoadingLocation = isLoadingLocation,
-                    locationValidation = locationValidation,
-                    fareBreakdown = fareBreakdown,
-                    showSuccessMessage = showSuccessMessage,
-                    snackbarHostState = snackbarHostState, // Add snackbar host state
-                    // Dialog state
-                    showInvalidLocationDialog = showInvalidLocationDialog,
-                    invalidLocationMessage = invalidLocationMessage,
-                    onInvalidLocationDialogDismiss = { showInvalidLocationDialog = false },
-                    onShowInvalidLocationDialog = { message ->
-                        invalidLocationMessage = message
-                        showInvalidLocationDialog = true
-                    },
-                    onPickupLocationSelect = { isSelectingPickup = true },
-                    onDropoffLocationSelect = { isSelectingDropoff = true },
-                    onMapClick = { geoPoint ->
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // Show flag status banner if customer is flagged
+                    if (flagStatus != FlagStatus.GOOD) {
+                        CustomerFlagStatusBanner(
+                            flagStatus = flagStatus,
+                            flagScore = flagScore,
+                            activeFlags = activeFlags,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                    
+                    BookingView(
+                        user = user,
+                        displayedBooking = bookingForOverlay,
+                        customerLocation = customerLocation,
+                        isCurrentlyTracking = isCurrentlyTracking,
+                        driverTracking = driverTracking,
+                        pickupLocation = pickupLocation,
+                        destination = destination,
+                        pickupGeoPoint = pickupGeoPoint,
+                        dropoffGeoPoint = dropoffGeoPoint,
+                        isSelectingPickup = isSelectingPickup,
+                        isSelectingDropoff = isSelectingDropoff,
+                        isLoadingLocation = isLoadingLocation,
+                        locationValidation = locationValidation,
+                        fareBreakdown = fareBreakdown,
+                        showSuccessMessage = showSuccessMessage,
+                        snackbarHostState = snackbarHostState, // Add snackbar host state
+                        // Dialog state
+                        showInvalidLocationDialog = showInvalidLocationDialog,
+                        invalidLocationMessage = invalidLocationMessage,
+                        onInvalidLocationDialogDismiss = { showInvalidLocationDialog = false },
+                        onShowInvalidLocationDialog = { message ->
+                            invalidLocationMessage = message
+                            showInvalidLocationDialog = true
+                        },
+                        onPickupLocationSelect = { isSelectingPickup = true },
+                        onDropoffLocationSelect = { isSelectingDropoff = true },
+                        onMapClick = { geoPoint ->
                         when {
                             isSelectingPickup -> {
                                 pickupGeoPoint = geoPoint
@@ -577,6 +633,7 @@ fun CustomerInterface(
                         currentView = "booking"
                     }
                 )
+                } // End of Column for booking view
             }
             "history" -> {
                 BookingHistoryView(
@@ -584,6 +641,96 @@ fun CustomerInterface(
                     currentBookings = bookings.filter { it.customerId == user.id },
                     onOpenActiveBooking = onOpenActiveBooking // pass through
                 )
+            }
+            "flags" -> {
+                // Flags View - Show account status and active flags
+                if (flagStatus == FlagStatus.SUSPENDED) {
+                    // Show blocked access screen for suspended customers
+                    CustomerBlockedAccessScreen(
+                        userName = user.name,
+                        flagScore = flagScore,
+                        activeFlags = activeFlags,
+                        onContactSupport = {
+                            // TODO: Implement contact support
+                            println("Contact support clicked")
+                        }
+                    )
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        // Status Banner (only show if flagged)
+                        if (flagStatus != FlagStatus.GOOD) {
+                            CustomerFlagStatusBanner(
+                                flagStatus = flagStatus,
+                                flagScore = flagScore,
+                                activeFlags = activeFlags
+                            )
+                        }
+                        
+                        // Status Summary Card
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(20.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Text(
+                                    text = "Account Status",
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                
+                                CustomerFlagStatusBadge(
+                                    flagStatus = flagStatus,
+                                    flagScore = flagScore
+                                )
+                                
+                                HorizontalDivider()
+                                
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Flag Score:")
+                                    Text(
+                                        text = "$flagScore points",
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Active Issues:")
+                                    Text(
+                                        text = "${activeFlags.size}",
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (activeFlags.isNotEmpty()) Color(0xFFD32F2F) else Color(0xFF4CAF50)
+                                    )
+                                }
+                            }
+                        }
+                        
+                        // Active Flags List
+                        CustomerActiveFlagsList(
+                            flags = activeFlags,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                    }
+                }
             }
         }
 
@@ -625,12 +772,6 @@ fun CustomerInterface(
             }
         }
 
-        // Snackbar for validation messages
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier.align(Alignment.CenterHorizontally)
-        )
-
         // Invalid location dialog
         if (showInvalidLocationDialog) {
             AlertDialog(
@@ -645,6 +786,7 @@ fun CustomerInterface(
                     }
                 }
             )
+        }
         }
     }
 
@@ -1823,13 +1965,22 @@ private fun BookingHistoryCard(
                     fontWeight = FontWeight.Bold
                 )
                 Badge(
-                    containerColor = when (booking.status.name) {
-                        "COMPLETED" -> Color.Green
-                        "CANCELLED" -> Color.Red
+                    containerColor = when (booking.status) {
+                        BookingStatus.COMPLETED -> Color(0xFF4CAF50) // Green
+                        BookingStatus.CANCELLED -> Color(0xFFFF5252) // Red
+                        BookingStatus.NO_SHOW -> Color(0xFFFF6F00) // Orange
+                        BookingStatus.REJECTED -> Color(0xFF757575) // Gray
                         else -> MaterialTheme.colorScheme.secondary
                     }
                 ) {
-                    Text(booking.status.name)
+                    Text(
+                        text = when (booking.status) {
+                            BookingStatus.NO_SHOW -> "NO SHOW"
+                            else -> booking.status.name
+                        },
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
 
@@ -2006,15 +2157,11 @@ private fun calculateDistance(pickup: GeoPoint, dropoff: GeoPoint): Double {
 }
 
 // Helper function to calculate fare based on distance
-private fun calculateFare(distance: Double): Double {
-    val baseFare = 25.0 // Base fare in PHP
-    val perKmRate = 10.0 // Rate per kilometer in PHP
-
-    return if (distance <= 2.0) {
-        baseFare
-    } else {
-        baseFare + ((distance - 2.0) * perKmRate)
-    }
+private fun calculateFare(distance: Double, baseFare: Double, perKmRate: Double): Double {
+    // Use formula from README: Total Fare = Base Fare + (Distance - 1) × Per KM Rate
+    // First kilometer is included in base fare
+    val additionalKm = maxOf(0.0, distance - 1.0)
+    return baseFare + (additionalKm * perKmRate)
 }
 
 // Helper function to check if a location is within Barangay 177 (Camarin)
@@ -2075,12 +2222,15 @@ private fun calculateDetailedFare(
     pickupLocation: GeoPoint,
     dropoffLocation: GeoPoint,
     driverLocation: GeoPoint,
-    userProfile: UserProfile? // User profile containing discount information
+    userProfile: UserProfile?, // User profile containing discount information
+    fareMatrix: FareMatrix // Real-time fare rates from Firebase
 ): FareBreakdown {
-    println("=== FARE CALCULATION WITH DISCOUNT (CONVENIENCE INCLUDED IN BASE) ===")
+    println("=== FARE CALCULATION WITH REAL-TIME RATES ===")
     println("User Profile: $userProfile")
     println("Discount Type: ${userProfile?.discountType}")
     println("Discount Verified: ${userProfile?.discountVerified}")
+    println("Base Fare (from Firebase): ₱${fareMatrix.baseFare}")
+    println("Per KM Rate (from Firebase): ₱${fareMatrix.perKmRate}")
 
     // Calculate passenger trip distance
     val passengerDistance = calculateDistance(pickupLocation, dropoffLocation)
@@ -2088,8 +2238,8 @@ private fun calculateDetailedFare(
     // Calculate driver travel distance to pickup
     val driverToPickupDistance = calculateDistance(driverLocation, pickupLocation)
 
-    // Calculate base fare for passenger trip (before convenience)
-    val baseFareCore = calculateFare(passengerDistance)
+    // Calculate base fare for passenger trip using LIVE rates from Firebase
+    val baseFareCore = calculateFare(passengerDistance, fareMatrix.baseFare, fareMatrix.perKmRate)
 
     // Calculate driver travel fee (reduced rate for driver positioning)
     val driverTravelFee = if (driverToPickupDistance <= 1.0) {
@@ -2175,5 +2325,325 @@ private fun getTODANumber(booking: Booking): String {
         booking.todaNumber.isNotEmpty() -> booking.todaNumber
         booking.assignedTricycleId.isNotEmpty() -> booking.assignedTricycleId
         else -> "Not assigned"
+    }
+}
+
+/**
+ * Modern Top Bar with improved design
+ */
+@Composable
+private fun ModernTopBar(
+    userName: String,
+    onBack: () -> Unit,
+    onLogout: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
+        shadowElevation = 4.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Welcome, $userName",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1
+                )
+            }
+            IconButton(onClick = onLogout) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ExitToApp,
+                    contentDescription = "Logout",
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Modern Tab Navigation with Material 3 design
+ */
+@Composable
+private fun ModernTabNavigation(
+    currentView: String,
+    activeFlags: List<DriverFlag>,
+    onViewChange: (String) -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        tonalElevation = 2.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            TabButton(
+                icon = Icons.Default.Add,
+                label = "Book",
+                isSelected = currentView == "booking",
+                onClick = { onViewChange("booking") },
+                modifier = Modifier.weight(1f)
+            )
+            
+            Spacer(modifier = Modifier.width(8.dp))
+            
+            TabButton(
+                icon = Icons.Default.History,
+                label = "History",
+                isSelected = currentView == "history",
+                onClick = { onViewChange("history") },
+                modifier = Modifier.weight(1f)
+            )
+            
+            Spacer(modifier = Modifier.width(8.dp))
+            
+            TabButtonWithBadge(
+                icon = Icons.Default.Flag,
+                label = "Flags",
+                badgeCount = activeFlags.size,
+                isSelected = currentView == "flags",
+                onClick = { onViewChange("flags") },
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+/**
+ * Individual Tab Button
+ */
+@Composable
+private fun TabButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.height(56.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = if (isSelected) 
+            MaterialTheme.colorScheme.primaryContainer
+        else 
+            MaterialTheme.colorScheme.surface,
+        tonalElevation = if (isSelected) 3.dp else 1.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = if (isSelected)
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                else
+                    MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                color = if (isSelected)
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                else
+                    MaterialTheme.colorScheme.onSurface
+            )
+        }
+    }
+}
+
+/**
+ * Tab Button with Badge for notifications
+ */
+@Composable
+private fun TabButtonWithBadge(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    badgeCount: Int,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier.height(56.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = if (isSelected) 
+            MaterialTheme.colorScheme.primaryContainer
+        else 
+            MaterialTheme.colorScheme.surface,
+        tonalElevation = if (isSelected) 3.dp else 1.dp
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    tint = if (isSelected)
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    else
+                        MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium,
+                    color = if (isSelected)
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    else
+                        MaterialTheme.colorScheme.onSurface
+                )
+            }
+            
+            // Badge
+            if (badgeCount > 0) {
+                Badge(
+                    containerColor = Color(0xFFD32F2F),
+                    contentColor = Color.White,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(end = 8.dp, top = 8.dp)
+                ) {
+                    Text(
+                        text = if (badgeCount > 99) "99+" else badgeCount.toString(),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Modern Bottom Navigation Bar
+ */
+@Composable
+private fun ModernBottomNavigation(
+    currentView: String,
+    activeFlags: List<DriverFlag>,
+    onViewChange: (String) -> Unit
+) {
+    NavigationBar(
+        modifier = Modifier.fillMaxWidth(),
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 3.dp
+    ) {
+        NavigationBarItem(
+            icon = {
+                Icon(
+                    Icons.Default.Home,
+                    contentDescription = "Home",
+                    modifier = Modifier.size(24.dp)
+                )
+            },
+            label = { Text("Home", fontSize = 12.sp) },
+            selected = currentView == "booking",
+            onClick = { onViewChange("booking") },
+            colors = NavigationBarItemDefaults.colors(
+                selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        )
+        
+        NavigationBarItem(
+            icon = {
+                Icon(
+                    Icons.Default.History,
+                    contentDescription = "Booking History",
+                    modifier = Modifier.size(24.dp)
+                )
+            },
+            label = { Text("Booking History", fontSize = 11.sp) },
+            selected = currentView == "history",
+            onClick = { onViewChange("history") },
+            colors = NavigationBarItemDefaults.colors(
+                selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        )
+        
+        NavigationBarItem(
+            icon = {
+                BadgedBox(
+                    badge = {
+                        if (activeFlags.isNotEmpty()) {
+                            Badge(
+                                containerColor = Color(0xFFD32F2F),
+                                contentColor = Color.White
+                            ) {
+                                Text(
+                                    text = if (activeFlags.size > 99) "99+" else activeFlags.size.toString(),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                ) {
+                    Icon(
+                        Icons.Default.Flag,
+                        contentDescription = "Flags",
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            },
+            label = { Text("Flags", fontSize = 12.sp) },
+            selected = currentView == "flags",
+            onClick = { onViewChange("flags") },
+            colors = NavigationBarItemDefaults.colors(
+                selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                selectedTextColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        )
     }
 }

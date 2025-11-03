@@ -53,6 +53,9 @@ class EnhancedBookingViewModel @Inject constructor(
     private val _regularFareMatrix = MutableStateFlow(FareMatrix())
     val regularFareMatrix = _regularFareMatrix.asStateFlow()
 
+    private val _specialFareMatrix = MutableStateFlow(FareMatrix(baseFare = 25.0, perKmRate = 5.0))
+    val specialFareMatrix = _specialFareMatrix.asStateFlow()
+
     // Polling jobs keyed by bookingId to avoid duplicates
     private val pollingJobs: MutableMap<String, Job> = mutableMapOf()
 
@@ -100,6 +103,13 @@ class EnhancedBookingViewModel @Inject constructor(
         viewModelScope.launch {
             repository.observeRegularFareMatrix().collect { fareMatrix ->
                 _regularFareMatrix.value = fareMatrix
+            }
+        }
+
+        // Observe special fare matrix in real-time
+        viewModelScope.launch {
+            repository.observeSpecialFareMatrix().collect { fareMatrix ->
+                _specialFareMatrix.value = fareMatrix
             }
         }
     }
@@ -615,6 +625,70 @@ class EnhancedBookingViewModel @Inject constructor(
     // Payment mode management
     suspend fun updatePaymentMode(driverId: String, paymentMode: String): Result<Unit> {
         return paymentService.updatePaymentMode(driverId, paymentMode)
+    }
+
+    // =====================
+    // Flagged Accounts System
+    // =====================
+    
+    /**
+     * Get driver flag data (flagScore and flagStatus)
+     */
+    suspend fun getDriverFlagData(driverId: String): Result<DriverFlagData> {
+        return repository.getDriverFlagData(driverId)
+    }
+    
+    /**
+     * Observe driver flag data in real-time
+     */
+    fun observeDriverFlagData(driverId: String): Flow<DriverFlagData> {
+        return repository.observeDriverFlagData(driverId)
+    }
+    
+    /**
+     * Get all active flags for a driver
+     */
+    suspend fun getDriverActiveFlags(driverId: String): Result<List<DriverFlag>> {
+        return repository.getDriverActiveFlags(driverId)
+    }
+    
+    /**
+     * Observe driver flags in real-time
+     */
+    fun observeDriverFlags(driverId: String): Flow<List<DriverFlag>> {
+        return repository.observeDriverFlags(driverId)
+    }
+    
+    // =====================
+    // Customer Flag Methods
+    // =====================
+    
+    /**
+     * Get customer flag data (flagScore and flagStatus)
+     */
+    suspend fun getUserFlagData(userId: String): Result<DriverFlagData> {
+        return repository.getUserFlagData(userId)
+    }
+    
+    /**
+     * Observe customer flag data in real-time
+     */
+    fun observeUserFlagData(userId: String): Flow<DriverFlagData> {
+        return repository.observeUserFlagData(userId)
+    }
+    
+    /**
+     * Get all active flags for a customer
+     */
+    suspend fun getUserActiveFlags(userId: String): Result<List<DriverFlag>> {
+        return repository.getUserActiveFlags(userId)
+    }
+    
+    /**
+     * Observe customer flags in real-time
+     */
+    fun observeUserFlags(userId: String): Flow<List<DriverFlag>> {
+        return repository.observeUserFlags(userId)
     }
 }
 
